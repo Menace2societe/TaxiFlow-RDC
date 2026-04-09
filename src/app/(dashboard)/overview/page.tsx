@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 import { createClient } from "@/lib/supabase/server";
-import { formatAmount } from "@/lib/currency";
+import { formatAmount } from "@/lib/utils/currency";
 import Link from "next/link";
 export default async function OverviewPage() {
   const supabase = await createClient();
