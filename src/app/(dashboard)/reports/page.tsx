@@ -2,7 +2,7 @@
 export const dynamic = "force-dynamic";
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Currency, DEFAULT_EXCHANGE_RATE, formatAmount, toDisplayCurrency } from "@/lib/currency";
+import { Currency, DEFAULT_EXCHANGE_RATE, formatAmount, toDisplayCurrency } from "@/lib/utils/currency";
 type Period = "7d" | "30d" | "all";
 type Entry = {
   id: string; entry_date: string; revenue: number; fuel_cost: number;
