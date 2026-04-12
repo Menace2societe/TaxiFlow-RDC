@@ -1,141 +1,87 @@
 "use client";
-export const dynamic = "force-dynamic";
-import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
-type Driver = { id: string; name: string; phone: string | null; active: boolean; vehicles: { plate: string } | null };
-type Vehicle = { id: string; plate: string; model: string | null; active: boolean };
+import { Car, Tool, AlertCircle, Plus, Search, MoreVertical } from 'lucide-react';
+import { useState } from 'react';
+
 export default function FleetPage() {
-  const [tab, setTab] = useState<"drivers" | "vehicles">("drivers");
-  const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showAddDriver, setShowAddDriver] = useState(false);
-  const [showAddVehicle, setShowAddVehicle] = useState(false);
-  const [driverName, setDriverName] = useState("");
-  const [driverPhone, setDriverPhone] = useState("");
-  const [driverVehicleId, setDriverVehicleId] = useState("");
-  const [vehiclePlate, setVehiclePlate] = useState("");
-  const [vehicleModel, setVehicleModel] = useState("");
-  const [saving, setSaving] = useState(false);
-  const supabase = createClient();
-  async function load() {
-    setLoading(true);
-    const [d, v] = await Promise.all([
-      supabase.from("drivers").select("id, name, phone, active, vehicles(plate)").order("name"),
-      supabase.from("vehicles").select("id, plate, model, active").order("plate"),
-    ]);
-    setDrivers((d.data as any) || []);
-    setVehicles((v.data as any) || []);
-    setLoading(false);
-  }
-  useEffect(() => { load(); }, []);
-  async function addDriver() {
-    if (!driverName.trim()) return;
-    setSaving(true);
-    await supabase.from("drivers").insert({ name: driverName.trim(), phone: driverPhone || null, vehicle_id: driverVehicleId || null });
-    setDriverName(""); setDriverPhone(""); setDriverVehicleId("");
-    setShowAddDriver(false); setSaving(false); load();
-  }
-  async function addVehicle() {
-    if (!vehiclePlate.trim()) return;
-    setSaving(true);
-    await supabase.from("vehicles").insert({ plate: vehiclePlate.trim(), model: vehicleModel || null });
-    setVehiclePlate(""); setVehicleModel("");
-    setShowAddVehicle(false); setSaving(false); load();
-  }
-  const input = "w-full px-3 py-2.5 bg-[#0a0a14] border border-[#2a2a40] rounded-xl text-sm text-white placeholder:text-[#3a3a55] focus:outline-none focus:border-[#7c63f5] transition-colors";
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const vehicles = [
+    { id: 1, model: "Toyota IST", plate: "1234AB/01", driver: "Kabasele Théo", status: "Actif", health: 95, lastService: "12/10/23" },
+    { id: 2, model: "Toyota Belta", plate: "5678CD/01", driver: "Jean-Marc B.", status: "Garage", health: 40, lastService: "05/01/24" },
+    { id: 3, model: "Toyota Ketch", plate: "9012EF/01", driver: "Non assigné", status: "Repos", health: 80, lastService: "20/12/23" },
+  ];
+
   return (
-    <div className="p-5 md:p-8 max-w-3xl">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-white">Flotte</h1>
-        <p className="text-[#64748b] text-sm mt-1">Gérez vos conducteurs et véhicules</p>
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Ma Flotte</h1>
+          <p className="text-slate-400 text-sm">Gestion technique des {vehicles.length} véhicules</p>
+        </div>
+        <button className="bg-[#7c63f5] hover:bg-[#6a52e0] px-5 py-2.5 rounded-xl flex items-center justify-center gap-2 font-bold transition-all shadow-lg shadow-[#7c63f5]/20">
+          <Plus size={20} /> Ajouter un véhicule
+        </button>
       </div>
-      <div className="flex gap-1 mb-6 bg-[#12121e] border border-[#2a2a40] rounded-xl p-1 w-fit">
-        {(["drivers", "vehicles"] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              tab === t ? "bg-[#7c63f5] text-white" : "text-[#94a3b8] hover:text-white"
-            }`}>
-            {t === "drivers" ? `Conducteurs (${drivers.filter(d => d.active).length})` : `Véhicules (${vehicles.filter(v => v.active).length})`}
-          </button>
+
+      {/* Barre de recherche */}
+      <div className="relative">
+        <Search className="absolute left-3 top-3 text-slate-500" size={20} />
+        <input 
+          type="text" 
+          placeholder="Rechercher une plaque ou un modèle..." 
+          className="w-full bg-[#121214] border border-slate-800 rounded-xl py-3 pl-11 pr-4 focus:border-[#7c63f5] outline-none transition-all"
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {vehicles.map((car) => (
+          <div key={car.id} className="bg-[#121214] border border-slate-800 p-5 rounded-2xl hover:border-slate-700 transition-all group">
+            <div className="flex justify-between items-start mb-4">
+              <div className="flex gap-4">
+                <div className={`p-3 rounded-xl ${car.status === 'Actif' ? 'bg-[#22c55e]/10 text-[#22c55e]' : 'bg-slate-800 text-slate-400'}`}>
+                  <Car size={24} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg">{car.model}</h3>
+                  <p className="text-[#7c63f5] font-mono text-sm tracking-widest uppercase">{car.plate}</p>
+                </div>
+              </div>
+              <button className="text-slate-600 hover:text-white"><MoreVertical size={20} /></button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div className="bg-slate-900/50 p-3 rounded-lg">
+                <p className="text-[10px] text-slate-500 uppercase mb-1">Chauffeur</p>
+                <p className="text-sm font-medium">{car.driver}</p>
+              </div>
+              <div className="bg-slate-900/50 p-3 rounded-lg">
+                <p className="text-[10px] text-slate-500 uppercase mb-1">Dernier Entretien</p>
+                <p className="text-sm font-medium">{car.lastService}</p>
+              </div>
+            </div>
+
+            {/* Barre de santé du véhicule */}
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-500 text-[10px] uppercase">État du moteur</span>
+                <span className={car.health > 50 ? 'text-[#22c55e]' : 'text-red-500'}>{car.health}%</span>
+              </div>
+              <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                <div 
+                  className={`h-full transition-all ${car.health > 80 ? 'bg-[#22c55e]' : car.health > 40 ? 'bg-orange-500' : 'bg-red-500'}`}
+                  style={{ width: `${car.health}%` }}
+                ></div>
+              </div>
+            </div>
+
+            {car.status === 'Garage' && (
+              <div className="mt-4 flex items-center gap-2 text-xs text-orange-400 bg-orange-400/10 p-2 rounded-lg">
+                <AlertCircle size={14} /> En attente de pièces (Direction)
+              </div>
+            )}
+          </div>
         ))}
-      </div>
-      {loading ? <p className="text-[#64748b] text-sm">Chargement...</p> : tab === "drivers" ? (
-        <div className="space-y-3">
-          {drivers.map(d => (
-            <div key={d.id} className={`bg-[#12121e] border border-[#2a2a40] rounded-xl p-4 flex items-center justify-between ${!d.active ? "opacity-40" : ""}`}>
-              <div>
-                <p className="text-sm font-semibold text-white">{d.name}</p>
-                <p className="text-xs text-[#64748b]">{d.phone || "Sans tél"} • {(d.vehicles as any)?.plate || "Sans véhicule"}</p>
-              </div>
-              <button onClick={() => supabase.from("drivers").update({ active: !d.active }).eq("id", d.id).then(load)}
-                className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${
-                  d.active ? "bg-red-500/10 text-red-400 hover:bg-red-500/20" : "bg-[#22c55e]/10 text-[#22c55e] hover:bg-[#22c55e]/20"
-                }`}>{d.active ? "Désactiver" : "Activer"}</button>
-            </div>
-          ))}
-          {drivers.length === 0 && <p className="text-[#64748b] text-sm text-center py-8">Aucun conducteur enregistré</p>}
-          <button onClick={() => setShowAddDriver(true)}
-            className="w-full py-3 border-2 border-dashed border-[#2a2a40] rounded-xl text-sm text-[#64748b] hover:text-[#7c63f5] hover:border-[#7c63f5] transition-colors">
-            + Ajouter un conducteur
-          </button>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {vehicles.map(v => (
-            <div key={v.id} className={`bg-[#12121e] border border-[#2a2a40] rounded-xl p-4 flex items-center justify-between ${!v.active ? "opacity-40" : ""}`}>
-              <div>
-                <p className="text-sm font-semibold text-white">{v.plate}</p>
-                <p className="text-xs text-[#64748b]">{v.model || "Modèle non spécifié"}</p>
-              </div>
-              <button onClick={() => supabase.from("vehicles").update({ active: !v.active }).eq("id", v.id).then(load)}
-                className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${
-                  v.active ? "bg-red-500/10 text-red-400 hover:bg-red-500/20" : "bg-[#22c55e]/10 text-[#22c55e] hover:bg-[#22c55e]/20"
-                }`}>{v.active ? "Désactiver" : "Activer"}</button>
-            </div>
-          ))}
-          {vehicles.length === 0 && <p className="text-[#64748b] text-sm text-center py-8">Aucun véhicule enregistré</p>}
-          <button onClick={() => setShowAddVehicle(true)}
-            className="w-full py-3 border-2 border-dashed border-[#2a2a40] rounded-xl text-sm text-[#64748b] hover:text-[#7c63f5] hover:border-[#7c63f5] transition-colors">
-            + Ajouter un véhicule
-          </button>
-        </div>
-      )}
-      {/* Add Driver Modal */}
-      {showAddDriver && (
-        <Modal title="Nouveau conducteur" onClose={() => setShowAddDriver(false)}>
-          <input className={input} value={driverName} onChange={e => setDriverName(e.target.value)} placeholder="Nom complet *" />
-          <input className={input} type="tel" value={driverPhone} onChange={e => setDriverPhone(e.target.value)} placeholder="Téléphone (optionnel)" />
-          <select className={input} value={driverVehicleId} onChange={e => setDriverVehicleId(e.target.value)}>
-            <option value="">Véhicule (optionnel)</option>
-            {vehicles.filter(v => v.active).map(v => <option key={v.id} value={v.id}>{v.plate}{v.model ? ` (${v.model})` : ""}</option>)}
-          </select>
-          <div className="flex gap-3 mt-2">
-            <button onClick={() => setShowAddDriver(false)} className="flex-1 py-2.5 bg-[#1a1a2e] rounded-xl text-sm text-[#94a3b8] hover:text-white">Annuler</button>
-            <button onClick={addDriver} disabled={!driverName.trim() || saving} className="flex-1 py-2.5 bg-[#7c63f5] hover:bg-[#9580ff] disabled:opacity-50 rounded-xl text-sm font-semibold text-white">{saving ? "..." : "Ajouter"}</button>
-          </div>
-        </Modal>
-      )}
-      {/* Add Vehicle Modal */}
-      {showAddVehicle && (
-        <Modal title="Nouveau véhicule" onClose={() => setShowAddVehicle(false)}>
-          <input className={input} value={vehiclePlate} onChange={e => setVehiclePlate(e.target.value)} placeholder="Plaque d'immatriculation *" />
-          <input className={input} value={vehicleModel} onChange={e => setVehicleModel(e.target.value)} placeholder="Modèle (ex: Toyota Corolla)" />
-          <div className="flex gap-3 mt-2">
-            <button onClick={() => setShowAddVehicle(false)} className="flex-1 py-2.5 bg-[#1a1a2e] rounded-xl text-sm text-[#94a3b8] hover:text-white">Annuler</button>
-            <button onClick={addVehicle} disabled={!vehiclePlate.trim() || saving} className="flex-1 py-2.5 bg-[#7c63f5] hover:bg-[#9580ff] disabled:opacity-50 rounded-xl text-sm font-semibold text-white">{saving ? "..." : "Ajouter"}</button>
-          </div>
-        </Modal>
-      )}
-    </div>
-  );
-}
-function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 p-4">
-      <div className="bg-[#12121e] border border-[#2a2a40] rounded-2xl p-5 w-full max-w-sm space-y-3">
-        <h3 className="text-base font-semibold text-white">{title}</h3>
-        {children}
       </div>
     </div>
   );
