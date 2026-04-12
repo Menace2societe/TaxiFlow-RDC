@@ -21,103 +21,92 @@ export default function SignupPage() {
     setLoading(true);
     setError("");
 
-    // 1. Création de l'utilisateur dans Supabase Auth
-    const { data, error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-        },
-      },
-    });
+    try {
+      // 1. Création du compte (Auth)
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+      });
 
-    if (signUpError) {
-      setError(signUpError.message);
-      setLoading(false);
-      return;
-    }
+      if (signUpError) throw signUpError;
 
-    // 2. Insertion manuelle dans la table 'profiles' (Ce qui manquait !)
-    if (data.user) {
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .insert([
-          {
-            id: data.user.id,
-            full_name: fullName,
-            role: "investor",
-          },
-        ]);
+      // 2. Enregistrement du profil dans la table SQL 'profiles'
+      if (data?.user) {
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .insert([
+            {
+              id: data.user.id,
+              full_name: fullName,
+              role: "investor",
+            },
+          ]);
 
-      if (profileError) {
-        console.error("Erreur Profil:", profileError);
-        setError("Erreur base de données : " + profileError.message);
-        setLoading(false);
-        return;
+        if (profileError) throw profileError;
       }
-    }
 
-    // 3. Succès : Redirection vers le dashboard
-    router.push("/overview");
-    router.refresh();
+      // 3. Redirection si tout est OK
+      router.push("/overview");
+      router.refresh();
+
+    } catch (err: any) {
+      // On affiche l'erreur exacte pour savoir ce qui bloque
+      console.error("Erreur Inscription:", err);
+      setError(err.message || "Une erreur est survenue lors de l'inscription");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
     <div className="min-h-screen bg-[#0a0a14] flex items-center justify-center px-4">
-      <div className="w-full max-w-[360px]">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 bg-[#7c63f5] rounded-xl flex items-center justify-center">
-              <span className="text-white font-bold text-sm">T</span>
+      <div className="w-full max-w-[400px]">
+        <div className="text-center mb-10">
+          <div className="inline-flex items-center gap-2 mb-4">
+            <div className="w-10 h-10 bg-[#7c63f5] rounded-xl flex items-center justify-center shadow-lg shadow-[#7c63f5]/20">
+              <span className="text-white font-bold text-lg">T</span>
             </div>
-            <span className="text-xl font-bold text-white">taxiflow</span>
+            <span className="text-2xl font-bold text-white tracking-tight">taxiflow</span>
           </div>
-          <p className="text-[#64748b] text-sm">Commencez à gérer votre flotte</p>
+          <p className="text-[#64748b] text-sm">Gérez votre business de taxi à Kinshasa</p>
         </div>
 
-        <div className="bg-[#12121e] border border-[#2a2a40] rounded-2xl p-6">
-          <h2 className="text-base font-semibold mb-5 text-white">Créer un compte</h2>
+        <div className="bg-[#12121e] border border-[#2a2a40] rounded-2xl p-8 shadow-2xl">
+          <h2 className="text-xl font-semibold mb-6 text-white text-center">Créer un compte</h2>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
+            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs leading-relaxed">
               {error}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-xs font-medium text-[#94a3b8] mb-1.5">
-                Nom complet
-              </label>
+              <label className="block text-xs font-semibold text-[#94a3b8] uppercase tracking-wider mb-2">Nom complet</label>
               <input
                 type="text"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 required
-                placeholder="Jean Mukeba"
-                className="w-full px-3 py-2.5 bg-[#0a0a14] border border-[#2a2a40] rounded-xl text-sm text-white placeholder:text-[#3a3a55] focus:outline-none focus:border-[#7c63f5] transition-colors"
+                placeholder="Ex: Jonathan Kamunga"
+                className="w-full px-4 py-3 bg-[#0a0a14] border border-[#2a2a40] rounded-xl text-sm text-white focus:outline-none focus:border-[#7c63f5] focus:ring-1 focus:ring-[#7c63f5] transition-all"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-[#94a3b8] mb-1.5">
-                Email
-              </label>
+              <label className="block text-xs font-semibold text-[#94a3b8] uppercase tracking-wider mb-2">Email</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                placeholder="vous@exemple.com"
-                className="w-full px-3 py-2.5 bg-[#0a0a14] border border-[#2a2a40] rounded-xl text-sm text-white placeholder:text-[#3a3a55] focus:outline-none focus:border-[#7c63f5] transition-colors"
+                placeholder="votre@email.com"
+                className="w-full px-4 py-3 bg-[#0a0a14] border border-[#2a2a40] rounded-xl text-sm text-white focus:outline-none focus:border-[#7c63f5] focus:ring-1 focus:ring-[#7c63f5] transition-all"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-[#94a3b8] mb-1.5">
-                Mot de passe
-              </label>
+              <label className="block text-xs font-semibold text-[#94a3b8] uppercase tracking-wider mb-2">Mot de passe</label>
               <input
                 type="password"
                 value={password}
@@ -125,25 +114,27 @@ export default function SignupPage() {
                 required
                 placeholder="••••••••"
                 minLength={6}
-                className="w-full px-3 py-2.5 bg-[#0a0a14] border border-[#2a2a40] rounded-xl text-sm text-white placeholder:text-[#3a3a55] focus:outline-none focus:border-[#7c63f5] transition-colors"
+                className="w-full px-4 py-3 bg-[#0a0a14] border border-[#2a2a40] rounded-xl text-sm text-white focus:outline-none focus:border-[#7c63f5] focus:ring-1 focus:ring-[#7c63f5] transition-all"
               />
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 bg-[#7c63f5] hover:bg-[#9580ff] disabled:opacity-60 rounded-xl text-sm font-semibold text-white transition-colors"
+              className="w-full py-3.5 bg-[#7c63f5] hover:bg-[#6a51e6] disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-sm font-bold text-white transition-all transform active:scale-[0.98] shadow-lg shadow-[#7c63f5]/20"
             >
-              {loading ? "Création..." : "Créer mon compte"}
+              {loading ? "Création en cours..." : "Lancer mon activité"}
             </button>
           </form>
 
-          <p className="text-center text-sm text-[#64748b] mt-5">
-            Déjà un compte ?{" "}
-            <Link href="/login" className="text-[#7c63f5] hover:text-[#9580ff] font-medium">
-              Se connecter
-            </Link>
-          </p>
+          <div className="mt-8 pt-6 border-t border-[#2a2a40] text-center">
+            <p className="text-sm text-[#64748b]">
+              Déjà un compte ?{" "}
+              <Link href="/login" className="text-[#7c63f5] hover:text-[#9580ff] font-semibold transition-colors">
+                Se connecter
+              </Link>
+            </p>
+          </div>
         </div>
       </div>
     </div>
