@@ -87,3 +87,30 @@ export default function EntriesPage() {
                 type="number" 
                 value={amount} 
                 onChange={(e) => setAmount(e.target.value)}
+                className="flex-1 bg-zinc-900 border border-zinc-800 rounded-2xl p-5 text-white outline-none focus:border-[#7c63f5]"
+                placeholder="0.00"
+              />
+              <select 
+                value={currency} 
+                onChange={(e) => setCurrency(e.target.value)}
+                className="bg-zinc-800 border border-zinc-700 rounded-2xl px-4 font-bold text-[#7c63f5]"
+              >
+                <option value="USD">USD</option>
+                <option value="CDF">CDF</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <button 
+          type="submit" 
+          disabled={loading} 
+          className="w-full bg-[#7c63f5] hover:bg-[#6a52e0] text-white font-black py-5 rounded-2xl flex justify-center items-center gap-3 transition-all text-xl shadow-lg shadow-[#7c63f5]/20"
+        >
+          {loading ? <Loader2 className="animate-spin" /> : <CheckCircle size={24} />} 
+          CONFIRMER L'ENCAISSEMENT
+        </button>
+      </form>
+    </div>
+  );
+}
