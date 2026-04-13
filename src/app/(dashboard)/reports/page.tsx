@@ -1,69 +1,44 @@
 "use client";
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
-import { TrendingUp, Wallet, ArrowUpRight } from 'lucide-react';
 
 export default function ReportsPage() {
   const supabase = createClientComponentClient();
-  const [data, setData] = useState<any[]>([]);
-  const [totalCDF, setTotalCDF] = useState(0);
+  const [logs, setLogs] = useState<any[]>([]);
 
   useEffect(() => {
-    const getData = async () => {
-      const { data: records } = await supabase.from('daily_records').select('*');
-      if (records) {
-        setData(records);
-        const sum = records.reduce((acc, curr) => {
-           if (curr.currency === 'USD') return acc + (curr.amount * curr.rate);
-           return acc + curr.amount;
-        }, 0);
-        setTotalCDF(sum);
-      }
-    };
-    getData();
-  }, []);
+    async function getLogs() {
+      const { data } = await supabase.from('daily_records').select('*, drivers(full_name)').order('created_at', { ascending: false });
+      if (data) setLogs(data);
+    }
+    getLogs();
+  }, [supabase]);
 
   return (
-    <div className="space-y-8 p-4">
-      <header>
-        <h1 className="text-3xl font-bold">Analyse Financière</h1>
-        <p className="text-slate-400">Chiffres réels consolidés de la base de données.</p>
-      </header>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-[#121214] border border-slate-800 p-8 rounded-[32px]">
-          <Wallet className="text-[#7c63f5] mb-4" size={32} />
-          <p className="text-xs font-bold text-slate-500 uppercase">Recettes Totales (Équiv. CDF)</p>
-          <h3 className="text-4xl font-black text-[#22c55e] mt-2">{totalCDF.toLocaleString()} FC</h3>
-        </div>
-        <div className="bg-[#121214] border border-slate-800 p-8 rounded-[32px] flex flex-col justify-center">
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="text-xs font-bold text-slate-500 uppercase">Croissance</p>
-              <h3 className="text-2xl font-bold text-white mt-1">+18.5%</h3>
-            </div>
-            <TrendingUp size={48} className="text-[#7c63f5] opacity-20" />
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-[#121214] border border-slate-800 p-8 rounded-[32px]">
-        <h3 className="text-lg font-bold mb-8">Flux de trésorerie (Derniers enregistrements)</h3>
-        <div className="h-72 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data.slice(-10)}>
-              <defs>
-                <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#7c63f5" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#7c63f5" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <Tooltip contentStyle={{ backgroundColor: '#121214', border: 'none', borderRadius: '12px' }} />
-              <Area type="monotone" dataKey="amount" stroke="#7c63f5" fillOpacity={1} fill="url(#colorTotal)" />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
+    <div className="min-h-screen bg-black text-white p-6 space-y-8">
+      <h1 className="text-3xl font-black italic">RAPPORTS FINANCIERS</h1>
+      
+      <div className="bg-zinc-950 border border-zinc-900 rounded-[32px] overflow-hidden">
+        <table className="w-full text-left">
+          <thead className="bg-zinc-900 text-zinc-400 text-xs font-bold uppercase tracking-widest border-b border-zinc-800">
+            <tr>
+              <th className="p-6">Date</th>
+              <th className="p-6">Chauffeur</th>
+              <th className="p-6">Montant</th>
+              <th className="p-6">Status</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-zinc-900">
+            {logs.map(log => (
+              <tr key={log.id} className="hover:bg-white/5 transition-colors">
+                <td className="p-6 text-zinc-300">{new Date(log.created_at).toLocaleDateString()}</td>
+                <td className="p-6 font-bold text-white">{log.drivers?.full_name}</td>
+                <td className="p-6 font-black text-[#22c55e]">{log.amount} $</td>
+                <td className="p-6"><span className="bg-[#22c55e]/10 text-[#22c55e] px-3 py-1 rounded-full text-[10px] font-bold">ENCAISSÉ</span></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
