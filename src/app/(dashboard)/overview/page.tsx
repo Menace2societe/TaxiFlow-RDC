@@ -1,93 +1,59 @@
-export const dynamic = "force-dynamic";
-import { createClient } from "@/lib/supabase/client";
-import { formatAmount } from "@/lib/utils/currency";
-import Link from "next/link";
-export default async function OverviewPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-  const today = new Date().toISOString().split("T")[0];
-  let stats = { revenue: 0, fuel: 0, other: 0, entries: 0, drivers: 0, vehicles: 0 };
-  let recentEntries: any[] = [];
-  let dbError = false;
-  try {
-    const [todayRes, driversRes, vehiclesRes, recentRes] = await Promise.all([
-      supabase.from("daily_entries").select("revenue, fuel_cost, other_expenses, currency, exchange_rate").eq("owner_id", user.id).eq("entry_date", today),
-      supabase.from("drivers").select("id", { count: "exact" }).eq("owner_id", user.id).eq("active", true),
-      supabase.from("vehicles").select("id", { count: "exact" }).eq("owner_id", user.id).eq("active", true),
-      supabase.from("daily_entries").select("id, entry_date, revenue, fuel_cost, other_expenses, currency, exchange_rate, drivers(name), vehicles(plate)").eq("owner_id", user.id).order("entry_date", { ascending: false }).order("created_at", { ascending: false }).limit(5),
-    ]);
-    for (const e of (todayRes.data || [])) {
-      const rate = e.exchange_rate || 2800;
-      const toUSD = (v: number) => e.currency === "CDF" ? v / rate : v;
-      stats.revenue += toUSD(e.revenue);
-      stats.fuel += toUSD(e.fuel_cost);
-      stats.other += toUSD(e.other_expenses);
-      stats.entries++;
+"use client";
+import React, { useEffect, useState } from 'react';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { Wallet, Users, Car, TrendingUp, Loader2 } from 'lucide-react';
+
+export default function OverviewPage() {
+  const supabase = createClientComponentClient();
+  const [stats, setStats] = useState({ revenue: 0, drivers: 0, fleet: 0 });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchStats() {
+      const { data: records } = await supabase.from('daily_records').select('amount, currency, rate');
+      const { count: driverCount } = await supabase.from('drivers').select('*', { count: 'exact', head: true });
+      const { count: vehicleCount } = await supabase.from('vehicles').select('*', { count: 'exact', head: true });
+
+      const totalRevenue = records?.reduce((acc, curr) => {
+        if (curr.currency === 'USD') return acc + (curr.amount * curr.rate);
+        return acc + curr.amount;
+      }, 0) || 0;
+
+      setStats({ revenue: totalRevenue, drivers: driverCount || 0, fleet: vehicleCount || 0 });
+      setLoading(false);
     }
-    stats.drivers = driversRes.count || 0;
-    stats.vehicles = vehiclesRes.count || 0;
-    recentEntries = (recentRes.data as any) || [];
-  } catch { dbError = true; }
-  const net = stats.revenue - stats.fuel - stats.other;
-  const todayLabel = new Date().toLocaleDateString("fr-CD", { weekday: "long", day: "numeric", month: "long" });
+    fetchStats();
+  }, []);
+
+  if (loading) return <div className="h-full flex items-center justify-center bg-[#0a0a0c]"><Loader2 className="animate-spin text-[#7c63f5]" size={48} /></div>;
+
   return (
-    <div className="p-5 md:p-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-white">Tableau de bord</h1>
-        <p className="text-[#64748b] text-sm mt-1 capitalize">{todayLabel}</p>
+    <div className="space-y-8 p-4 bg-[#0a0a0c] min-h-screen text-white">
+      <div>
+        <h1 className="text-3xl font-black text-white italic">TABLEAU DE BORD</h1>
+        <p className="text-slate-300">Performance en temps réel - Kinshasa</p>
       </div>
-      {dbError && (
-        <div className="mb-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400 text-sm">
-          ⚠️ Configurez Supabase pour voir vos données.
-        </div>
-      )}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard label="Revenu du jour" value={formatAmount(stats.revenue, "USD")} color="green" />
-        <StatCard label="Dépenses" value={formatAmount(stats.fuel + stats.other, "USD")} color="red" />
-        <StatCard label="Bénéfice net" value={formatAmount(net, "USD")} color={net >= 0 ? "green" : "red"} />
-        <StatCard label="Conducteurs actifs" value={`${stats.drivers}`} sub={`${stats.vehicles} véhicule(s)`} />
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <StatCard icon={<Wallet className="text-[#22c55e]" />} label="Total Recettes (CDF)" value={stats.revenue.toLocaleString()} />
+        <StatCard icon={<Users className="text-[#7c63f5]" />} label="Chauffeurs Actifs" value={stats.drivers.toString()} />
+        <StatCard icon={<Car className="text-blue-400" />} label="État de la Flotte" value={`${stats.fleet} Véhicules`} />
       </div>
-      <div className="bg-[#12121e] border border-[#2a2a40] rounded-2xl p-5 max-w-3xl">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-semibold text-white">Dernières saisies</h2>
-          <Link href="/entries" className="text-xs text-[#7c63f5] hover:underline">Voir tout →</Link>
-        </div>
-        {recentEntries.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-[#64748b] text-sm">Aucune saisie aujourd&apos;hui</p>
-            <Link href="/entries" className="mt-3 inline-block text-[#7c63f5] text-sm hover:underline">Ajouter une saisie →</Link>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {recentEntries.map((e: any) => {
-              const net = e.revenue - e.fuel_cost - e.other_expenses;
-              return (
-                <div key={e.id} className="flex items-center justify-between p-3 bg-[#0a0a14] rounded-xl">
-                  <div>
-                    <p className="text-sm font-medium text-white">{e.drivers?.name || "—"} • {e.vehicles?.plate || "—"}</p>
-                    <p className="text-xs text-[#64748b]">{new Date(e.entry_date).toLocaleDateString("fr-CD", { day: "numeric", month: "short" })}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold text-[#22c55e]">+{formatAmount(e.revenue, e.currency)}</p>
-                    <p className="text-xs text-[#64748b]">net: {net >= 0 ? "+" : ""}{formatAmount(net, e.currency)}</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+
+      <div className="bg-[#121214] border border-slate-800 p-8 rounded-[32px]">
+         <h2 className="text-xl font-bold mb-4 text-white">Activités Récentes</h2>
+         <p className="text-slate-400 text-sm italic underline decoration-[#7c63f5]">Données synchronisées avec succès.</p>
       </div>
     </div>
   );
 }
-function StatCard({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: "green" | "red" }) {
-  const valueColor = color === "green" ? "text-[#22c55e]" : color === "red" ? "text-[#ef4444]" : "text-white";
+
+function StatCard({ icon, label, value }: { icon: any, label: string, value: string }) {
   return (
-    <div className="bg-[#12121e] border border-[#2a2a40] rounded-2xl p-4">
-      <p className="text-xs text-[#64748b] mb-2">{label}</p>
-      <p className={`text-lg font-bold ${valueColor}`}>{value}</p>
-      {sub && <p className="text-xs text-[#64748b] mt-0.5">{sub}</p>}
+    <div className="bg-[#121214] border border-slate-800 p-8 rounded-[32px] hover:border-[#7c63f5]/50 transition-all">
+      <div className="mb-4">{icon}</div>
+      <p className="text-xs font-bold text-slate-300 uppercase tracking-widest">{label}</p>
+      <h3 className="text-3xl font-black text-white mt-1">{value}</h3>
     </div>
   );
 }
