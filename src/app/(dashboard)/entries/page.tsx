@@ -9,7 +9,7 @@ export default function EntriesPage() {
   const [amount, setAmount] = useState<string>("");
   const [currency, setCurrency] = useState<'USD' | 'CDF'>('CDF');
   const [entries, setEntries] = useState<any[]>([]);
-  const rate = 2850; 
+  const rate = 2850; // Taux de change standard Kinshasa
 
   // Charger les données réelles au démarrage
   useEffect(() => {
@@ -29,19 +29,22 @@ export default function EntriesPage() {
     if (!amount) return;
     setLoading(true);
 
+    // MISSION DAVID : Insertion avec l'ID chauffeur réel
     const { error } = await supabase
       .from('daily_records')
       .insert([{ 
         amount: parseFloat(amount), 
         currency, 
         rate,
-        // On simule un driver_id ou on récupère le premier pour le test
-        driver_id: 'eb9f143c-6663-44f2-986c-e547076d1e44' 
+        driver_id: '7c6311d4-7af7-4dc1-ae4d-e6a01dcf86ff' // Ton ID Chauffeur mis à jour
       }]);
 
     if (!error) {
       setAmount("");
-      fetchEntries();
+      fetchEntries(); // Rafraîchit la liste instantanément
+    } else {
+      console.error("Erreur d'insertion :", error.message);
+      alert("Erreur lors de l'enregistrement. Vérifiez la connexion.");
     }
     setLoading(false);
   };
@@ -54,60 +57,105 @@ export default function EntriesPage() {
     <div className="max-w-4xl mx-auto space-y-8 p-4">
       <header className="flex justify-between items-end">
         <div>
-          <h1 className="text-3xl font-bold">Versements</h1>
-          <p className="text-slate-500">Données réelles synchronisées avec Supabase.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-white">Versements</h1>
+          <p className="text-slate-500">Enregistrement sécurisé dans la base TaxiFlow.</p>
         </div>
-        <div className="text-right bg-slate-900 p-3 rounded-2xl border border-slate-800">
-          <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest">Taux Fixe</p>
-          <p className="text-[#7c63f5] font-mono font-bold">{rate} FC / 1$</p>
+        <div className="text-right bg-slate-900/50 p-3 rounded-2xl border border-slate-800 backdrop-blur-sm">
+          <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest">Taux Marché</p>
+          <p className="text-[#7c63f5] font-mono font-bold text-lg">{rate} FC / 1$</p>
         </div>
       </header>
 
-      <section className="bg-[#121214] border border-slate-800 p-6 rounded-[32px] shadow-2xl">
-        <form onSubmit={handleAddEntry} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-400 uppercase ml-1">Montant Perçu</label>
+      {/* Formulaire de Versement */}
+      <section className="bg-[#121214] border border-slate-800 p-8 rounded-[32px] shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-[#7c63f5]/5 rounded-full blur-3xl -mr-16 -mt-16"></div>
+        
+        <form onSubmit={handleAddEntry} className="relative z-10 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-3">
+              <label className="text-xs font-bold text-slate-400 uppercase ml-1 tracking-wider">Montant Perçu</label>
               <div className="relative">
                 <input 
-                  type="number" value={amount} onChange={(e) => setAmount(e.target.value)}
+                  type="number" 
+                  value={amount} 
+                  onChange={(e) => setAmount(e.target.value)}
                   placeholder="0.00"
-                  className="w-full bg-[#0a0a0c] border border-slate-700 rounded-2xl py-4 px-6 text-2xl font-bold focus:border-[#7c63f5] outline-none transition-all"
+                  className="w-full bg-[#0a0a0c] border border-slate-700 rounded-2xl py-5 px-6 text-3xl font-black focus:border-[#7c63f5] outline-none transition-all placeholder:text-slate-800 text-white"
                 />
-                <div className="absolute right-4 top-4 flex bg-slate-800 rounded-xl p-1">
-                  <button type="button" onClick={() => setCurrency('USD')} className={`px-4 py-1.5 rounded-lg text-xs font-bold ${currency === 'USD' ? 'bg-[#7c63f5] text-white' : 'text-slate-500'}`}>USD</button>
-                  <button type="button" onClick={() => setCurrency('CDF')} className={`px-4 py-1.5 rounded-lg text-xs font-bold ${currency === 'CDF' ? 'bg-[#7c63f5] text-white' : 'text-slate-500'}`}>CDF</button>
+                <div className="absolute right-4 top-4 flex bg-slate-800 rounded-xl p-1.5 border border-slate-700 shadow-inner">
+                  <button type="button" onClick={() => setCurrency('USD')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${currency === 'USD' ? 'bg-[#7c63f5] text-white shadow-lg shadow-[#7c63f5]/20' : 'text-slate-500 hover:text-white'}`}>USD</button>
+                  <button type="button" onClick={() => setCurrency('CDF')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${currency === 'CDF' ? 'bg-[#7c63f5] text-white shadow-lg shadow-[#7c63f5]/20' : 'text-slate-500 hover:text-white'}`}>CDF</button>
                 </div>
               </div>
-              {amount && <p className="text-[11px] text-[#22c55e] ml-2 font-medium">≈ {convertedValue}</p>}
+              {amount && (
+                <div className="flex items-center gap-2 ml-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse"></span>
+                  <p className="text-sm text-[#22c55e] font-bold italic">≈ {convertedValue}</p>
+                </div>
+              )}
             </div>
-            <div className="space-y-2 text-slate-400">
-               <label className="text-xs font-bold uppercase ml-1">Véhicule / Chauffeur</label>
-               <div className="w-full bg-[#0a0a0c] border border-slate-700 rounded-2xl py-4 px-6">Flotte Kinshasa Actrice</div>
+
+            <div className="space-y-3">
+               <label className="text-xs font-bold text-slate-400 uppercase ml-1 tracking-wider">Chauffeur Assigné</label>
+               <div className="w-full bg-[#0a0a0c]/50 border border-slate-800 text-slate-400 rounded-2xl py-5 px-6 font-semibold flex items-center gap-3">
+                 <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-[10px] text-white font-black">ID</div>
+                 7c6311d4...86ff
+               </div>
+               <p className="text-[10px] text-slate-600 ml-1">ID lié automatiquement à ce versement.</p>
             </div>
           </div>
-          <button type="submit" disabled={loading} className="w-full bg-[#7c63f5] hover:bg-[#6a52e0] text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-3 transition-all text-lg disabled:opacity-50">
-            {loading ? <Loader2 className="animate-spin" /> : <CheckCircle size={22} />}
-            {loading ? 'Enregistrement...' : 'Valider le versement'}
+
+          <button 
+            type="submit" 
+            disabled={loading || !amount} 
+            className="w-full bg-[#7c63f5] hover:bg-[#6a52e0] text-white font-black py-5 rounded-2xl flex items-center justify-center gap-3 transition-all text-xl disabled:opacity-30 disabled:cursor-not-allowed shadow-xl shadow-[#7c63f5]/10"
+          >
+            {loading ? <Loader2 className="animate-spin" /> : <CheckCircle size={24} />}
+            {loading ? 'Sychronisation...' : 'Valider le Versement'}
           </button>
         </form>
       </section>
 
-      <section className="space-y-4">
-        <h3 className="text-lg font-bold flex items-center gap-2 px-2"><History size={18} className="text-[#7c63f5]" /> Historique Base de données</h3>
-        <div className="space-y-3">
+      {/* Liste Historique */}
+      <section className="space-y-5">
+        <div className="flex justify-between items-center px-2">
+           <h3 className="text-xl font-bold flex items-center gap-3 text-white">
+             <History size={20} className="text-[#7c63f5]" /> 
+             Journal des Recettes
+           </h3>
+           <span className="text-[10px] bg-slate-800 text-slate-400 px-3 py-1 rounded-full border border-slate-700 font-bold uppercase tracking-tighter">Live Database</span>
+        </div>
+
+        <div className="space-y-4">
+          {entries.length === 0 && !loading && (
+            <div className="text-center py-10 border-2 border-dashed border-slate-800 rounded-3xl">
+              <p className="text-slate-600 font-medium italic text-sm">Aucun versement enregistré pour le moment.</p>
+            </div>
+          )}
+
           {entries.map((entry) => (
-            <div key={entry.id} className="bg-[#121214] border border-slate-800 p-4 rounded-2xl flex justify-between items-center">
-              <div className="flex gap-4 items-center">
-                <div className="w-10 h-10 bg-slate-900 rounded-full flex items-center justify-center text-[#7c63f5]"><ArrowDownCircle size={20} /></div>
+            <div key={entry.id} className="bg-[#121214] border border-slate-800 p-5 rounded-3xl flex justify-between items-center group hover:border-[#7c63f5]/30 transition-all shadow-lg">
+              <div className="flex gap-5 items-center">
+                <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center text-[#7c63f5] border border-slate-800 shadow-inner group-hover:scale-110 transition-transform">
+                  <ArrowDownCircle size={24} />
+                </div>
                 <div>
-                  <p className="font-bold">Versement Reçu</p>
-                  <p className="text-[10px] text-slate-500">{new Date(entry.created_at).toLocaleString('fr-FR')}</p>
+                  <p className="font-bold text-white text-lg">Versement Encaissé</p>
+                  <p className="text-[10px] text-slate-500 font-medium">
+                    {new Date(entry.created_at).toLocaleString('fr-FR', {
+                      day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+                    })}
+                  </p>
                 </div>
               </div>
               <div className="text-right">
-                <p className={`font-black text-lg ${entry.currency === 'USD' ? 'text-white' : 'text-[#22c55e]'}`}>{entry.amount.toLocaleString()} <span className="text-xs">{entry.currency}</span></p>
-                <span className="text-[9px] uppercase px-2 py-0.5 bg-slate-900 text-[#22c55e] rounded-md border border-slate-800">Confirmé</span>
+                <p className={`font-black text-2xl tracking-tight ${entry.currency === 'USD' ? 'text-white' : 'text-[#22c55e]'}`}>
+                  {entry.amount.toLocaleString()} <span className="text-xs ml-1 font-bold opacity-70">{entry.currency}</span>
+                </p>
+                <div className="flex items-center justify-end gap-1.5 mt-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#22c55e]"></div>
+                  <span className="text-[10px] uppercase font-black text-[#22c55e] tracking-widest">Encaissé</span>
+                </div>
               </div>
             </div>
           ))}
