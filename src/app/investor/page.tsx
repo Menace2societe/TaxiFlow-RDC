@@ -1,4 +1,5 @@
 "use client";
+export const dynamic = 'force-dynamic';
 import React, { useState, useEffect } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Target, TrendingUp, DollarSign, Calendar } from 'lucide-react';
