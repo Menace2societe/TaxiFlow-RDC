@@ -3,6 +3,8 @@ export const dynamic = 'force-dynamic';
 import { useState } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
+console.log("CHECK URL:", process.env.NEXT_PUBLIC_SUPABASE_URL ? "OK" : "VIDE");
+console.log("CHECK KEY:", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "OK" : "VIDE");
 
 export default function AuthPage() {
   const [email, setEmail] = useState('');
