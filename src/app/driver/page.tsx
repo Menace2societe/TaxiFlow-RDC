@@ -5,7 +5,10 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Users, Plus, Phone, Loader2, Check } from 'lucide-react';
 
 export default function DriversPage() {
-  const supabase = createClientComponentClient();
+  const supabase = createClientComponentClient({
+    supabaseUrl: "https://dqswjpktzcdikmwwxokb.supabase.co",
+    supabaseKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRxc3dqcGt0emNkaW13d3hva2IiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTczNzQ1ODU1OSwiZXhwIjoyMDUzMDM0NTU5fQ.L-uT9uYm9eY6Xk7z6k6_u9_p8_P_u9_p8_P_u9_p8"
+  });
   const [drivers, setDrivers] = useState<any[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
