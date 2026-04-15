@@ -7,7 +7,7 @@ import { Users, Plus, Phone, Loader2, Check } from 'lucide-react';
 export default function DriversPage() {
   const supabase = createClientComponentClient({
     supabaseUrl: "https://dqswjpktzcdikmwwxokb.supabase.co",
-    supabaseKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRxc3dqcGt0emNkaW13d3hva2IiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTczNzQ1ODU1OSwiZXhwIjoyMDUzMDM0NTU5fQ.L-uT9uYm9eY6Xk7z6k6_u9_p8_P_u9_p8_P_u9_p8"
+    supabaseKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRxc3dqcGt0emNkaWttd3d4b2tiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2NzI5MjEsImV4cCI6MjA5MTI0ODkyMX0.DE8bO0qvXN7d5jUIYzVGN-_z4nCBioNaZ5VFP1t28ls"
   });
   const [drivers, setDrivers] = useState<any[]>([]);
   const [showForm, setShowForm] = useState(false);
