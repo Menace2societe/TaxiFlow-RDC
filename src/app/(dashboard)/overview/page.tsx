@@ -6,7 +6,10 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import { Wallet, TrendingUp, Car, Users } from 'lucide-react';
 
 export default function OverviewPage() {
-  const supabase = createClientComponentClient();
+  const supabase = createClientComponentClient({
+  supabaseUrl: "https://dqswjpktzcdikmwwxokb.supabase.co",
+  supabaseKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRxc3dqcGt0emNkaW13d3hva2IiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTczNzQ1ODU1OSwiZXhwIjoyMDUzMDM0NTU5fQ.L-uT9uYm9eY6Xk7z6k6_u9_p8_P_u9_p8_P_u9_p8"
+});
   const [chartData, setChartData] = useState<any[]>([]);
   const [totals, setTotals] = useState({ usd: 0, cdf: 0 });
 
