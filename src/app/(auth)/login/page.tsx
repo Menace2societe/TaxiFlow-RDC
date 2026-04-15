@@ -11,7 +11,10 @@ export default function AuthPage() {
   const [password, setPassword] = useState('');
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
-  const supabase = createClientComponentClient();
+  const supabase = createClientComponentClient({
+  supabaseUrl: "https://dqswjpktzcdikmwwxokb.supabase.co",
+  supabaseKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRxc3dqcGt0emNkaWttd3d4b2tiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2NzI5MjEsImV4cCI6MjA5MTI0ODkyMX0.DE8bO0qvXN7d5jUIYzVGN-_z4nCBioNaZ5VFP1t28ls" 
+});
   const router = useRouter();
 
   const handleAuth = async (e: React.FormEvent) => {
