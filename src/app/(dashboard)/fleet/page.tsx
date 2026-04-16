@@ -5,11 +5,11 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Car, Plus, Tool, Calendar, Loader2 } from 'lucide-react';
 
 export default function FleetPage() {
- const supabase = createClientComponentClient({
-  supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
-  supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-});
-});
+  const supabase = createClientComponentClient({
+    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  });
+
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -21,21 +21,29 @@ export default function FleetPage() {
       setLoading(false);
     }
     fetchFleet();
-  }, []);
+  }, [supabase]);
 
   return (
     <div className="space-y-8 p-4 bg-[#0a0a0c] min-h-screen">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-black italic text-white tracking-tight">MA FLOTTE</h1>
-        <button className="bg-[#7c63f5] text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2"><Plus size={20} /> Nouveau Véhicule</button>
+        <button className="bg-[#7c63f5] text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2">
+          <Plus size={20} /> Nouveau Véhicule
+        </button>
       </div>
 
-      {loading ? <Loader2 className="animate-spin text-[#7c63f5] mx-auto" /> : (
+      {loading ? (
+        <div className="flex justify-center py-20">
+          <Loader2 className="animate-spin text-[#7c63f5]" size={40} />
+        </div>
+      ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {vehicles.map((v) => (
             <div key={v.id} className="bg-[#121214] border border-slate-800 p-6 rounded-[32px] group hover:border-[#7c63f5] transition-all">
               <div className="flex items-center gap-4 mb-6">
-                <div className="bg-[#7c63f5]/10 p-4 rounded-2xl text-[#7c63f5]"><Car size={32} /></div>
+                <div className="bg-[#7c63f5]/10 p-4 rounded-2xl text-[#7c63f5]">
+                  <Car size={32} />
+                </div>
                 <div>
                   <h3 className="text-xl font-black text-white">{v.model || "Modèle Inconnu"}</h3>
                   <p className="text-[#7c63f5] font-mono font-bold">{v.plate || "SANS PLAQUE"}</p>
