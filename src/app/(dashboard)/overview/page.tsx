@@ -7,16 +7,16 @@ import { Wallet, TrendingUp, Car, Users } from 'lucide-react';
 
 export default function OverviewPage() {
   const supabase = createClientComponentClient({
-  supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
-  supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-});
-});
+    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  });
+
   const [chartData, setChartData] = useState<any[]>([]);
   const [totals, setTotals] = useState({ usd: 0, cdf: 0 });
 
   useEffect(() => {
     async function fetchStats() {
-      // David : On récupère les colonnes spécifiques de revenus
+      // Récupération des revenus
       const { data } = await supabase
         .from('daily_records')
         .select('created_at, revenue_usd, revenue_cdf')
