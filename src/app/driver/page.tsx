@@ -3,11 +3,10 @@ export const dynamic = 'force-dynamic';
 import React, { useState, useEffect } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Users, Plus, Phone, Loader2, Check } from 'lucide-react';
-
-export default function DriversPage() {
-  const supabase = createClientComponentClient({
-    supabaseUrl: "https://dqswjpktzcdikmwwxokb.supabase.co",
-    supabaseKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRxc3dqcGt0emNkaWttd3d4b2tiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2NzI5MjEsImV4cCI6MjA5MTI0ODkyMX0.DE8bO0qvXN7d5jUIYzVGN-_z4nCBioNaZ5VFP1t28ls"
+const supabase = createClientComponentClient({
+  supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+  supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+});
   });
   const [drivers, setDrivers] = useState<any[]>([]);
   const [showForm, setShowForm] = useState(false);
