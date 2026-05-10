@@ -12,16 +12,49 @@ async function login(formData: FormData) {
 
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
-  const next = String(formData.get("next") ?? "/dashboard/overview");
-  const supabase = await createClient();
-
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-
-  if (error) {
-    redirect(`/login?error=${encodeURIComponent(error.message)}&next=${encodeURIComponent(next)}`);
+  let next = String(formData.get("next") ?? "");
+  
+  if (next === "/login" || next === "/signup") {
+    next = "";
   }
 
-  redirect(next.startsWith("/") ? next : "/dashboard/overview");
+  const supabase = await createClient();
+
+  const { error, data } = await supabase.auth.signInWithPassword({ email, password });
+
+  if (error) {
+    redirect(`/login?error=${encodeURIComponent(error.message)}${next ? `&next=${encodeURIComponent(next)}` : ""}`);
+  }
+
+  // Fetch the role from the profiles table
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", data.user.id)
+    .single();
+
+  const role = profile?.role;
+
+  if (!role) {
+    // Sign out the user since they don't have a valid role/profile to use the app
+    await supabase.auth.signOut();
+    redirect(`/login?error=${encodeURIComponent("Aucun rôle associé à ce compte. Veuillez contacter l'administrateur.")}`);
+  }
+
+  if (next && next.startsWith("/")) {
+    redirect(next);
+  }
+
+  // Dynamic redirect based on role
+  if (role === "admin") {
+    redirect("/dashboard/overview");
+  } else if (role === "investor") {
+    redirect("/investor/dashboard");
+  } else if (role === "driver") {
+    redirect("/driver/dashboard");
+  } else {
+    redirect(`/login?error=${encodeURIComponent("Rôle non reconnu.")}`);
+  }
 }
 
 export default function LoginPage({ searchParams }: LoginPageProps) {
@@ -45,7 +78,7 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
       ) : null}
 
       <form action={login} className="space-y-4">
-        <input type="hidden" name="next" value={searchParams?.next ?? "/dashboard/overview"} />
+        {searchParams?.next ? <input type="hidden" name="next" value={searchParams.next} /> : null}
         <label className="block text-sm font-medium">
           Email
           <input className="field mt-1" name="email" type="email" autoComplete="email" required />

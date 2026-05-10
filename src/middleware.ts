@@ -11,20 +11,11 @@ const roleHome: Record<UserRole, string> = {
   admin: "/dashboard/overview"
 };
 
-function redirectTo(request: NextRequest, pathname: string) {
-  const redirectUrl = request.nextUrl.clone();
-  redirectUrl.pathname = pathname;
-  redirectUrl.search = "";
-  return NextResponse.redirect(redirectUrl);
-}
-
 export async function middleware(request: NextRequest) {
   console.log("Supabase URL (middleware):", process.env.NEXT_PUBLIC_SUPABASE_URL ? "OK" : "MISSING");
   
-  let response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
+  let supabaseResponse = NextResponse.next({
+    request,
   });
 
   const supabase = createServerClient<Database>(
@@ -37,13 +28,11 @@ export async function middleware(request: NextRequest) {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
+          supabaseResponse = NextResponse.next({
+            request,
           });
           cookiesToSet.forEach(({ name, value, options }) => {
-            response.cookies.set(name, value, options);
+            supabaseResponse.cookies.set(name, value, options);
           });
         }
       }
@@ -68,7 +57,7 @@ export async function middleware(request: NextRequest) {
 
   // If not logged in and not trying to access protected route (e.g. static files, landing page, /login)
   if (!user) {
-    return response;
+    return supabaseResponse;
   }
 
   // --- At this point, the user IS logged in ---
@@ -82,44 +71,55 @@ export async function middleware(request: NextRequest) {
   const role = profile?.role;
 
   if (!role) {
-    return response;
+    // Profil introuvable : laisse passer pour que le Layout gère la redirection ou l'erreur
+    return supabaseResponse;
   }
+
+  // Helper pour rediriger TOUT EN CONSERVANT les cookies rafraîchis par Supabase
+  const redirectWithCookies = (targetPath: string) => {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = targetPath;
+    redirectUrl.search = "";
+    const redirectResp = NextResponse.redirect(redirectUrl);
+    
+    // Transférer les cookies du supabaseResponse vers la redirection
+    supabaseResponse.headers.forEach((value, key) => {
+      if (key.toLowerCase() === 'set-cookie') {
+        redirectResp.headers.append(key, value);
+      }
+    });
+    
+    return redirectResp;
+  };
 
   // If trying to access auth pages while logged in, redirect to their home
   if (isAuth) {
-    return redirectTo(request, roleHome[role]);
+    return redirectWithCookies(roleHome[role]);
   }
 
   // Root redirects for dashboard
   if (pathname === "/dashboard" || pathname === "/driver" || pathname === "/investor") {
-    return redirectTo(request, roleHome[role]);
+    return redirectWithCookies(roleHome[role]);
   }
 
   // Restrict access based on role
   if (pathname.startsWith("/driver") && role !== "driver") {
-    return redirectTo(request, roleHome[role]);
+    return redirectWithCookies(roleHome[role]);
   }
 
   if (pathname.startsWith("/investor") && role !== "investor") {
-    return redirectTo(request, roleHome[role]);
+    return redirectWithCookies(roleHome[role]);
   }
 
   if (pathname.startsWith("/dashboard") && role !== "admin") {
-    return redirectTo(request, roleHome[role]);
+    return redirectWithCookies(roleHome[role]);
   }
 
-  return response;
+  return supabaseResponse;
 }
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * Feel free to modify this pattern to include more paths.
-     */
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"
   ]
 };
