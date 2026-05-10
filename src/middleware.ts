@@ -89,7 +89,7 @@ export async function middleware(request: NextRequest) {
     profile = adminProfile;
   }
 
-  const role = profile?.role;
+  const role = (profile as any)?.role;
   console.log("[MIDDLEWARE] Final Role:", role);
 
   if (!role) {
