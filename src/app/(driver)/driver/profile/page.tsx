@@ -1,7 +1,8 @@
 import { getCurrentProfile } from "@/lib/auth/roles";
 
 export default async function DriverProfilePage() {
-  const profile = await getCurrentProfile();
+  const profileRaw = await getCurrentProfile();
+  const profile = profileRaw as any;
 
   return (
     <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-soft dark:border-stone-800 dark:bg-stone-950">
