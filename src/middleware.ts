@@ -116,27 +116,27 @@ export async function middleware(request: NextRequest) {
 
   if (isAuth) {
     console.log("[MIDDLEWARE] Logged in user accessing auth page. Redirecting to home.");
-    return redirectWithCookies(roleHome[role]);
+    return redirectWithCookies((roleHome as any)[role]);
   }
 
   if (pathname === "/dashboard" || pathname === "/driver" || pathname === "/investor") {
     console.log(`[MIDDLEWARE] Root path ${pathname} accessed. Redirecting to specific home.`);
-    return redirectWithCookies(roleHome[role]);
+    return redirectWithCookies((roleHome as any)[role]);
   }
 
   if (pathname.startsWith("/driver") && role !== "driver") {
     console.log("[MIDDLEWARE] Non-driver accessing driver route. Redirecting.");
-    return redirectWithCookies(roleHome[role]);
+    return redirectWithCookies((roleHome as any)[role]);
   }
 
   if (pathname.startsWith("/investor") && role !== "investor") {
     console.log("[MIDDLEWARE] Non-investor accessing investor route. Redirecting.");
-    return redirectWithCookies(roleHome[role]);
+    return redirectWithCookies((roleHome as any)[role]);
   }
 
   if (pathname.startsWith("/dashboard") && role !== "admin") {
     console.log("[MIDDLEWARE] Non-admin accessing admin route. Redirecting.");
-    return redirectWithCookies(roleHome[role]);
+    return redirectWithCookies((roleHome as any)[role]);
   }
 
   console.log("[MIDDLEWARE] Access granted to:", pathname);
