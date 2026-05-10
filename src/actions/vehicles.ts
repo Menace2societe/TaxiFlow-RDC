@@ -30,7 +30,7 @@ export async function toggleVehicleStatus(formData: FormData) {
 
   const { error } = await supabase
     .from("vehicles")
-    .update({ status: nextStatus[currentStatus] ?? "active" })
+    .update({ status: nextStatus[currentStatus] ?? "active" } as any)
     .eq("id", vehicleId)
     .eq("owner_id", user.id);
 
