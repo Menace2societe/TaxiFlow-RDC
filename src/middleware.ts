@@ -19,11 +19,17 @@ function redirectTo(request: NextRequest, pathname: string) {
 }
 
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({ request });
+  console.log("Supabase URL (middleware):", process.env.NEXT_PUBLIC_SUPABASE_URL ? "OK" : "MISSING");
+  
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  });
 
   const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         getAll() {
@@ -31,7 +37,11 @@ export async function middleware(request: NextRequest) {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          response = NextResponse.next({ request });
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          });
           cookiesToSet.forEach(({ name, value, options }) => {
             response.cookies.set(name, value, options);
           });
@@ -48,6 +58,7 @@ export async function middleware(request: NextRequest) {
   const isProtected = protectedPrefixes.some((prefix) => pathname.startsWith(prefix));
   const isAuth = authPrefixes.some((prefix) => pathname.startsWith(prefix));
 
+  // Protect dashboard routes. If not logged in, redirect to /login
   if (isProtected && !user) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
@@ -55,9 +66,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
+  // If not logged in and not trying to access protected route (e.g. static files, landing page, /login)
   if (!user) {
     return response;
   }
+
+  // --- At this point, the user IS logged in ---
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -71,14 +85,17 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
+  // If trying to access auth pages while logged in, redirect to their home
   if (isAuth) {
     return redirectTo(request, roleHome[role]);
   }
 
+  // Root redirects for dashboard
   if (pathname === "/dashboard" || pathname === "/driver" || pathname === "/investor") {
     return redirectTo(request, roleHome[role]);
   }
 
+  // Restrict access based on role
   if (pathname.startsWith("/driver") && role !== "driver") {
     return redirectTo(request, roleHome[role]);
   }
@@ -96,6 +113,13 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * Feel free to modify this pattern to include more paths.
+     */
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"
   ]
 };
