@@ -16,7 +16,7 @@ export default async function DriverDashboardPage() {
         .limit(10)
     : { data: [] };
 
-  const total = (entries ?? []).reduce((sum, entry) => sum + entry.revenue_cdf, 0);
+  const total = (entries ?? []).reduce((sum, entry: any) => sum + (entry.revenue_cdf || 0), 0);
 
   return (
     <div className="space-y-6">
@@ -48,7 +48,7 @@ export default async function DriverDashboardPage() {
           <h2 className="text-lg font-semibold">Dernieres declarations</h2>
         </div>
         <div className="divide-y divide-stone-100 dark:divide-stone-800">
-          {(entries ?? []).map((entry) => (
+          {(entries ?? []).map((entry: any) => (
             <div className="flex flex-col justify-between gap-2 px-5 py-4 md:flex-row md:items-center" key={entry.id}>
               <div>
                 <p className="font-medium">{entry.entry_date}</p>
