@@ -32,11 +32,17 @@ async function login(formData: FormData) {
   console.log("[LOGIN ACTION] Sign-in successful. User ID:", data.user.id);
 
   // Fetch the role from the profiles table
-  let { data: profile, error: profileError } = await supabase
+  let profile: any = null;
+  let profileError: any = null;
+
+  const res = await supabase
     .from("profiles")
     .select("role")
     .eq("id", data.user.id)
     .single();
+
+  profile = res.data;
+  profileError = res.error;
 
   console.log("[LOGIN ACTION] Profile fetch normal result:", profile, "Error:", profileError?.message);
 
