@@ -4,7 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { formatCDF } from "@/lib/utils/currency";
 
 export default async function DriverDashboardPage() {
-  const profile = await getCurrentProfile();
+  const profileRaw = await getCurrentProfile();
+  const profile = profileRaw as any;
   const supabase = await createClient();
   const { data: entries } = profile
     ? await supabase
