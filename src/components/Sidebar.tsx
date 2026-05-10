@@ -59,7 +59,7 @@ export function Sidebar({ role, name }: SidebarProps) {
         </p>
       </div>
       <nav className="flex-1 space-y-1 px-3 py-4">
-        {navItems.map((item) => {
+        {((navItems as any)[role] || []).map((item: any) => {
           const Icon = item.icon;
           const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
 
