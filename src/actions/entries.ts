@@ -66,7 +66,7 @@ export async function createDailyEntry(formData: FormData) {
     fuel_cdf: 0,
     maintenance_cdf: 0,
     notes
-  });
+  } as any);
 
   if (error) {
     redirect(`/dashboard/entries?error=${encodeURIComponent(error.message)}`);
