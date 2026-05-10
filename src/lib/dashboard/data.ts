@@ -44,13 +44,13 @@ export async function getOwnerVehicles(ownerId: string): Promise<DashboardVehicl
     .eq("owner_id", ownerId)
     .order("created_at", { ascending: false });
 
-  const driverIds = Array.from(new Set((vehicles ?? []).map((vehicle) => vehicle.driver_id).filter(Boolean))) as string[];
+  const driverIds = Array.from(new Set((vehicles ?? []).map((vehicle: any) => vehicle.driver_id).filter(Boolean))) as string[];
   const { data: drivers } = driverIds.length
     ? await supabase.from("profiles").select("id,full_name,phone").in("id", driverIds)
     : { data: [] };
-  const driverById = new Map((drivers ?? []).map((driver) => [driver.id, driver]));
+  const driverById = new Map((drivers ?? []).map((driver: any) => [driver.id, driver]));
 
-  return (vehicles ?? []).map((vehicle) => {
+  return (vehicles ?? []).map((vehicle: any) => {
     const driver = vehicle.driver_id ? driverById.get(vehicle.driver_id) : null;
 
     return {
