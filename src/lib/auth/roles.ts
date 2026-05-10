@@ -40,8 +40,10 @@ export async function requireRole(expectedRole: UserRole) {
     redirect("/login");
   }
 
-  if (profile.role !== expectedRole) {
-    redirect(getRoleHome(profile.role));
+  const userProfile = profile as any;
+
+  if (userProfile.role !== expectedRole) {
+    redirect(getRoleHome(userProfile.role));
   }
 
   return profile;
