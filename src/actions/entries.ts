@@ -54,10 +54,11 @@ export async function createDailyEntry(formData: FormData) {
 
   const revenueCdf = currency === "USD" ? Math.round(amount * usdToCdfRate) : amount;
 
+  const vehicleData = vehicle as any;
   const { error } = await supabase.from("daily_entries").insert({
     owner_id: user.id,
     vehicle_id: vehicleId,
-    driver_id: vehicle.driver_id,
+    driver_id: vehicleData?.driver_id,
     entry_date: entryDate,
     amount,
     currency,
