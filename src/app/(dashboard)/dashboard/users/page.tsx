@@ -24,7 +24,7 @@ export default async function UsersPage() {
           </h2>
         </div>
         <div className="divide-y divide-stone-100 dark:divide-stone-800">
-          {(profiles ?? []).map((profile) => (
+          {(profiles ?? []).map((profile: any) => (
             <article className="flex flex-col justify-between gap-3 px-5 py-4 md:flex-row md:items-center" key={profile.id}>
               <div>
                 <p className="font-semibold">{profile.full_name ?? "Utilisateur sans nom"}</p>
