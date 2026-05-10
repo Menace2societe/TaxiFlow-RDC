@@ -28,9 +28,10 @@ export async function toggleVehicleStatus(formData: FormData) {
     redirect("/login?next=/dashboard/fleet");
   }
 
-  const { error } = await supabase
-    .from("vehicles")
-    .update({ status: nextStatus[currentStatus] ?? "active" } as any)
+  const { error } = await (supabase.from("vehicles") as any)
+    .update({ 
+      status: nextStatus[currentStatus] ?? "active" 
+    })
     .eq("id", vehicleId)
     .eq("owner_id", user.id);
 
