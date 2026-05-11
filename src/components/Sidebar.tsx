@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   LogOut,
   ReceiptText,
+  Settings,
   ShieldCheck,
   UserCog,
   UserRound,
@@ -29,7 +30,8 @@ const navItems = {
     { href: "/investor/dashboard", label: "Etat de la Flotte", icon: CarTaxiFront },
     { href: "/investor/fleet", label: "Flotte Investie", icon: CarTaxiFront },
     { href: "/investor/revenue", label: "Revenus", icon: BarChart3 },
-    { href: "/investor/documents", label: "Documents Legaux", icon: FileText }
+    { href: "/investor/documents", label: "Documents Legaux", icon: FileText },
+    { href: "/investor/settings", label: "Parametres", icon: Settings }
   ],
   admin: [
     { href: "/dashboard/overview", label: "Vue generale", icon: LayoutDashboard },
