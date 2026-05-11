@@ -3,20 +3,9 @@
 import { redirect } from "next/navigation";
 import { getRoleHome } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/server";
-import type { UserRole } from "@/lib/supabase/types";
 
-const rolePrefixes: Record<UserRole, string> = {
-  driver: "/driver",
-  investor: "/investor",
-  admin: "/dashboard"
-};
-
-function getSafeRedirectPath(next: string, role: UserRole) {
-  if (next.startsWith(rolePrefixes[role])) {
-    return next;
-  }
-
-  return getRoleHome(role);
+function redirectWithCookies(targetPath: string) {
+  redirect(targetPath);
 }
 
 export async function signIn(formData: FormData) {
@@ -47,11 +36,11 @@ export async function signIn(formData: FormData) {
 
   console.log("[SIGN_IN] Forced profile read after login:", {
     userId,
-    role: profile?.role ?? null,
+    role: (profile as any)?.role ?? null,
     error: profileError?.message ?? null
   });
 
-  if (profileError || !profile?.role) {
+  if (profileError || !(profile as any)?.role) {
     await supabase.auth.signOut();
     redirect(
       `/login?error=${encodeURIComponent(
@@ -60,5 +49,5 @@ export async function signIn(formData: FormData) {
     );
   }
 
-  redirect(getSafeRedirectPath(next, profile.role));
+  return redirectWithCookies(getRoleHome((profile as any).role));
 }
