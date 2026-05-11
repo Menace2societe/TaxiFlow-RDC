@@ -1,7 +1,7 @@
 import { Sidebar } from "@/components/Sidebar";
 import { requireRole } from "@/lib/auth/roles";
 
-export default async function InvestorLayout({ children }: { children: React.ReactNode }) {
+export default async function InvestorDashboardLayout({ children }: { children: React.ReactNode }) {
   const profile = await requireRole("investor");
   const userProfile = profile as any;
 

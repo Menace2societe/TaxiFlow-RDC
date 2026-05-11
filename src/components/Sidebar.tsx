@@ -27,7 +27,8 @@ const navItems = {
   ],
   investor: [
     { href: "/investor/dashboard", label: "Etat de la Flotte", icon: CarTaxiFront },
-    { href: "/investor/returns", label: "Rendements Mensuels", icon: BarChart3 },
+    { href: "/investor/fleet", label: "Flotte Investie", icon: CarTaxiFront },
+    { href: "/investor/revenue", label: "Revenus", icon: BarChart3 },
     { href: "/investor/documents", label: "Documents Legaux", icon: FileText }
   ],
   admin: [
