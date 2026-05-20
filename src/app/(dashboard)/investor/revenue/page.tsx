@@ -3,6 +3,7 @@ import { CalendarDays, Download, Filter, TrendingUp, WalletCards } from "lucide-
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ROUTES } from "@/lib/routes";
 
 const monthlyRevenue = [
   { month: "Jan", value: "880,000 FC", progress: 58 },
@@ -31,11 +32,11 @@ export default function InvestorRevenuePage() {
           <h1 className="mt-1 text-3xl font-semibold">Details financiers</h1>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link className="btn-secondary min-h-10 px-3" href="/investor/revenue?period=month">
+          <Link className="btn-secondary min-h-10 px-3" href={`${ROUTES.INVESTOR_REVENUE}?period=month`}>
             <Filter size={16} aria-hidden />
             Filtrer
           </Link>
-          <Link className="btn-primary min-h-10 px-3" href="/investor/documents?report=revenue">
+          <Link className="btn-primary min-h-10 px-3" href={`${ROUTES.INVESTOR_DOCUMENTS}?report=revenue`}>
             <Download size={16} aria-hidden />
             Telecharger rapport
           </Link>

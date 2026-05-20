@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { UserPlus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { ROUTES } from "@/lib/routes";
 import type { UserRole } from "@/lib/supabase/types";
 
 type SignupPageProps = {
@@ -31,7 +32,7 @@ async function signup(formData: FormData) {
   });
 
   if (error) {
-    redirect(`/signup?error=${encodeURIComponent(error.message)}`);
+    redirect(`${ROUTES.SIGNUP}?error=${encodeURIComponent(error.message)}`);
   }
 
   if (data.user) {
@@ -43,7 +44,7 @@ async function signup(formData: FormData) {
     });
   }
 
-  redirect("/login?notice=Compte cree. Verifiez votre email si la confirmation est active.");
+  redirect(`${ROUTES.LOGIN}?notice=Compte cree. Verifiez votre email si la confirmation est active.`);
 }
 
 export default function SignupPage({ searchParams }: SignupPageProps) {
@@ -91,9 +92,16 @@ export default function SignupPage({ searchParams }: SignupPageProps) {
         </button>
       </form>
 
+      <p className="mt-4 text-center text-sm text-stone-600">
+        Partenaire proprietaire ou chauffeur ?{" "}
+        <Link className="font-semibold text-emerald-700 hover:underline dark:text-emerald-400" href={ROUTES.REGISTER}>
+          Inscription simplifiee
+        </Link>
+      </p>
+
       <p className="mt-5 text-center text-sm text-stone-600">
         Deja inscrit?{" "}
-        <Link className="font-semibold text-palm" href="/login">
+        <Link className="font-semibold text-palm" href={ROUTES.LOGIN}>
           Se connecter
         </Link>
       </p>

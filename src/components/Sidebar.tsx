@@ -18,27 +18,29 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import { ROUTES } from "@/lib/routes";
 import type { UserRole } from "@/lib/supabase/types";
 
 const navItems = {
   driver: [
-    { href: "/driver/dashboard", label: "Mes Recettes", icon: ReceiptText },
-    { href: "/driver/maintenance", label: "Maintenance Moto/Taxi", icon: Wrench },
-    { href: "/driver/profile", label: "Mon Profil", icon: UserRound }
+    { href: ROUTES.DRIVER_PORTAL, label: "Portail terrain", icon: LayoutDashboard },
+    { href: ROUTES.DRIVER_DASHBOARD, label: "Mes Recettes", icon: ReceiptText },
+    { href: ROUTES.DRIVER_MAINTENANCE, label: "Maintenance Moto/Taxi", icon: Wrench },
+    { href: ROUTES.DRIVER_PROFILE, label: "Mon Profil", icon: UserRound }
   ],
   investor: [
-    { href: "/investor/dashboard", label: "Etat de la Flotte", icon: CarTaxiFront },
-    { href: "/investor/fleet", label: "Flotte Investie", icon: CarTaxiFront },
-    { href: "/investor/revenue", label: "Revenus", icon: BarChart3 },
-    { href: "/investor/documents", label: "Documents Legaux", icon: FileText },
-    { href: "/investor/settings", label: "Parametres", icon: Settings }
+    { href: ROUTES.INVESTOR_DASHBOARD, label: "Etat de la Flotte", icon: CarTaxiFront },
+    { href: ROUTES.INVESTOR_FLEET, label: "Flotte Investie", icon: CarTaxiFront },
+    { href: ROUTES.INVESTOR_REVENUE, label: "Revenus", icon: BarChart3 },
+    { href: ROUTES.INVESTOR_DOCUMENTS, label: "Documents Legaux", icon: FileText },
+    { href: ROUTES.INVESTOR_SETTINGS, label: "Parametres", icon: Settings }
   ],
   admin: [
-    { href: "/dashboard/overview", label: "Vue generale", icon: LayoutDashboard },
-    { href: "/dashboard/entries", label: "Recettes", icon: ClipboardList },
-    { href: "/dashboard/fleet", label: "Flotte", icon: CarTaxiFront },
-    { href: "/dashboard/users", label: "Utilisateurs", icon: UserCog },
-    { href: "/dashboard/reports", label: "Rapports globaux", icon: ShieldCheck }
+    { href: ROUTES.DASHBOARD_OVERVIEW, label: "Vue generale", icon: LayoutDashboard },
+    { href: ROUTES.DASHBOARD_ENTRIES, label: "Recettes", icon: ClipboardList },
+    { href: ROUTES.DASHBOARD_FLEET, label: "Flotte", icon: CarTaxiFront },
+    { href: ROUTES.DASHBOARD_USERS, label: "Utilisateurs", icon: UserCog },
+    { href: ROUTES.DASHBOARD_REPORTS, label: "Rapports globaux", icon: ShieldCheck }
   ]
 } satisfies Record<UserRole, Array<{ href: string; label: string; icon: LucideIcon }>>;
 
@@ -54,7 +56,7 @@ export function Sidebar({ role, name }: SidebarProps) {
   return (
     <aside className="flex h-full w-full flex-col border-r border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-950">
       <div className="border-b border-stone-200 px-5 py-4 dark:border-stone-800">
-        <Link href={items[0]?.href ?? "/"} className="text-lg font-bold text-ink dark:text-stone-50">
+        <Link href={ROUTES.HOME} className="text-lg font-bold text-ink dark:text-stone-50">
           TaxiFlow RDC
         </Link>
         <p className="mt-1 text-xs capitalize text-stone-500 dark:text-stone-400">
@@ -81,7 +83,7 @@ export function Sidebar({ role, name }: SidebarProps) {
           );
         })}
       </nav>
-      <form action="/auth/signout" method="post" className="border-t border-stone-200 p-3 dark:border-stone-800">
+      <form action={ROUTES.AUTH_SIGNOUT} method="post" className="border-t border-stone-200 p-3 dark:border-stone-800">
         <button className="flex h-10 w-full items-center gap-3 rounded-md px-3 text-sm font-medium text-stone-600 hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-900" type="submit">
           <LogOut size={18} aria-hidden />
           Deconnexion

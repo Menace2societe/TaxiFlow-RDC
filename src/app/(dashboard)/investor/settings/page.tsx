@@ -3,6 +3,7 @@ import { Bell, Save, ShieldCheck, UserRound } from "lucide-react";
 import { getCurrentProfile } from "@/lib/auth/roles";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { ROUTES } from "@/lib/routes";
 
 export default async function InvestorSettingsPage() {
   const profileData = await getCurrentProfile();
@@ -15,7 +16,7 @@ export default async function InvestorSettingsPage() {
           <p className="text-sm font-medium text-palm dark:text-emerald-300">Compte investisseur</p>
           <h1 className="mt-1 text-3xl font-semibold">Profil et preferences</h1>
         </div>
-        <Link className="btn-primary min-h-10 px-3" href="/investor/settings?saved=1">
+        <Link className="btn-primary min-h-10 px-3" href={`${ROUTES.INVESTOR_SETTINGS}?saved=1`}>
           <Save size={16} aria-hidden />
           Enregistrer
         </Link>

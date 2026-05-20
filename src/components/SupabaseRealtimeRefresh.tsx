@@ -13,6 +13,7 @@ export function SupabaseRealtimeRefresh() {
       .channel("dashboard-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "daily_entries" }, () => router.refresh())
       .on("postgres_changes", { event: "*", schema: "public", table: "vehicles" }, () => router.refresh())
+      .on("postgres_changes", { event: "*", schema: "public", table: "breakdowns" }, () => router.refresh())
       .subscribe();
 
     return () => {

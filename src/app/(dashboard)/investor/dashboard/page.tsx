@@ -1,4 +1,5 @@
 import { ArrowUpRight, CarTaxiFront, ShieldCheck, TrendingUp, WalletCards } from "lucide-react";
+import { getCurrentProfile } from "@/lib/auth/roles";
 
 const stats = [
   {
@@ -30,7 +31,15 @@ const highlights = [
   { label: "Risque maintenance", value: "Faible", detail: "1 controle a programmer" }
 ];
 
-export default function InvestorDashboardPage() {
+export default async function InvestorDashboardPage() {
+  const profileRaw = await getCurrentProfile();
+  const profile = profileRaw as any;
+
+  console.log("[INVESTOR DASHBOARD] Rendering /investor/dashboard.", {
+    detectedRole: profile?.role ?? null,
+    redirectAttempt: profile?.role === "investor" ? "none - already on investor dashboard" : "handled by parent layout/middleware"
+  });
+
   return (
     <div className="space-y-6">
       <header className="rounded-lg border border-stone-200 bg-white p-5 shadow-soft dark:border-stone-800 dark:bg-stone-950">

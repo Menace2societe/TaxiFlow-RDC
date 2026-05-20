@@ -1,4 +1,5 @@
 import { Sidebar } from "@/components/Sidebar";
+import { SupabaseRealtimeRefresh } from "@/components/SupabaseRealtimeRefresh";
 import { requireRole } from "@/lib/auth/roles";
 
 export default async function InvestorDashboardLayout({ children }: { children: React.ReactNode }) {
@@ -15,6 +16,7 @@ export default async function InvestorDashboardLayout({ children }: { children: 
           <Sidebar role="investor" name={userProfile?.full_name || "Investisseur"} />
         </div>
         <main className="min-w-0 px-4 py-5 md:px-8 md:py-8">
+          <SupabaseRealtimeRefresh />
           <div className="mx-auto w-full max-w-6xl">{children}</div>
         </main>
       </div>

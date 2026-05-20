@@ -1,13 +1,16 @@
 import "server-only";
 
+import { createServerClient } from "@supabase/ssr";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { ROUTES } from "@/lib/routes";
+import type { Database } from "@/lib/supabase/types";
 import type { UserRole } from "@/lib/supabase/types";
 
 export const roleHome: Record<UserRole, string> = {
-  driver: "/driver/dashboard",
-  investor: "/investor/dashboard",
-  admin: "/dashboard/overview"
+  driver: ROUTES.DRIVER_PORTAL,
+  investor: ROUTES.INVESTOR_DASHBOARD,
+  admin: ROUTES.DASHBOARD_OVERVIEW
 };
 
 export function getRoleHome(role: UserRole) {
@@ -21,14 +24,45 @@ export async function getCurrentProfile() {
   } = await supabase.auth.getUser();
 
   if (!user) {
+    console.log("[AUTH] getCurrentProfile: no authenticated user.");
     return null;
   }
 
-  const { data: profile } = await supabase
+  let { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("id,full_name,role,phone")
     .eq("id", user.id)
     .single();
+
+  console.log("[AUTH] getCurrentProfile:", {
+    userId: user.id,
+    role: (profile as any)?.role ?? null,
+    error: profileError?.message ?? null
+  });
+
+  if (profileError && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.log("[AUTH] getCurrentProfile: normal profile read failed, trying service role fallback.");
+    const supabaseAdmin = createServerClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { cookies: { getAll: () => [], setAll: () => {} } }
+    );
+
+    const { data: adminProfile, error: adminError } = await supabaseAdmin
+      .from("profiles")
+      .select("id,full_name,role,phone")
+      .eq("id", user.id)
+      .single();
+
+    console.log("[AUTH] getCurrentProfile service role fallback:", {
+      userId: user.id,
+      role: (adminProfile as any)?.role ?? null,
+      error: adminError?.message ?? null
+    });
+
+    profile = adminProfile;
+    profileError = adminError;
+  }
 
   return profile;
 }
@@ -37,14 +71,18 @@ export async function requireRole(expectedRole: UserRole) {
   const profile = await getCurrentProfile();
 
   if (!profile) {
-    redirect("/login");
+    console.log(`[AUTH] requireRole(${expectedRole}): no profile, redirecting to /login.`);
+    redirect(ROUTES.LOGIN);
   }
 
   const userProfile = profile as any;
 
   if (userProfile.role !== expectedRole) {
-    redirect(getRoleHome(userProfile.role));
+    const targetPath = getRoleHome(userProfile.role);
+    console.log(`[AUTH] requireRole(${expectedRole}): detected ${userProfile.role}, redirecting to ${targetPath}.`);
+    redirect(targetPath);
   }
 
+  console.log(`[AUTH] requireRole(${expectedRole}): access granted for role ${userProfile.role}.`);
   return profile;
 }

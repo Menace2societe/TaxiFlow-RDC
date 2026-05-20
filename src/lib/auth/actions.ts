@@ -3,28 +3,21 @@
 import { redirect } from "next/navigation";
 import { getRoleHome } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/server";
-
-function redirectWithCookies(targetPath: string) {
-  redirect(targetPath);
-}
+import { isSafeInternalPath, ROUTES } from "@/lib/routes";
+import type { UserRole } from "@/lib/supabase/types";
 
 export async function signIn(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
-  const next = String(formData.get("next") ?? "");
+  const nextRaw = String(formData.get("next") ?? "").trim();
   const supabase = await createClient();
 
   const authResponse = await supabase.auth.signInWithPassword({ email, password });
 
-  console.log("[SIGN_IN] Supabase signInWithPassword response:", {
-    userId: authResponse.data.user?.id ?? null,
-    sessionExpiresAt: authResponse.data.session?.expires_at ?? null,
-    error: authResponse.error?.message ?? null
-  });
-
   if (authResponse.error || !authResponse.data.user) {
     const message = authResponse.error?.message ?? "Connexion impossible.";
-    redirect(`/login?error=${encodeURIComponent(message)}${next ? `&next=${encodeURIComponent(next)}` : ""}`);
+    const nextQuery = nextRaw ? `&next=${encodeURIComponent(nextRaw)}` : "";
+    redirect(`${ROUTES.LOGIN}?error=${encodeURIComponent(message)}${nextQuery}`);
   }
 
   const userId = authResponse.data.user.id;
@@ -34,20 +27,15 @@ export async function signIn(formData: FormData) {
     .eq("id", userId)
     .single();
 
-  console.log("[SIGN_IN] Forced profile read after login:", {
-    userId,
-    role: (profile as any)?.role ?? null,
-    error: profileError?.message ?? null
-  });
-
-  if (profileError || !(profile as any)?.role) {
+  if (profileError || !(profile as { role?: UserRole })?.role) {
     await supabase.auth.signOut();
     redirect(
-      `/login?error=${encodeURIComponent(
+      `${ROUTES.LOGIN}?error=${encodeURIComponent(
         "Aucun role associe a ce compte. Veuillez verifier votre profil ou contacter l'administrateur."
       )}`
     );
   }
 
-  return redirectWithCookies(getRoleHome((profile as any).role));
+  const role = (profile as { role: UserRole }).role;
+  redirect(isSafeInternalPath(nextRaw) ? nextRaw : getRoleHome(role));
 }

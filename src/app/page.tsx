@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Car, ShieldCheck, TrendingUp } from "lucide-react";
 import { getCurrentProfile, getRoleHome } from "@/lib/auth/roles";
+import { ROUTES } from "@/lib/routes";
 
 const benefits = [
   {
@@ -26,8 +27,12 @@ export default async function HomePage() {
   const profile = profileRaw as any;
 
   if (profile) {
-    redirect(getRoleHome(profile.role));
+    const targetPath = getRoleHome(profile.role);
+    console.log(`[HOME] Authenticated role detected: ${profile.role}. Redirect target: ${targetPath}.`);
+    redirect(targetPath);
   }
+
+  console.log("[HOME] No authenticated profile. Rendering public landing page.");
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#0b1210] text-white">
@@ -35,10 +40,10 @@ export default async function HomePage() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(31,122,85,0.32),transparent_34%),linear-gradient(135deg,rgba(14,116,144,0.18),transparent_42%)]" />
         <div className="relative mx-auto flex min-h-[92vh] max-w-7xl flex-col">
           <nav className="flex items-center justify-between">
-            <Link href="/" className="text-lg font-bold tracking-normal">
+            <Link href={ROUTES.HOME} className="text-lg font-bold tracking-normal">
               TaxiFlow RDC
             </Link>
-            <Link href="/login" className="rounded-md border border-white/15 px-3 py-2 text-sm font-semibold text-white/85 transition hover:bg-white/10">
+            <Link href={ROUTES.LOGIN} className="rounded-md border border-white/15 px-3 py-2 text-sm font-semibold text-white/85 transition hover:bg-white/10">
               Portail
             </Link>
           </nav>
@@ -56,11 +61,11 @@ export default async function HomePage() {
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <Link href="/login" className="btn-primary min-h-12 px-5">
+                <Link href={ROUTES.LOGIN} className="btn-primary min-h-12 px-5">
                   Acceder a mon Portail
                 </Link>
-                <Link href="/signup" className="btn-secondary min-h-12 border-white/20 bg-white/10 px-5 text-white hover:bg-white/15 dark:border-white/20 dark:bg-white/10 dark:text-white">
-                  Devenir Partenaire
+                <Link href={ROUTES.REGISTER} className="btn-secondary min-h-12 border-white/20 bg-white/10 px-5 text-white hover:bg-white/15 dark:border-white/20 dark:bg-white/10 dark:text-white">
+                  Devenir partenaire
                 </Link>
               </div>
             </div>

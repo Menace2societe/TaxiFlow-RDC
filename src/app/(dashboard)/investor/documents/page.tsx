@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Download, Eye, FileText, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { ROUTES } from "@/lib/routes";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const documents = [
@@ -27,7 +28,7 @@ export default function InvestorDocumentsPage() {
           <p className="text-sm font-medium text-palm dark:text-emerald-300">Conformite</p>
           <h1 className="mt-1 text-3xl font-semibold">Contrats et rapports</h1>
         </div>
-        <Link className="btn-primary min-h-10 px-3" href="/investor/documents?download=all">
+        <Link className="btn-primary min-h-10 px-3" href={`${ROUTES.INVESTOR_DOCUMENTS}?download=all`}>
           <Download size={16} aria-hidden />
           Telecharger dossier
         </Link>

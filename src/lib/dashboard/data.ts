@@ -73,6 +73,93 @@ export async function getOwnerEntries(ownerId: string): Promise<DashboardEntry[]
   return data ?? [];
 }
 
+export async function getOwnerEntriesForDateRange(
+  ownerId: string,
+  startDate: string,
+  endDate: string
+): Promise<DashboardEntry[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("daily_entries")
+    .select("id,vehicle_id,driver_id,entry_date,amount,currency,mileage_km,revenue_cdf,fuel_cdf,maintenance_cdf,notes")
+    .eq("owner_id", ownerId)
+    .gte("entry_date", startDate)
+    .lte("entry_date", endDate);
+
+  return data ?? [];
+}
+
+export function revenueCdfByVehicle(entries: DashboardEntry[]): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const entry of entries) {
+    map.set(entry.vehicle_id, (map.get(entry.vehicle_id) ?? 0) + entry.revenue_cdf);
+  }
+  return map;
+}
+
+export type DriverProfileRow = {
+  id: string;
+  full_name: string | null;
+  phone: string | null;
+};
+
+export async function getDriverProfiles(): Promise<DriverProfileRow[]> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("profiles").select("id,full_name,phone").eq("role", "driver").order("full_name");
+  return (data as DriverProfileRow[]) ?? [];
+}
+
+export async function getOwnerNonResolvedBreakdownsCount(ownerId: string): Promise<number> {
+  const supabase = await createClient();
+  const { data: vehicleRows } = await supabase.from("vehicles").select("id").eq("owner_id", ownerId);
+  const ids = (vehicleRows ?? []).map((row: { id: string }) => row.id);
+  if (ids.length === 0) {
+    return 0;
+  }
+
+  const { count } = await supabase
+    .from("breakdowns")
+    .select("id", { head: true, count: "exact" })
+    .in("vehicle_id", ids)
+    .neq("status", "resolved");
+
+  return count ?? 0;
+}
+
+export type DriverVehicleRow = {
+  id: string;
+  label: string;
+  plate_number: string;
+  owner_id: string;
+  driver_id: string | null;
+  target_daily_revenue: number;
+  type: "taxi" | "moto";
+  status: VehicleStatus;
+};
+
+export async function getDriverAssignedVehicle(driverId: string): Promise<DriverVehicleRow | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("vehicles")
+    .select("id,label,plate_number,owner_id,driver_id,target_daily_revenue,type,status")
+    .eq("driver_id", driverId)
+    .maybeSingle();
+
+  return (data as DriverVehicleRow | null) ?? null;
+}
+
+export async function getDriverRecentEntries(driverId: string, limit = 5): Promise<DashboardEntry[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("daily_entries")
+    .select("id,vehicle_id,driver_id,entry_date,amount,currency,mileage_km,revenue_cdf,fuel_cdf,maintenance_cdf,notes")
+    .eq("driver_id", driverId)
+    .order("entry_date", { ascending: false })
+    .limit(limit);
+
+  return data ?? [];
+}
+
 export function summarize(entries: DashboardEntry[], vehicles: DashboardVehicle[]) {
   const totalRevenue = entries.reduce((sum, entry) => sum + entry.revenue_cdf, 0);
   const totalCosts = entries.reduce((sum, entry) => sum + entry.fuel_cdf + entry.maintenance_cdf, 0);

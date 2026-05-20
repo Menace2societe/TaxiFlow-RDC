@@ -1,27 +1,35 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { ROUTES } from "@/lib/routes";
 import type { Database, UserRole } from "@/lib/supabase/types";
 
-const protectedPrefixes = ["/dashboard", "/driver", "/investor"];
-const authPrefixes = ["/login", "/signup"];
+const protectedPrefixes = ["/dashboard", "/driver", "/investor"] as const;
+const authPrefixes = [ROUTES.LOGIN, ROUTES.REGISTER, ROUTES.SIGNUP] as const;
 
 const roleHome: Record<UserRole, string> = {
-  driver: "/driver/dashboard",
-  investor: "/investor/dashboard",
-  admin: "/dashboard/overview"
+  driver: ROUTES.DRIVER_PORTAL,
+  investor: ROUTES.INVESTOR_DASHBOARD,
+  admin: ROUTES.DASHBOARD_OVERVIEW
 };
+
+function normalizePath(path: string) {
+  if (path.length > 1 && path.endsWith("/")) {
+    return path.slice(0, -1);
+  }
+
+  return path;
+}
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
-  console.log(`\n[MIDDLEWARE] Handling request for: ${pathname}`);
-  
+
   let supabaseResponse = NextResponse.next({
-    request,
+    request
   });
 
   const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         getAll() {
@@ -30,7 +38,7 @@ export async function middleware(request: NextRequest) {
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
           supabaseResponse = NextResponse.next({
-            request,
+            request
           });
           cookiesToSet.forEach(({ name, value, options }) => {
             supabaseResponse.cookies.set(name, value, options);
@@ -45,106 +53,94 @@ export async function middleware(request: NextRequest) {
     error: userError
   } = await supabase.auth.getUser();
 
-  console.log("[MIDDLEWARE] User check:", user ? `Logged in as ${user.id}` : "Not logged in");
-  if (userError) console.log("[MIDDLEWARE] User error:", userError.message);
+  if (userError && process.env.NODE_ENV === "development") {
+    console.warn("[middleware] getUser:", userError.message);
+  }
 
   const isProtected = protectedPrefixes.some((prefix) => pathname.startsWith(prefix));
-  const isAuth = authPrefixes.some((prefix) => pathname.startsWith(prefix));
+  const isAuth = authPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 
   if (isProtected && !user) {
-    console.log("[MIDDLEWARE] Protected route and no user. Redirecting to /login.");
     const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = "/login";
+    redirectUrl.pathname = ROUTES.LOGIN;
     redirectUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(redirectUrl);
   }
 
   if (!user) {
-    console.log("[MIDDLEWARE] No user, allowing public access.");
     return supabaseResponse;
   }
 
-  let { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-
-  console.log("[MIDDLEWARE] Normal Profile fetch:", profile, "Error:", profileError?.message);
+  let { data: profile, error: profileError } = await supabase.from("profiles").select("role").eq("id", user.id).single();
 
   if (profileError && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    console.log("[MIDDLEWARE] Normal fetch failed. Using service_role_key...");
     const supabaseAdmin = createServerClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
       { cookies: { getAll: () => [], setAll: () => {} } }
     );
-    const { data: adminProfile, error: adminError } = await supabaseAdmin
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-      
-    console.log("[MIDDLEWARE] Admin Profile fetch:", adminProfile, "Error:", adminError?.message);
-    profile = adminProfile;
+    const { data: adminProfile, error: adminError } = await supabaseAdmin.from("profiles").select("role").eq("id", user.id).single();
+    if (!adminError) {
+      profile = adminProfile;
+    }
   }
 
-  const role = (profile as any)?.role;
-  console.log("[MIDDLEWARE] Final Role:", role);
+  const role = (profile as { role?: UserRole } | null)?.role;
 
   if (!role) {
-    console.log("[MIDDLEWARE] No role found. Letting layout handle or returning response.");
     return supabaseResponse;
   }
 
   const redirectWithCookies = (targetPath: string) => {
-    console.log(`[MIDDLEWARE] Redirecting to ${targetPath} with cookies...`);
+    const normalizedCurrent = normalizePath(pathname);
+    const normalizedTarget = normalizePath(targetPath);
+
+    if (normalizedCurrent === normalizedTarget) {
+      return supabaseResponse;
+    }
+
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = targetPath;
     redirectUrl.search = "";
-    // Enforce 303 redirect as requested by user
     const redirectResp = NextResponse.redirect(redirectUrl, 303);
-    
+
     supabaseResponse.headers.forEach((value, key) => {
-      if (key.toLowerCase() === 'set-cookie') {
+      if (key.toLowerCase() === "set-cookie") {
         redirectResp.headers.append(key, value);
       }
     });
-    
+
     return redirectResp;
   };
 
   if (isAuth) {
-    console.log("[MIDDLEWARE] Logged in user accessing auth page. Redirecting to home.");
-    return redirectWithCookies((roleHome as any)[role]);
+    return redirectWithCookies(roleHome[role]);
   }
 
   if (pathname === "/dashboard" || pathname === "/driver" || pathname === "/investor") {
-    console.log(`[MIDDLEWARE] Root path ${pathname} accessed. Redirecting to specific home.`);
-    return redirectWithCookies((roleHome as any)[role]);
+    return redirectWithCookies(roleHome[role]);
   }
 
   if (pathname.startsWith("/driver") && role !== "driver") {
-    console.log("[MIDDLEWARE] Non-driver accessing driver route. Redirecting.");
-    return redirectWithCookies((roleHome as any)[role]);
+    return redirectWithCookies(roleHome[role]);
   }
 
   if (pathname.startsWith("/investor") && role !== "investor") {
-    console.log("[MIDDLEWARE] Non-investor accessing investor route. Redirecting.");
-    return redirectWithCookies((roleHome as any)[role]);
+    return redirectWithCookies(roleHome[role]);
   }
 
   if (pathname.startsWith("/dashboard") && role !== "admin") {
-    console.log("[MIDDLEWARE] Non-admin accessing admin route. Redirecting.");
-    return redirectWithCookies((roleHome as any)[role]);
+    return redirectWithCookies(roleHome[role]);
   }
 
-  console.log("[MIDDLEWARE] Access granted to:", pathname);
   return supabaseResponse;
 }
 
+/**
+ * Skip middleware for static assets, Next internals, and files with extensions.
+ * Public auth routes (/login, /register, /signup) are NOT skipped — they run middleware
+ * so we can redirect authenticated users away from auth screens.
+ */
 export const config = {
-  matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"
-  ]
+  matcher: ["/((?!_next/static|_next/image|_next/webpack|favicon.ico|.*\\.(?:ico|png|jpg|jpeg|gif|webp|svg|woff2?|css|js|map|txt|xml|json)).*)"]
 };

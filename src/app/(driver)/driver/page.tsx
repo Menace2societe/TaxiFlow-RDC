@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
+import { ROUTES } from "@/lib/routes";
 
 export default function DriverRootPage() {
-  redirect("/driver/dashboard");
+  redirect(ROUTES.DRIVER_PORTAL);
 }
