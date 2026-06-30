@@ -6,15 +6,15 @@ type RowProps = React.HTMLAttributes<HTMLTableRowElement>;
 type CellProps = React.ThHTMLAttributes<HTMLTableCellElement> & React.TdHTMLAttributes<HTMLTableCellElement>;
 
 export function Table({ className, ...props }: TableProps) {
-  return <table className={cn("w-full text-left text-sm", className)} {...props} />;
+  return <table className={cn("w-full text-left text-sm text-stone-200", className)} {...props} />;
 }
 
 export function TableHeader({ className, ...props }: SectionProps) {
-  return <thead className={cn("bg-stone-50 text-stone-500 dark:bg-stone-900 dark:text-stone-400", className)} {...props} />;
+  return <thead className={cn("bg-white/5 text-stone-300", className)} {...props} />;
 }
 
 export function TableBody({ className, ...props }: SectionProps) {
-  return <tbody className={cn("divide-y divide-stone-100 dark:divide-stone-800", className)} {...props} />;
+  return <tbody className={cn("divide-y divide-white/10", className)} {...props} />;
 }
 
 export function TableRow({ className, ...props }: RowProps) {

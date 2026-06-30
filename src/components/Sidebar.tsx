@@ -54,12 +54,12 @@ export function Sidebar({ role, name }: SidebarProps) {
   const items = navItems[role];
 
   return (
-    <aside className="flex h-full w-full flex-col border-r border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-950">
-      <div className="border-b border-stone-200 px-5 py-4 dark:border-stone-800">
-        <Link href={ROUTES.HOME} className="text-lg font-bold text-ink dark:text-stone-50">
+    <aside className="flex h-full w-full flex-col border-r border-white/10 bg-stone-950 text-stone-100">
+      <div className="border-b border-white/10 px-5 py-4">
+        <Link href={ROUTES.HOME} className="text-lg font-bold text-white">
           TaxiFlow RDC
         </Link>
-        <p className="mt-1 text-xs capitalize text-stone-500 dark:text-stone-400">
+        <p className="mt-1 text-xs capitalize text-stone-400">
           {name ?? role} · portail {role}
         </p>
       </div>
@@ -73,8 +73,8 @@ export function Sidebar({ role, name }: SidebarProps) {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium text-stone-600 transition hover:bg-stone-100 hover:text-ink dark:text-stone-400 dark:hover:bg-stone-900 dark:hover:text-stone-50",
-                active && "bg-palm/10 text-palm dark:text-emerald-300"
+                "flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium text-stone-300 transition hover:bg-white/10 hover:text-white",
+                active && "bg-emerald-500/10 text-emerald-300"
               )}
             >
               <Icon size={18} aria-hidden />
@@ -83,8 +83,8 @@ export function Sidebar({ role, name }: SidebarProps) {
           );
         })}
       </nav>
-      <form action={ROUTES.AUTH_SIGNOUT} method="post" className="border-t border-stone-200 p-3 dark:border-stone-800">
-        <button className="flex h-10 w-full items-center gap-3 rounded-md px-3 text-sm font-medium text-stone-600 hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-900" type="submit">
+      <form action={ROUTES.AUTH_SIGNOUT} method="post" className="border-t border-white/10 p-3">
+        <button className="flex h-10 w-full items-center gap-3 rounded-md px-3 text-sm font-medium text-stone-300 hover:bg-white/10 hover:text-white" type="submit">
           <LogOut size={18} aria-hidden />
           Deconnexion
         </button>

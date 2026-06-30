@@ -15,7 +15,7 @@ export default async function OverviewPage() {
   return (
     <div className="space-y-6">
       <header>
-        <p className="text-sm font-medium text-palm">Kinshasa operations</p>
+        <p className="text-sm font-medium text-emerald-300">Kinshasa operations</p>
         <h1 className="mt-1 text-3xl font-semibold">Vue generale</h1>
       </header>
 
@@ -27,20 +27,20 @@ export default async function OverviewPage() {
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[1fr_360px]">
-        <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-soft">
+        <div className="rounded-lg border border-white/10 bg-stone-950 p-5 text-stone-100 shadow-soft">
           <div className="mb-4">
             <h2 className="text-lg font-semibold">Revenus vs couts</h2>
-            <p className="text-sm text-stone-500">Agregation par date, calculee cote serveur.</p>
+            <p className="text-sm text-stone-400">Agregation par date, calculee cote serveur.</p>
           </div>
           <RevenueChart data={chartData} />
         </div>
-        <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-soft">
+        <div className="rounded-lg border border-white/10 bg-stone-950 p-5 text-stone-100 shadow-soft">
           <h2 className="text-lg font-semibold">Composition flotte</h2>
-          {mixData.length > 0 ? <VehicleMixChart data={mixData} /> : <p className="mt-6 text-sm text-stone-500">Aucun vehicule enregistre.</p>}
+          {mixData.length > 0 ? <VehicleMixChart data={mixData} /> : <p className="mt-6 text-sm text-stone-400">Aucun vehicule enregistre.</p>}
           <div className="mt-3 space-y-2 text-sm">
             {mixData.map((item) => (
               <div className="flex items-center justify-between" key={item.name}>
-                <span className="text-stone-600">{item.name}</span>
+                <span className="text-stone-300">{item.name}</span>
                 <span className="font-semibold">{item.value}</span>
               </div>
             ))}

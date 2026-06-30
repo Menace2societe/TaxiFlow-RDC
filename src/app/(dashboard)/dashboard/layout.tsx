@@ -7,7 +7,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const userProfile = profile as any;
 
   return (
-    <div className="min-h-screen bg-road text-ink dark:bg-[#101815] dark:text-stone-50">
+    <div className="min-h-screen bg-[#101815] text-stone-50">
       <div className="md:hidden">
         <Sidebar role="admin" name={userProfile?.full_name || "Utilisateur"} />
       </div>

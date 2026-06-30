@@ -24,7 +24,7 @@ export default async function FleetPage({ searchParams }: FleetPageProps) {
           <p className="text-sm font-medium text-palm dark:text-emerald-300">Kinshasa fleet</p>
           <h1 className="mt-1 text-3xl font-semibold">Gestion de flotte</h1>
         </div>
-        <p className="rounded-md bg-white px-3 py-2 text-sm font-medium text-stone-600 shadow-soft dark:bg-stone-950 dark:text-stone-300">
+        <p className="rounded-md border border-white/10 bg-stone-950 px-3 py-2 text-sm font-medium text-stone-300 shadow-soft">
           {vehicles.length} taxis et motos
         </p>
       </header>
@@ -38,7 +38,7 @@ export default async function FleetPage({ searchParams }: FleetPageProps) {
           const isActive = vehicle.status === "active";
 
           return (
-            <article key={vehicle.id} className="rounded-lg border border-stone-200 bg-white p-4 shadow-soft dark:border-stone-800 dark:bg-stone-950 md:p-5">
+            <article key={vehicle.id} className="rounded-lg border border-white/10 bg-stone-950 p-4 text-stone-100 shadow-soft md:p-5">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-semibold">{vehicle.label}</h2>
@@ -83,7 +83,7 @@ export default async function FleetPage({ searchParams }: FleetPageProps) {
           );
         })}
         {vehicles.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-stone-300 bg-white p-8 text-center text-sm text-stone-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-400 md:col-span-2 xl:col-span-3">
+          <div className="rounded-lg border border-dashed border-stone-700 bg-stone-950 p-8 text-center text-sm text-stone-400 md:col-span-2 xl:col-span-3">
             Aucun taxi ou moto n'est encore enregistre.
           </div>
         ) : null}

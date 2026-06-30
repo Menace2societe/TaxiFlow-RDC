@@ -114,49 +114,57 @@ export async function createVehicle(formData: FormData) {
 }
 
 export async function createVehicleFromInvestorDashboard(formData: FormData): Promise<VehicleActionState> {
-  const supabase = await createClient();
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
 
-  if (!user) {
-    return { ok: false, message: "Session expiree. Reconnectez-vous pour ajouter un vehicule." };
+    if (!user) {
+      return { ok: false, message: "Session expiree. Reconnectez-vous pour ajouter un vehicule." };
+    }
+
+    const parsed = createVehicleSchema.safeParse({
+      plate_number: formData.get("plate_number"),
+      label: formData.get("label"),
+      type: formData.get("type"),
+      target_daily_revenue: formData.get("target_daily_revenue")
+    });
+
+    if (!parsed.success) {
+      const errors = parsed.error.flatten().fieldErrors;
+      const first = Object.values(errors)[0]?.[0] ?? "Donnees invalides.";
+      return { ok: false, message: first };
+    }
+
+    const { error } = await supabase.from("vehicles").insert({
+      owner_id: user.id,
+      driver_id: null,
+      plate_number: parsed.data.plate_number,
+      label: parsed.data.label,
+      type: parsed.data.type,
+      status: "inactive",
+      target_daily_revenue: parsed.data.target_daily_revenue
+    });
+
+    if (error?.code === "23505") {
+      return { ok: false, message: "Cette plaque existe deja pour votre flotte." };
+    }
+
+    if (error) {
+      return { ok: false, message: error.message };
+    }
+
+    revalidateFleetPaths();
+    revalidatePath(ROUTES.INVESTOR_DASHBOARD);
+    return { ok: true, message: "Vehicule ajoute a votre flotte." };
+  } catch (error) {
+    console.error("[createVehicleFromInvestorDashboard]", error);
+    return {
+      ok: false,
+      message: "Impossible d'ajouter le vehicule. Verifiez la connexion Supabase et la colonne vehicles.driver_id."
+    };
   }
-
-  const parsed = createVehicleSchema.safeParse({
-    plate_number: formData.get("plate_number"),
-    label: formData.get("label"),
-    type: formData.get("type"),
-    target_daily_revenue: formData.get("target_daily_revenue")
-  });
-
-  if (!parsed.success) {
-    const errors = parsed.error.flatten().fieldErrors;
-    const first = Object.values(errors)[0]?.[0] ?? "Donnees invalides.";
-    return { ok: false, message: first };
-  }
-
-  const { error } = await supabase.from("vehicles").insert({
-    owner_id: user.id,
-    driver_id: null,
-    plate_number: parsed.data.plate_number,
-    label: parsed.data.label,
-    type: parsed.data.type,
-    status: "inactive",
-    target_daily_revenue: parsed.data.target_daily_revenue
-  });
-
-  if (error?.code === "23505") {
-    return { ok: false, message: "Cette plaque existe deja pour votre flotte." };
-  }
-
-  if (error) {
-    return { ok: false, message: error.message };
-  }
-
-  revalidateFleetPaths();
-  revalidatePath(ROUTES.INVESTOR_DASHBOARD);
-  return { ok: true, message: "Vehicule ajoute a votre flotte." };
 }
 
 export async function deleteVehicle(formData: FormData) {

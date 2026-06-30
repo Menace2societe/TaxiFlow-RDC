@@ -7,7 +7,7 @@ export default async function DriverLayout({ children }: { children: React.React
   const userProfile = profile as any;
 
   return (
-    <div className="min-h-screen bg-road text-ink dark:bg-[#101815] dark:text-stone-50">
+    <div className="min-h-screen bg-[#101815] text-stone-50">
       <div className="md:hidden">
         <Sidebar role="driver" name={userProfile?.full_name || "Chauffeur"} />
       </div>
