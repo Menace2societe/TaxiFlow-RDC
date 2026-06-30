@@ -1,14 +1,49 @@
 "use server";
 
+import { createServerClient } from "@supabase/ssr";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { loginWithNext, ROUTES } from "@/lib/routes";
+import type { Database } from "@/lib/supabase/types";
 
 const assignVehicleSchema = z.object({
   vehicle_id: z.string().uuid()
 });
+
+const phoneRegex = /^\+243[0-9]{9}$/;
+
+const driverPhoneAssignmentSchema = z.object({
+  vehicle_id: z.string().uuid(),
+  full_name: z.string().min(2, "Le nom du chauffeur est obligatoire.").max(120).transform((value) => value.trim()),
+  phone: z
+    .string()
+    .transform((value) => value.replace(/\s+/g, ""))
+    .refine((value) => phoneRegex.test(value), "Le telephone doit etre au format RDC +243 suivi de 9 chiffres."),
+  confirm_reassign: z.coerce.boolean().default(false)
+});
+
+export type DriverAssignmentActionState = {
+  ok: boolean;
+  message: string;
+};
+
+function createServiceClient() {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return null;
+  }
+
+  return createServerClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    { cookies: { getAll: () => [], setAll: () => {} } }
+  );
+}
+
+function normalizePhone(phone: string | null | undefined) {
+  return (phone ?? "").replace(/\s+/g, "");
+}
 
 export async function assignDriverToVehicle(formData: FormData) {
   const supabase = await createClient();
@@ -89,4 +124,138 @@ export async function assignDriverToVehicle(formData: FormData) {
   revalidatePath(ROUTES.INVESTOR_FLEET);
   revalidatePath(ROUTES.DRIVER_PORTAL);
   redirect(`${ROUTES.INVESTOR_FLEET}?assigned=1`);
+}
+
+export async function registerOrAssignDriverByPhone(formData: FormData): Promise<DriverAssignmentActionState> {
+  const supabase = await createClient();
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { ok: false, message: "Session expiree. Reconnectez-vous pour associer un chauffeur." };
+  }
+
+  const parsed = driverPhoneAssignmentSchema.safeParse({
+    vehicle_id: formData.get("vehicle_id"),
+    full_name: formData.get("full_name"),
+    phone: formData.get("phone"),
+    confirm_reassign: formData.get("confirm_reassign") === "1"
+  });
+
+  if (!parsed.success) {
+    const errors = parsed.error.flatten().fieldErrors;
+    const first = Object.values(errors)[0]?.[0] ?? "Donnees invalides.";
+    return { ok: false, message: first };
+  }
+
+  const { data: ownedVehicle, error: vehicleError } = await supabase
+    .from("vehicles")
+    .select("id,label")
+    .eq("id", parsed.data.vehicle_id)
+    .eq("owner_id", user.id)
+    .maybeSingle();
+
+  if (vehicleError || !ownedVehicle) {
+    return { ok: false, message: "Vehicule introuvable ou acces refuse." };
+  }
+
+  const { data: profiles, error: profilesError } = await supabase
+    .from("profiles")
+    .select("id,full_name,phone,role");
+
+  if (profilesError) {
+    return { ok: false, message: profilesError.message };
+  }
+
+  let driver = (profiles ?? []).find((profile) => normalizePhone(profile.phone) === parsed.data.phone) ?? null;
+
+  if (!driver) {
+    const serviceClient = createServiceClient();
+    if (!serviceClient) {
+      return {
+        ok: false,
+        message: "Aucun chauffeur avec ce telephone. Configurez SUPABASE_SERVICE_ROLE_KEY pour inscrire un nouveau chauffeur depuis ce portail."
+      };
+    }
+
+    const { data: createdUser, error: createUserError } = await serviceClient.auth.admin.createUser({
+      phone: parsed.data.phone,
+      phone_confirm: true,
+      user_metadata: {
+        full_name: parsed.data.full_name,
+        phone: parsed.data.phone,
+        role: "driver"
+      }
+    });
+
+    if (createUserError || !createdUser.user) {
+      return { ok: false, message: createUserError?.message ?? "Creation du compte chauffeur impossible." };
+    }
+
+    const { error: profileError } = await serviceClient.from("profiles").upsert({
+      id: createdUser.user.id,
+      full_name: parsed.data.full_name,
+      phone: parsed.data.phone,
+      role: "driver"
+    });
+
+    if (profileError) {
+      return { ok: false, message: profileError.message };
+    }
+
+    driver = {
+      id: createdUser.user.id,
+      full_name: parsed.data.full_name,
+      phone: parsed.data.phone,
+      role: "driver"
+    };
+  }
+
+  if (driver.role !== "driver") {
+    return { ok: false, message: "Ce numero est deja lie a un compte qui n'est pas chauffeur." };
+  }
+
+  const { data: conflict } = await supabase
+    .from("vehicles")
+    .select("id,label,plate_number")
+    .eq("owner_id", user.id)
+    .eq("driver_id", driver.id)
+    .neq("id", parsed.data.vehicle_id)
+    .maybeSingle();
+
+  if (conflict && !parsed.data.confirm_reassign) {
+    return {
+      ok: false,
+      message: `Ce chauffeur est deja associe a ${conflict.label} (${conflict.plate_number}). Cochez la confirmation pour le reassigner.`
+    };
+  }
+
+  if (conflict) {
+    const { error: clearError } = await supabase
+      .from("vehicles")
+      .update({ driver_id: null })
+      .eq("id", conflict.id)
+      .eq("owner_id", user.id);
+
+    if (clearError) {
+      return { ok: false, message: clearError.message };
+    }
+  }
+
+  const { error: updateError } = await supabase
+    .from("vehicles")
+    .update({ driver_id: driver.id })
+    .eq("id", parsed.data.vehicle_id)
+    .eq("owner_id", user.id);
+
+  if (updateError) {
+    return { ok: false, message: updateError.message };
+  }
+
+  revalidatePath(ROUTES.INVESTOR_DASHBOARD);
+  revalidatePath(ROUTES.INVESTOR_FLEET);
+  revalidatePath(ROUTES.DRIVER_PORTAL);
+
+  return { ok: true, message: `${driver.full_name ?? parsed.data.full_name} est associe a ${ownedVehicle.label}.` };
 }

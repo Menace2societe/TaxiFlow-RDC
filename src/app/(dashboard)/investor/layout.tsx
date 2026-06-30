@@ -1,15 +1,22 @@
 import { Sidebar } from "@/components/Sidebar";
 import { SupabaseRealtimeRefresh } from "@/components/SupabaseRealtimeRefresh";
-import { requireRole } from "@/lib/auth/roles";
+import { getCurrentProfile } from "@/lib/auth/roles";
+
+export const dynamic = "force-dynamic";
 
 export default async function InvestorLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // Guard: redirects to /login if unauthenticated, or to the correct portal if wrong role
-  const profile = await requireRole("investor");
-  const userProfile = profile as any;
+  let investorName = "Investisseur";
+
+  try {
+    const profile = await getCurrentProfile();
+    investorName = profile?.full_name?.trim() || "Investisseur";
+  } catch (error) {
+    console.error("[InvestorLayout] Unable to load investor profile", error);
+  }
 
   return (
     <div
@@ -20,7 +27,7 @@ export default async function InvestorLayout({
       <div className="md:hidden">
         <Sidebar
           role="investor"
-          name={userProfile?.full_name ?? "Investisseur"}
+          name={investorName}
         />
       </div>
 
@@ -33,7 +40,7 @@ export default async function InvestorLayout({
         >
           <Sidebar
             role="investor"
-            name={userProfile?.full_name ?? "Investisseur"}
+            name={investorName}
           />
         </div>
 

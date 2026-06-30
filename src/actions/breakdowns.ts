@@ -16,6 +16,15 @@ const reportSchema = z.object({
   estimated_cost: z.coerce.number().min(0).default(0)
 });
 
+const investorReportSchema = reportSchema.extend({
+  vehicle_id: z.string().uuid()
+});
+
+export type BreakdownActionState = {
+  ok: boolean;
+  message: string;
+};
+
 export async function reportBreakdown(formData: FormData) {
   const supabase = await createClient();
   const {
@@ -66,4 +75,68 @@ export async function reportBreakdown(formData: FormData) {
   revalidatePath(ROUTES.INVESTOR_FLEET);
   revalidatePath(ROUTES.DRIVER_MAINTENANCE);
   redirect(`${ROUTES.DRIVER_PORTAL}?breakdown=1`);
+}
+
+export async function reportInvestorBreakdown(formData: FormData): Promise<BreakdownActionState> {
+  const supabase = await createClient();
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { ok: false, message: "Session expiree. Reconnectez-vous pour declarer une panne." };
+  }
+
+  const parsed = investorReportSchema.safeParse({
+    vehicle_id: formData.get("vehicle_id"),
+    type: formData.get("type"),
+    description: String(formData.get("description") ?? ""),
+    estimated_cost: formData.get("estimated_cost")
+  });
+
+  if (!parsed.success) {
+    const errors = parsed.error.flatten().fieldErrors;
+    const first = Object.values(errors)[0]?.[0] ?? "Donnees invalides.";
+    return { ok: false, message: first };
+  }
+
+  const { data: vehicle, error: vehicleError } = await supabase
+    .from("vehicles")
+    .select("id,label")
+    .eq("id", parsed.data.vehicle_id)
+    .eq("owner_id", user.id)
+    .maybeSingle();
+
+  if (vehicleError || !vehicle) {
+    return { ok: false, message: "Vehicule introuvable ou acces refuse." };
+  }
+
+  const { error: insertError } = await supabase.from("breakdowns").insert({
+    vehicle_id: parsed.data.vehicle_id,
+    reported_by: user.id,
+    type: parsed.data.type,
+    description: parsed.data.description,
+    estimated_cost: parsed.data.estimated_cost,
+    status: "open"
+  });
+
+  if (insertError) {
+    return { ok: false, message: insertError.message };
+  }
+
+  const { error: updateError } = await supabase
+    .from("vehicles")
+    .update({ status: "maintenance" })
+    .eq("id", parsed.data.vehicle_id)
+    .eq("owner_id", user.id);
+
+  if (updateError) {
+    return { ok: false, message: updateError.message };
+  }
+
+  revalidatePath(ROUTES.INVESTOR_DASHBOARD);
+  revalidatePath(ROUTES.INVESTOR_FLEET);
+  revalidatePath(ROUTES.DRIVER_MAINTENANCE);
+
+  return { ok: true, message: `Panne declaree pour ${vehicle.label}.` };
 }
