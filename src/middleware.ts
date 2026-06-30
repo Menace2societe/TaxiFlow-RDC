@@ -7,24 +7,18 @@ const protectedPrefixes = ["/dashboard", "/driver", "/investor"] as const;
 const authPrefixes = [ROUTES.LOGIN, ROUTES.REGISTER, ROUTES.SIGNUP] as const;
 
 const roleHome: Record<UserRole, string> = {
-  driver: ROUTES.DRIVER_PORTAL, // ex: /driver/dashboard ou /driver
-  investor: ROUTES.INVESTOR_DASHBOARD, // ex: /investor/dashboard
-  admin: ROUTES.DASHBOARD_OVERVIEW // ex: /dashboard/overview
+  driver: ROUTES.DRIVER_PORTAL,
+  investor: ROUTES.INVESTOR_DASHBOARD,
+  admin: ROUTES.DASHBOARD_OVERVIEW
 };
-
-// Fonction utilitaire pour nettoyer et comparer strictement les routes
-function cleanPath(path: string): string {
-  return path.toLowerCase().replace(/\/+$/, "").trim();
-}
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
-
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         getAll() {
@@ -41,16 +35,12 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-  if (userError && process.env.NODE_ENV === "development") {
-    console.warn("[middleware] getUser:", userError.message);
-  }
+  const { data: { user } } = await supabase.auth.getUser();
 
   const isProtected = protectedPrefixes.some((prefix) => pathname.startsWith(prefix));
   const isAuth = authPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 
-  // 1. Non authentifié sur une page protégée -> Redirection Login
+  // 1. Non authentifié sur une page protégée -> Connexion
   if (isProtected && !user) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = ROUTES.LOGIN;
@@ -58,79 +48,47 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
-  // 2. Non authentifié sur une page publique -> On laisse passer
+  // 2. Non authentifié sur page publique
   if (!user) {
     return supabaseResponse;
   }
 
-  // 3. Récupération du profil
-  let { data: profile, error: profileError } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  // 3. Récupération du rôle
+  let { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
 
-  // Sécurité Service Role si la requête standard échoue
-  if (profileError && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  if (!profile && process.env.SUPABASE_SERVICE_ROLE_KEY) {
     const supabaseAdmin = createServerClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
       { cookies: { getAll: () => [], setAll: () => {} } }
     );
-    const { data: adminProfile, error: adminError } = await supabaseAdmin.from("profiles").select("role").eq("id", user.id).single();
-    if (!adminError) {
-      profile = adminProfile;
-    }
+    const { data: adminProfile } = await supabaseAdmin.from("profiles").select("role").eq("id", user.id).single();
+    if (adminProfile) profile = adminProfile;
   }
 
-  const role = (profile as { role?: UserRole } | null)?.role;
+  const role = profile?.role as UserRole | undefined;
 
-  // Si l'utilisateur est connecté mais n'a pas de rôle valide, on ne bloque pas dans une boucle
-  if (!role) {
+  // Si aucun rôle trouvé, on laisse filer pour éviter le blocage
+  if (!role || !roleHome[role]) {
     return supabaseResponse;
   }
 
-  // Fonction de redirection sécurisée contre les boucles infinies
-  const redirectWithCookies = (targetPath: string) => {
-    if (cleanPath(pathname) === cleanPath(targetPath)) {
-      return supabaseResponse;
-    }
+  const targetHome = roleHome[role];
 
-    const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = targetPath;
-    redirectUrl.search = "";
-    const redirectResp = NextResponse.redirect(redirectUrl, 303);
-
-    supabaseResponse.headers.forEach((value, key) => {
-      if (key.toLowerCase() === "set-cookie") {
-        redirectResp.headers.append(key, value);
-      }
-    });
-
-    return redirectResp;
-  };
-
-  // 4. Déjà connecté et tente d'aller sur Login/Register -> Espace personnel
+  // 4. Si déjà connecté sur une page d'auth -> redirection vers son espace
   if (isAuth) {
-    return redirectWithCookies(roleHome[role]);
+    return NextResponse.redirect(new URL(targetHome, request.url));
   }
 
-  // 5. Redirection des racines vers les sous-pages spécifiques
-  if (pathname === "/dashboard" || pathname === "/driver" || pathname === "/investor") {
-    return redirectWithCookies(roleHome[role]);
-  }
+  // 5. PROTECTION ABSOLUE CONTRE LES BOUCLES :
+  // Si l'URL actuelle correspond déjà ou commence par la section légitime de son rôle, ON LAISSE PASSER.
+  if (pathname.startsWith("/driver") && role === "driver") return supabaseResponse;
+  if (pathname.startsWith("/investor") && role === "investor") return supabaseResponse;
+  if (pathname.startsWith("/dashboard") && role === "admin") return supabaseResponse;
 
-  // 6. Vérification stricte des accès par préfixe de rôle
-  // AJOUT SÉCURITÉ : Si l'utilisateur est sur la bonne section (ex: /investor/...) et que son rôle est bien 'investor', on valide IMMÉDIATEMENT sans rediriger.
-  if (pathname.startsWith("/driver")) {
-    if (role === "driver") return supabaseResponse;
-    return redirectWithCookies(roleHome[role]);
-  }
-
-  if (pathname.startsWith("/investor")) {
-    if (role === "investor") return supabaseResponse;
-    return redirectWithCookies(roleHome[role]);
-  }
-
-  if (pathname.startsWith("/dashboard")) {
-    if (role === "admin") return supabaseResponse;
-    return redirectWithCookies(roleHome[role]);
+  // 6. Si l'utilisateur tente d'accéder à une section qui n'est pas la sienne
+  if (isProtected) {
+    return NextResponse.redirect(new URL(targetHome, request.url));
   }
 
   return supabaseResponse;
