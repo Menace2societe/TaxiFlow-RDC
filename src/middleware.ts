@@ -16,16 +16,13 @@ function normalizePath(path: string) {
   if (path.length > 1 && path.endsWith("/")) {
     return path.slice(0, -1);
   }
-
   return path;
 }
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
-  let supabaseResponse = NextResponse.next({
-    request
-  });
+  let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -37,9 +34,7 @@ export async function middleware(request: NextRequest) {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          supabaseResponse = NextResponse.next({
-            request
-          });
+          supabaseResponse = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) => {
             supabaseResponse.cookies.set(name, value, options);
           });
@@ -48,10 +43,7 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-    error: userError
-  } = await supabase.auth.getUser();
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
 
   if (userError && process.env.NODE_ENV === "development") {
     console.warn("[middleware] getUser:", userError.message);
@@ -60,6 +52,7 @@ export async function middleware(request: NextRequest) {
   const isProtected = protectedPrefixes.some((prefix) => pathname.startsWith(prefix));
   const isAuth = authPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 
+  // 1. Non authentifié sur une page protégée -> Redirection Login
   if (isProtected && !user) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = ROUTES.LOGIN;
@@ -67,10 +60,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
+  // 2. Non authentifié sur une page publique -> On laisse passer
   if (!user) {
     return supabaseResponse;
   }
 
+  // 3. Récupération du profil
   let { data: profile, error: profileError } = await supabase.from("profiles").select("role").eq("id", user.id).single();
 
   if (profileError && process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -111,16 +106,19 @@ export async function middleware(request: NextRequest) {
     });
 
     return redirectResp;
-  };
+  }
 
+  // 4. Déjà connecté et tente d'aller sur Login/Register -> Redirection vers son espace
   if (isAuth) {
     return redirectWithCookies(roleHome[role]);
   }
 
+  // 5. Redirection des racines vers les sous-pages spécifiques
   if (pathname === "/dashboard" || pathname === "/driver" || pathname === "/investor") {
     return redirectWithCookies(roleHome[role]);
   }
 
+  // 6. Vérification stricte des accès aux sous-pages par rôle
   if (pathname.startsWith("/driver") && role !== "driver") {
     return redirectWithCookies(roleHome[role]);
   }
@@ -136,11 +134,6 @@ export async function middleware(request: NextRequest) {
   return supabaseResponse;
 }
 
-/**
- * Skip middleware for static assets, Next internals, and files with extensions.
- * Public auth routes (/login, /register, /signup) are NOT skipped — they run middleware
- * so we can redirect authenticated users away from auth screens.
- */
 export const config = {
   matcher: ["/((?!_next/static|_next/image|_next/webpack|favicon.ico|.*\\.(?:ico|png|jpg|jpeg|gif|webp|svg|woff2?|css|js|map|txt|xml|json)).*)"]
 };
