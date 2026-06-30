@@ -7,16 +7,14 @@ const protectedPrefixes = ["/dashboard", "/driver", "/investor"] as const;
 const authPrefixes = [ROUTES.LOGIN, ROUTES.REGISTER, ROUTES.SIGNUP] as const;
 
 const roleHome: Record<UserRole, string> = {
-  driver: ROUTES.DRIVER_PORTAL,
-  investor: ROUTES.INVESTOR_DASHBOARD,
-  admin: ROUTES.DASHBOARD_OVERVIEW
+  driver: ROUTES.DRIVER_PORTAL, // ex: /driver/dashboard ou /driver
+  investor: ROUTES.INVESTOR_DASHBOARD, // ex: /investor/dashboard
+  admin: ROUTES.DASHBOARD_OVERVIEW // ex: /dashboard/overview
 };
 
-function normalizePath(path: string) {
-  if (path.length > 1 && path.endsWith("/")) {
-    return path.slice(0, -1);
-  }
-  return path;
+// Fonction utilitaire pour nettoyer et comparer strictement les routes
+function cleanPath(path: string): string {
+  return path.toLowerCase().replace(/\/+$/, "").trim();
 }
 
 export async function middleware(request: NextRequest) {
@@ -68,6 +66,7 @@ export async function middleware(request: NextRequest) {
   // 3. Récupération du profil
   let { data: profile, error: profileError } = await supabase.from("profiles").select("role").eq("id", user.id).single();
 
+  // Sécurité Service Role si la requête standard échoue
   if (profileError && process.env.SUPABASE_SERVICE_ROLE_KEY) {
     const supabaseAdmin = createServerClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -82,15 +81,14 @@ export async function middleware(request: NextRequest) {
 
   const role = (profile as { role?: UserRole } | null)?.role;
 
+  // Si l'utilisateur est connecté mais n'a pas de rôle valide, on ne bloque pas dans une boucle
   if (!role) {
     return supabaseResponse;
   }
 
+  // Fonction de redirection sécurisée contre les boucles infinies
   const redirectWithCookies = (targetPath: string) => {
-    const normalizedCurrent = normalizePath(pathname);
-    const normalizedTarget = normalizePath(targetPath);
-
-    if (normalizedCurrent === normalizedTarget) {
+    if (cleanPath(pathname) === cleanPath(targetPath)) {
       return supabaseResponse;
     }
 
@@ -106,9 +104,9 @@ export async function middleware(request: NextRequest) {
     });
 
     return redirectResp;
-  }
+  };
 
-  // 4. Déjà connecté et tente d'aller sur Login/Register -> Redirection vers son espace
+  // 4. Déjà connecté et tente d'aller sur Login/Register -> Espace personnel
   if (isAuth) {
     return redirectWithCookies(roleHome[role]);
   }
@@ -118,16 +116,20 @@ export async function middleware(request: NextRequest) {
     return redirectWithCookies(roleHome[role]);
   }
 
-  // 6. Vérification stricte des accès aux sous-pages par rôle
-  if (pathname.startsWith("/driver") && role !== "driver") {
+  // 6. Vérification stricte des accès par préfixe de rôle
+  // AJOUT SÉCURITÉ : Si l'utilisateur est sur la bonne section (ex: /investor/...) et que son rôle est bien 'investor', on valide IMMÉDIATEMENT sans rediriger.
+  if (pathname.startsWith("/driver")) {
+    if (role === "driver") return supabaseResponse;
     return redirectWithCookies(roleHome[role]);
   }
 
-  if (pathname.startsWith("/investor") && role !== "investor") {
+  if (pathname.startsWith("/investor")) {
+    if (role === "investor") return supabaseResponse;
     return redirectWithCookies(roleHome[role]);
   }
 
-  if (pathname.startsWith("/dashboard") && role !== "admin") {
+  if (pathname.startsWith("/dashboard")) {
+    if (role === "admin") return supabaseResponse;
     return redirectWithCookies(roleHome[role]);
   }
 
