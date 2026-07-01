@@ -36,7 +36,7 @@ export async function getCurrentProfile() {
 
   console.log("[AUTH] getCurrentProfile:", {
     userId: user.id,
-    role: (profile as any)?.role ?? null,
+    role: profile?.role ?? null,
     error: profileError?.message ?? null
   });
 
@@ -56,7 +56,7 @@ export async function getCurrentProfile() {
 
     console.log("[AUTH] getCurrentProfile service role fallback:", {
       userId: user.id,
-      role: (adminProfile as any)?.role ?? null,
+      role: adminProfile?.role ?? null,
       error: adminError?.message ?? null
     });
 
@@ -75,14 +75,14 @@ export async function requireRole(expectedRole: UserRole) {
     redirect(ROUTES.LOGIN);
   }
 
-  const userProfile = profile as any;
+  const userRole = profile.role as UserRole;
 
-  if (userProfile.role !== expectedRole) {
-    const targetPath = getRoleHome(userProfile.role);
-    console.log(`[AUTH] requireRole(${expectedRole}): detected ${userProfile.role}, redirecting to ${targetPath}.`);
+  if (userRole !== expectedRole) {
+    const targetPath = getRoleHome(userRole);
+    console.log(`[AUTH] requireRole(${expectedRole}): detected ${userRole}, redirecting to ${targetPath}.`);
     redirect(targetPath);
   }
 
-  console.log(`[AUTH] requireRole(${expectedRole}): access granted for role ${userProfile.role}.`);
+  console.log(`[AUTH] requireRole(${expectedRole}): access granted for role ${userRole}.`);
   return profile;
 }

@@ -52,12 +52,18 @@ async function signupAction(formData: FormData) {
   }
 
   if (data.user) {
-    await (supabase.from("profiles") as any).upsert({
+    // Upsert typé proprement — phone est désormais dans le schéma canonique.
+    // Les erreurs sont loguées mais non bloquantes : le trigger handle_new_user
+    // a déjà créé le profil de base lors de l'insertion dans auth.users.
+    const { error: profileError } = await supabase.from("profiles").upsert({
       id: data.user.id,
       full_name: fullName || null,
       phone: phone || null,
       role,
     });
+    if (profileError) {
+      console.warn("[signupAction] Upsert profil non bloquant :", profileError.message);
+    }
   }
 
   redirect(

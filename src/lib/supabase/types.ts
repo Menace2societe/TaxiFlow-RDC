@@ -20,6 +20,7 @@ export type Database = {
           id: string;
           full_name: string | null;
           role: UserRole;
+          /** Numéro de téléphone au format RDC (+243XXXXXXXXX). Peut être null. */
           phone: string | null;
           created_at: string;
         };
@@ -33,6 +34,7 @@ export type Database = {
         Update: {
           full_name?: string | null;
           role?: UserRole;
+          /** Mise à jour du numéro de téléphone (format RDC attendu). */
           phone?: string | null;
         };
         Relationships: [];
@@ -161,6 +163,8 @@ export type Database = {
     };
     Enums: {
       breakdown_status: BreakdownStatus;
+      vehicle_status: VehicleStatus;
+      user_role: UserRole;
     };
     CompositeTypes: Record<string, never>;
   };
