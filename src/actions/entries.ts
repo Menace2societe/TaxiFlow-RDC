@@ -55,11 +55,10 @@ export async function createDailyEntry(formData: FormData) {
 
   const revenueCdf = currency === "USD" ? Math.round(amount * usdToCdfRate) : amount;
 
-  const vehicleData = vehicle as any;
   const { error } = await supabase.from("daily_entries").insert({
     owner_id: user.id,
     vehicle_id: vehicleId,
-    driver_id: vehicleData?.driver_id,
+    driver_id: vehicle.driver_id,
     entry_date: entryDate,
     amount,
     currency,
@@ -68,7 +67,7 @@ export async function createDailyEntry(formData: FormData) {
     fuel_cdf: 0,
     maintenance_cdf: 0,
     notes
-  } as any);
+  });
 
   if (error) {
     redirect(`${ROUTES.DASHBOARD_ENTRIES}?error=${encodeURIComponent(error.message)}`);
@@ -136,7 +135,7 @@ export async function createDriverDailyEntry(formData: FormData) {
     fuel_cdf: 0,
     maintenance_cdf: 0,
     notes
-  } as any);
+  });
 
   if (error) {
     redirect(`${ROUTES.DRIVER_PORTAL}?error=${encodeURIComponent(error.message)}`);

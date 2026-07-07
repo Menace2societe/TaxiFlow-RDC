@@ -11,18 +11,18 @@ const monthlyRevenue = [
   { month: "Mar", value: "1,180,000 FC", progress: 78 },
   { month: "Avr", value: "1,250,000 FC", progress: 83 },
   { month: "Mai", value: "1,410,000 FC", progress: 94 }
-];
+] as const;
 
 const payouts = [
   { week: "Semaine 18", date: "05 Mai 2026", label: "Distribution investisseur", amount: "420,000 FC", status: "Verse" },
   { week: "Semaine 17", date: "28 Avr 2026", label: "Reserve maintenance", amount: "85,000 FC", status: "Reserve" },
   { week: "Semaine 16", date: "20 Avr 2026", label: "Bonus performance flotte", amount: "60,000 FC", status: "Verse" },
   { week: "Semaine 15", date: "13 Avr 2026", label: "Distribution investisseur", amount: "390,000 FC", status: "Verse" }
-];
+] as const;
 
 export default function InvestorRevenuePage() {
-  const revenueData = monthlyRevenue as any;
-  const payoutData = payouts as any;
+  const revenueData = monthlyRevenue;
+  const payoutData = payouts;
 
   return (
     <div className="space-y-6">
@@ -74,7 +74,7 @@ export default function InvestorRevenuePage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {revenueData.map((item: any) => (
+              {revenueData.map((item) => (
                 <div key={item.month}>
                   <div className="mb-2 flex justify-between text-sm">
                     <span className="font-medium">{item.month}</span>
@@ -123,7 +123,7 @@ export default function InvestorRevenuePage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {payoutData.map((payout: any) => (
+              {payoutData.map((payout) => (
                 <TableRow key={`${payout.week}-${payout.label}`}>
                   <TableCell>{payout.week}</TableCell>
                   <TableCell>{payout.date}</TableCell>

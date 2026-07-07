@@ -11,6 +11,7 @@ export type VehicleType = "taxi" | "moto";
 export type UserRole = "driver" | "investor" | "admin";
 export type EntryCurrency = "CDF" | "USD";
 export type BreakdownStatus = "open" | "in_progress" | "resolved";
+export type PaymentStatus = "pending" | "approved" | "rejected";
 
 export type Database = {
   public: {
@@ -148,6 +149,34 @@ export type Database = {
         };
         Relationships: [];
       };
+      payments: {
+        Row: {
+          id: string;
+          amount: number;
+          driver_id: string;
+          vehicle_id: string;
+          investor_id: string;
+          status: PaymentStatus;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          amount: number;
+          driver_id: string;
+          vehicle_id: string;
+          investor_id: string;
+          status?: PaymentStatus;
+          created_at?: string;
+        };
+        Update: {
+          amount?: number;
+          driver_id?: string;
+          vehicle_id?: string;
+          investor_id?: string;
+          status?: PaymentStatus;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -163,6 +192,7 @@ export type Database = {
     };
     Enums: {
       breakdown_status: BreakdownStatus;
+      payment_status: PaymentStatus;
       vehicle_status: VehicleStatus;
       user_role: UserRole;
     };

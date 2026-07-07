@@ -79,17 +79,17 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
             <Phone size={13} aria-hidden className="text-stone-400" />
             Téléphone
           </label>
-          <div className="flex gap-2">
-            <span className="field w-24 shrink-0 cursor-default select-none bg-stone-100 text-center text-sm font-semibold text-stone-600 dark:bg-stone-800 dark:text-stone-300">
+          <div className="flex w-full items-center gap-2">
+            <span className="field flex min-w-[75px] shrink-0 cursor-default select-none items-center justify-center bg-stone-100 px-3 text-sm font-semibold text-stone-600 dark:bg-stone-800 dark:text-stone-300">
               +243
             </span>
             <input
               id="reg-phone"
-              className="field flex-1"
+              className="field min-w-0 flex-1 w-full"
               name="phone"
               type="tel"
               autoComplete="tel"
-              placeholder="08X XXX XXXX"
+              placeholder="812345678"
             />
           </div>
         </div>

@@ -10,16 +10,19 @@ const documents = [
   { id: "doc-002", title: "Assurance flotte", category: "Conformite", status: "A renouveler", date: "18 Juin 2026", size: "860 KB" },
   { id: "doc-003", title: "Rapport fiscal trimestriel", category: "Rapport", status: "Pret", date: "30 Avr 2026", size: "2.1 MB" },
   { id: "doc-004", title: "Etat des versements hebdomadaires", category: "Finance", status: "Pret", date: "06 Mai 2026", size: "720 KB" }
-];
+] as const;
 
-const statusVariant = {
+type DocumentStatus = (typeof documents)[number]["status"];
+type BadgeVariant = "success" | "warning" | "danger" | "neutral" | "info";
+
+const statusVariant: Record<DocumentStatus, BadgeVariant> = {
   Valide: "success",
   Pret: "info",
   "A renouveler": "warning"
-} as const;
+};
 
 export default function InvestorDocumentsPage() {
-  const data = documents as any;
+  const data = documents;
 
   return (
     <div className="space-y-6">
@@ -78,14 +81,14 @@ export default function InvestorDocumentsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.map((document: any) => (
+              {data.map((document) => (
                 <TableRow key={document.id}>
                   <TableCell className="font-semibold">{document.title}</TableCell>
                   <TableCell>{document.category}</TableCell>
                   <TableCell>{document.date}</TableCell>
                   <TableCell>{document.size}</TableCell>
                   <TableCell>
-                    <Badge variant={(statusVariant as any)[document.status] ?? "neutral"}>{document.status}</Badge>
+                    <Badge variant={statusVariant[document.status] ?? "neutral"}>{document.status}</Badge>
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-2">

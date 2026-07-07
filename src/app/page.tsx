@@ -23,8 +23,7 @@ const benefits = [
 ];
 
 export default async function HomePage() {
-  const profileRaw = await getCurrentProfile();
-  const profile = profileRaw as any;
+  const profile = await getCurrentProfile();
 
   if (profile) {
     const targetPath = getRoleHome(profile.role);

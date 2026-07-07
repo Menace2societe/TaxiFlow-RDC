@@ -7,6 +7,14 @@ import { createClient } from "@/lib/supabase/server";
 import { loginWithNext, ROUTES } from "@/lib/routes";
 import type { VehicleStatus } from "@/lib/supabase/types";
 
+export type VehicleOperationalStatus = "en service" | "maintenance" | "repos";
+
+const operationalStatusToDatabaseStatus: Record<VehicleOperationalStatus, VehicleStatus> = {
+  "en service": "active",
+  maintenance: "maintenance",
+  repos: "inactive"
+};
+
 const nextStatus: Record<VehicleStatus, VehicleStatus> = {
   active: "inactive",
   inactive: "active",
@@ -33,6 +41,39 @@ function revalidateFleetPaths() {
   revalidatePath(ROUTES.DASHBOARD_FLEET);
   revalidatePath(ROUTES.DASHBOARD_OVERVIEW);
   revalidatePath(ROUTES.INVESTOR_FLEET);
+  revalidatePath(ROUTES.INVESTOR_DASHBOARD);
+  revalidatePath(ROUTES.DRIVER_DASHBOARD);
+  revalidatePath(ROUTES.DRIVER_PORTAL);
+}
+
+export async function updateVehicleStatus(vehicleId: string, status: VehicleOperationalStatus): Promise<VehicleActionState> {
+  try {
+    if (!vehicleId) {
+      return { ok: false, message: "Vehicule introuvable." };
+    }
+
+    const databaseStatus = operationalStatusToDatabaseStatus[status];
+
+    if (!databaseStatus) {
+      return { ok: false, message: "Statut vehicule invalide." };
+    }
+
+    const supabase = await createClient();
+    const { error } = await supabase.from("vehicles").update({ status: databaseStatus }).eq("id", vehicleId);
+
+    if (error) {
+      return { ok: false, message: error.message };
+    }
+
+    revalidateFleetPaths();
+    return { ok: true, message: "Statut du vehicule mis a jour." };
+  } catch (error) {
+    console.error("[updateVehicleStatus]", error);
+    return {
+      ok: false,
+      message: "Impossible de mettre a jour le statut du vehicule."
+    };
+  }
 }
 
 export async function toggleVehicleStatus(formData: FormData) {

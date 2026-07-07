@@ -6,8 +6,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ROUTES } from "@/lib/routes";
 
 export default async function InvestorSettingsPage() {
-  const profileData = await getCurrentProfile();
-  const profile = profileData as any;
+  const profile = await getCurrentProfile();
 
   return (
     <div className="space-y-6">
