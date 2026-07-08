@@ -202,3 +202,117 @@ export async function reportInvestorBreakdown(formData: FormData): Promise<Break
     };
   }
 }
+
+const breakdownStatusSchema = z.object({
+  breakdown_id: z.string().uuid(),
+  new_status: z.enum(["open", "in_progress", "resolved"])
+});
+
+/**
+ * Permet à un chauffeur (ou chauffeur-patron) de mettre à jour le statut
+ * d'une panne liée à son véhicule.
+ * Si la panne passe à "resolved", le véhicule repasse en "en service".
+ */
+export async function updateBreakdownStatus(
+  _prev: BreakdownActionState,
+  formData: FormData
+): Promise<BreakdownActionState> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { ok: false, message: "Session expirée. Reconnectez-vous." };
+    }
+
+    const parsed = breakdownStatusSchema.safeParse({
+      breakdown_id: formData.get("breakdown_id"),
+      new_status: formData.get("new_status")
+    });
+
+    if (!parsed.success) {
+      const first = Object.values(parsed.error.flatten().fieldErrors)[0]?.[0] ?? "Données invalides.";
+      return { ok: false, message: first };
+    }
+
+    const { breakdown_id, new_status } = parsed.data;
+
+    // Vérifier que la panne appartient bien au véhicule du chauffeur connecté
+    const { data: breakdown, error: bErr } = await supabase
+      .from("breakdowns")
+      .select("id,vehicle_id,status")
+      .eq("id", breakdown_id)
+      .maybeSingle();
+
+    if (bErr || !breakdown) {
+      return { ok: false, message: "Panne introuvable." };
+    }
+
+    // Vérifier que ce véhicule est bien assigné à l'utilisateur connecté
+    const { data: vehicle, error: vErr } = await supabase
+      .from("vehicles")
+      .select("id,status")
+      .eq("id", breakdown.vehicle_id)
+      .eq("driver_id", user.id)
+      .maybeSingle();
+
+    if (vErr || !vehicle) {
+      return {
+        ok: false,
+        message: "Accès refusé. Cette panne ne concerne pas votre véhicule."
+      };
+    }
+
+    // Mettre à jour le statut de la panne
+    const { error: updateErr } = await supabase
+      .from("breakdowns")
+      .update({ status: new_status })
+      .eq("id", breakdown_id);
+
+    if (updateErr) {
+      return { ok: false, message: updateErr.message };
+    }
+
+    // Mise à jour du statut du véhicule selon la progression de la panne
+    if (new_status === "in_progress" && vehicle.status !== "maintenance") {
+      await supabase
+        .from("vehicles")
+        .update({ status: "maintenance" })
+        .eq("id", vehicle.id);
+    } else if (new_status === "resolved") {
+      // Vérifier s'il reste des pannes non résolues sur ce véhicule
+      const { count } = await supabase
+        .from("breakdowns")
+        .select("id", { head: true, count: "exact" })
+        .eq("vehicle_id", vehicle.id)
+        .neq("status", "resolved")
+        .neq("id", breakdown_id);
+
+      if ((count ?? 0) === 0) {
+        // Plus de pannes actives → remettre le véhicule "en service"
+        await supabase
+          .from("vehicles")
+          .update({ status: "en service" })
+          .eq("id", vehicle.id);
+      }
+    }
+
+    revalidateBreakdownViews();
+
+    const labels: Record<string, string> = {
+      open: "Signalée",
+      in_progress: "En réparation",
+      resolved: "Résolue"
+    };
+
+    return {
+      ok: true,
+      message: `Statut mis à jour : ${labels[new_status] ?? new_status}.`
+    };
+  } catch (err) {
+    console.error("[updateBreakdownStatus]", err);
+    return { ok: false, message: "Mise à jour impossible. Vérifiez la connexion." };
+  }
+}

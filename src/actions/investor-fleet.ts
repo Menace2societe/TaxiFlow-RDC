@@ -474,17 +474,6 @@ export async function assignFoundDriverToVehicle(
       return { ok: false, message: "Session expirée. Reconnectez-vous." };
     }
 
-    // Vérifier que l'utilisateur est bien investisseur
-    const { data: investorProfile } = await supabase
-      .from("profiles")
-      .select("id,role")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    if (!investorProfile || investorProfile.role !== "investor") {
-      return { ok: false, message: "Accès refusé. Seuls les investisseurs peuvent assigner des chauffeurs." };
-    }
-
     const driverIdRaw = String(formData.get("driver_id") ?? "").trim();
     const vehicleIdRaw = String(formData.get("vehicle_id") ?? "").trim();
 
@@ -493,16 +482,24 @@ export async function assignFoundDriverToVehicle(
     const vehicleParsed = uuidSchema.safeParse(vehicleIdRaw);
 
     if (!driverParsed.success) {
-      return { ok: false, message: "Identifiant chauffeur invalide." };
+      return {
+        ok: false,
+        message: `Identifiant chauffeur invalide (reçu: "${driverIdRaw.slice(0, 40)}").`
+      };
     }
     if (!vehicleParsed.success) {
-      return { ok: false, message: "Identifiant véhicule invalide." };
+      return {
+        ok: false,
+        message: `Identifiant véhicule invalide (reçu: "${vehicleIdRaw.slice(0, 40)}").`
+      };
     }
 
     const driverId = driverParsed.data;
     const vehicleId = vehicleParsed.data;
 
-    // Vérifier que le véhicule appartient bien à l'investisseur connecté et qu'il est disponible
+    // Sécurité : vérifier que le véhicule appartient bien à l'utilisateur connecté.
+    // Cela couvre les investisseurs (role=investor) ET les chauffeurs-patrons qui
+    // gèrent leur propre véhicule (owner_id = user.id).
     const { data: vehicle, error: vehicleErr } = await supabase
       .from("vehicles")
       .select("id,label,driver_id")
@@ -510,18 +507,23 @@ export async function assignFoundDriverToVehicle(
       .eq("owner_id", user.id)
       .maybeSingle();
 
-    if (vehicleErr || !vehicle) {
-      return { ok: false, message: "Véhicule introuvable ou accès refusé." };
+    if (vehicleErr) {
+      console.error("[assignFoundDriverToVehicle] vehicle lookup error:", vehicleErr.message);
+      return { ok: false, message: `Erreur base de données : ${vehicleErr.message}` };
     }
 
-    if (vehicle.driver_id !== null) {
+    if (!vehicle) {
+      return { ok: false, message: "Véhicule introuvable ou accès refusé. Vérifiez que ce véhicule vous appartient." };
+    }
+
+    if (vehicle.driver_id !== null && vehicle.driver_id !== driverId) {
       return {
         ok: false,
-        message: `Le véhicule « ${vehicle.label} » est déjà assigné à un chauffeur. Libérez-le d'abord.`
+        message: `Le véhicule « ${vehicle.label} » est déjà assigné à un autre chauffeur. Libérez-le d'abord.`
       };
     }
 
-    // Libérer tout véhicule précédent de ce chauffeur chez cet investisseur
+    // Libérer tout autre véhicule de ce chauffeur chez cet investisseur
     await supabase
       .from("vehicles")
       .update({ driver_id: null })
@@ -529,7 +531,7 @@ export async function assignFoundDriverToVehicle(
       .eq("driver_id", driverId)
       .neq("id", vehicleId);
 
-    // Assigner le chauffeur
+    // Assigner le chauffeur au véhicule cible
     const { error: updateErr } = await supabase
       .from("vehicles")
       .update({ driver_id: driverId })
@@ -537,6 +539,7 @@ export async function assignFoundDriverToVehicle(
       .eq("owner_id", user.id);
 
     if (updateErr) {
+      console.error("[assignFoundDriverToVehicle] update error:", updateErr.message);
       return { ok: false, message: updateErr.message };
     }
 

@@ -459,6 +459,61 @@ export async function getDriverRecentBreakdowns(driverId: string, limit = 8): Pr
   }
 }
 
+/**
+ * Récupère toutes les pannes du véhicule assigné au chauffeur.
+ * Fonctionne pour :
+ * - Les chauffeurs salariés (vehicle.driver_id = driverId)
+ * - Les chauffeurs-patrons (vehicle.owner_id = driverId ET vehicle.driver_id = driverId)
+ * La requête cherche le véhicule via driver_id, ce qui couvre les deux cas.
+ */
+export async function getDriverVehicleBreakdowns(driverId: string): Promise<DashboardBreakdown[]> {
+  try {
+    const supabase = await createClient();
+
+    // Chercher le véhicule du chauffeur (driver_id = driverId)
+    const { data: vehicle, error: vehicleErr } = await supabase
+      .from("vehicles")
+      .select("id")
+      .eq("driver_id", driverId)
+      .maybeSingle();
+
+    if (vehicleErr) {
+      console.warn("[getDriverVehicleBreakdowns] Erreur véhicule :", vehicleErr.message);
+      return [];
+    }
+
+    if (!vehicle?.id) {
+      return [];
+    }
+
+    // Récupérer toutes les pannes de ce véhicule, triées par date décroissante
+    const { data, error } = await supabase
+      .from("breakdowns")
+      .select("id,vehicle_id,reported_by,type,description,estimated_cost,status,created_at")
+      .eq("vehicle_id", vehicle.id)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.warn("[getDriverVehicleBreakdowns] Erreur pannes :", error.message);
+      return [];
+    }
+
+    return (data ?? []).map((row) => ({
+      id: row.id,
+      vehicle_id: row.vehicle_id,
+      reported_by: row.reported_by,
+      type: row.type,
+      description: row.description,
+      estimated_cost: Number(row.estimated_cost ?? 0),
+      status: row.status as BreakdownStatus,
+      created_at: row.created_at
+    }));
+  } catch (err) {
+    console.error("[getDriverVehicleBreakdowns] Exception :", err);
+    return [];
+  }
+}
+
 export async function getOwnerRecentPayments(ownerId: string, limit = 20): Promise<DashboardPayment[]> {
   try {
     const supabase = await createClient();

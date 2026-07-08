@@ -21,7 +21,9 @@ export async function recordPayment(
   amount: number,
   driverId: string,
   vehicleId: string,
-  investorId: string
+  investorId: string,
+  /** Passer true si chauffeur-patron : auto-approuve le versement */
+  isOwnerDriver = false
 ): Promise<PaymentActionResult> {
   try {
     const normalizedAmount = Number(amount);
@@ -34,13 +36,16 @@ export async function recordPayment(
       return { ok: false, message: "Chauffeur, vehicule ou investisseur manquant." };
     }
 
+    // Règle métier : chauffeur-patron = pas d'investisseur tiers → statut approuvé d'emblée.
+    const status = isOwnerDriver ? "approved" : "pending";
+
     const supabase = await createClient();
     const { error } = await supabase.from("payments").insert({
       amount: normalizedAmount,
       driver_id: driverId,
       vehicle_id: vehicleId,
       investor_id: investorId,
-      status: "pending"
+      status
     });
 
     if (error) {
@@ -49,7 +54,12 @@ export async function recordPayment(
     }
 
     revalidatePaymentViews();
-    return { ok: true, message: "Versement declare et en attente de validation." };
+    return {
+      ok: true,
+      message: isOwnerDriver
+        ? "Versement enregistré et approuvé automatiquement."
+        : "Versement declare et en attente de validation."
+    };
   } catch (error) {
     console.error("[recordPayment] Unexpected failure:", error);
     return {
@@ -83,7 +93,16 @@ export async function recordDriverPayment(formData: FormData) {
       redirect(`${returnPath}?error=${encodeURIComponent(vehicleError?.message ?? "Aucun vehicule assigne.")}`);
     }
 
-    const result = await recordPayment(amount, user.id, vehicle.id, vehicle.owner_id);
+    const normalizedAmount = Number(amount);
+    if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
+      redirect(`${returnPath}?error=${encodeURIComponent("Montant de versement invalide.")}`);
+    }
+
+    // Règle métier : si owner_id === driver_id, c'est un chauffeur-patron →
+    // il n'a pas d'investisseur tiers, le versement est auto-approuvé.
+    const isOwnerDriver = vehicle.owner_id === user.id;
+
+    const result = await recordPayment(amount, user.id, vehicle.id, vehicle.owner_id, isOwnerDriver);
 
     if (!result.ok) {
       redirect(`${returnPath}?error=${encodeURIComponent(result.message)}`);
