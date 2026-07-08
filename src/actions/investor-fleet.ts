@@ -82,8 +82,12 @@ export async function linkDriverToInvestor(
       .eq("id", user.id)
       .maybeSingle();
 
+    console.log("[DEBUG LIAISON] Profil utilisateur connecté :", investorProfile);
+
     const canManageFleet =
-      investorProfile?.role === "investor" || investorProfile?.is_owner_driver === true;
+      investorProfile?.role === "investor" ||
+      investorProfile?.role === "driver" ||
+      investorProfile?.is_owner_driver === true;
 
     if (profileError || !investorProfile || !canManageFleet) {
       return { ok: false, message: "Accès refusé. Seuls les investisseurs peuvent lier des chauffeurs." };
@@ -202,7 +206,7 @@ export async function linkDriverToInvestor(
       };
     }
 
-    revalidatePath(ROUTES.INVESTOR_FLEET);
+    revalidatePath(ROUTES.INVESTOR_FLEET, "layout");
 
     return {
       ok: true,
@@ -291,7 +295,7 @@ export async function assignDriverToVehicle(formData: FormData) {
     redirect(`${ROUTES.INVESTOR_FLEET}?error=${encodeURIComponent(error.message)}`);
   }
 
-  revalidatePath(ROUTES.INVESTOR_FLEET);
+  revalidatePath(ROUTES.INVESTOR_FLEET, "layout");
   revalidatePath(ROUTES.DRIVER_PORTAL);
   redirect(`${ROUTES.INVESTOR_FLEET}?assigned=1`);
 }
@@ -429,7 +433,7 @@ export async function registerOrAssignDriverByPhone(formData: FormData): Promise
     }
 
     revalidatePath(ROUTES.INVESTOR_DASHBOARD);
-    revalidatePath(ROUTES.INVESTOR_FLEET);
+    revalidatePath(ROUTES.INVESTOR_FLEET, "layout");
     revalidatePath(ROUTES.DRIVER_PORTAL);
 
     return { ok: true, message: `${driver.full_name ?? parsed.data.full_name} est associe a ${ownedVehicle.label}.` };
@@ -550,7 +554,7 @@ export async function assignFoundDriverToVehicle(
       return { ok: false, message: updateErr.message };
     }
 
-    revalidatePath(ROUTES.INVESTOR_FLEET);
+    revalidatePath(ROUTES.INVESTOR_FLEET, "layout");
     revalidatePath(ROUTES.INVESTOR_DASHBOARD);
     revalidatePath(ROUTES.DRIVER_PORTAL);
     revalidatePath(ROUTES.DRIVER_DASHBOARD);
