@@ -12,6 +12,16 @@ export type UserRole = "driver" | "investor" | "admin";
 export type EntryCurrency = "CDF" | "USD";
 export type BreakdownStatus = "open" | "in_progress" | "resolved";
 export type PaymentStatus = "pending" | "approved" | "rejected";
+export type DocumentType =
+  | "contrat_employe"
+  | "contrat_location_vente"
+  | "assurance"
+  | "carte_rose"
+  | "permis"
+  | "controle_technique"
+  | "autorisation_transport";
+export type ContractType = "employe" | "location_vente";
+export type ContractStatus = "active" | "completed" | "terminated" | "draft";
 
 export type Database = {
   public: {
@@ -23,6 +33,7 @@ export type Database = {
           role: UserRole;
           /** Numéro de téléphone au format RDC (+243XXXXXXXXX). Peut être null. */
           phone: string | null;
+          is_owner_driver: boolean;
           created_at: string;
         };
         Insert: {
@@ -30,6 +41,7 @@ export type Database = {
           full_name?: string | null;
           role?: UserRole;
           phone?: string | null;
+          is_owner_driver?: boolean;
           created_at?: string;
         };
         Update: {
@@ -37,6 +49,7 @@ export type Database = {
           role?: UserRole;
           /** Mise à jour du numéro de téléphone (format RDC attendu). */
           phone?: string | null;
+          is_owner_driver?: boolean;
         };
         Relationships: [];
       };
@@ -182,6 +195,8 @@ export type Database = {
           id: string;
           owner_id: string;
           driver_id: string;
+          vehicle_id: string | null;
+          document_type: DocumentType;
           document_name: string;
           file_url: string;
           storage_path: string;
@@ -191,6 +206,8 @@ export type Database = {
           id?: string;
           owner_id: string;
           driver_id: string;
+          vehicle_id?: string | null;
+          document_type: DocumentType;
           document_name: string;
           file_url: string;
           storage_path: string;
@@ -199,9 +216,51 @@ export type Database = {
         Update: {
           owner_id?: string;
           driver_id?: string;
+          vehicle_id?: string | null;
+          document_type?: DocumentType;
           document_name?: string;
           file_url?: string;
           storage_path?: string;
+        };
+        Relationships: [];
+      };
+      driver_contracts: {
+        Row: {
+          id: string;
+          owner_id: string;
+          driver_id: string;
+          vehicle_id: string | null;
+          contract_type: ContractType;
+          status: ContractStatus;
+          possession_total_cdf: number | null;
+          possession_paid_cdf: number | null;
+          started_at: string | null;
+          ends_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          owner_id: string;
+          driver_id: string;
+          vehicle_id?: string | null;
+          contract_type: ContractType;
+          status?: ContractStatus;
+          possession_total_cdf?: number | null;
+          possession_paid_cdf?: number | null;
+          started_at?: string | null;
+          ends_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          owner_id?: string;
+          driver_id?: string;
+          vehicle_id?: string | null;
+          contract_type?: ContractType;
+          status?: ContractStatus;
+          possession_total_cdf?: number | null;
+          possession_paid_cdf?: number | null;
+          started_at?: string | null;
+          ends_at?: string | null;
         };
         Relationships: [];
       };
@@ -223,6 +282,9 @@ export type Database = {
       payment_status: PaymentStatus;
       vehicle_status: VehicleStatus;
       user_role: UserRole;
+      document_type_enum: DocumentType;
+      contract_type: ContractType;
+      contract_status: ContractStatus;
     };
     CompositeTypes: Record<string, never>;
   };

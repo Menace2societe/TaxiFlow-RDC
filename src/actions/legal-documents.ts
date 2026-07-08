@@ -4,10 +4,22 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { ownerDriverDocumentTypeOptions } from "@/lib/legal-documents/constants";
 import { loginWithNext, ROUTES } from "@/lib/routes";
+import type { DocumentType } from "@/lib/supabase/types";
 
 const uploadSchema = z.object({
   driver_id: z.string().uuid(),
+  vehicle_id: z.string().uuid().optional().nullable(),
+  document_type: z.enum([
+    "contrat_employe",
+    "contrat_location_vente",
+    "assurance",
+    "carte_rose",
+    "permis",
+    "controle_technique",
+    "autorisation_transport"
+  ]),
   document_name: z.string().min(2).max(160).transform((value) => value.trim())
 });
 
@@ -21,42 +33,64 @@ function safeStorageName(name: string) {
 }
 
 export async function uploadLegalDocument(formData: FormData) {
+  const returnPath = String(formData.get("return_path") ?? ROUTES.INVESTOR_DOCUMENTS);
   const supabase = await createClient();
   const {
     data: { user }
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect(loginWithNext(ROUTES.INVESTOR_DOCUMENTS));
+    redirect(loginWithNext(returnPath));
   }
 
+  const vehicleIdRaw = String(formData.get("vehicle_id") ?? "").trim();
   const parsed = uploadSchema.safeParse({
     driver_id: formData.get("driver_id"),
+    vehicle_id: vehicleIdRaw === "" ? null : vehicleIdRaw,
+    document_type: formData.get("document_type"),
     document_name: formData.get("document_name")
   });
 
   if (!parsed.success) {
-    redirect(`${ROUTES.INVESTOR_DOCUMENTS}?error=${encodeURIComponent("Document ou chauffeur invalide.")}`);
+    redirect(`${returnPath}?error=${encodeURIComponent("Document, vehicule ou chauffeur invalide.")}`);
   }
 
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
-    redirect(`${ROUTES.INVESTOR_DOCUMENTS}?error=${encodeURIComponent("Selectionnez un fichier a televerser.")}`);
+    redirect(`${returnPath}?error=${encodeURIComponent("Selectionnez un fichier a televerser.")}`);
   }
 
-  const { data: vehicle, error: vehicleError } = await supabase
+  const isSelfUpload = parsed.data.driver_id === user.id;
+  const allowedSelfTypes = new Set<DocumentType>(ownerDriverDocumentTypeOptions.map((option) => option.value));
+
+  if (isSelfUpload && !allowedSelfTypes.has(parsed.data.document_type)) {
+    redirect(`${returnPath}?error=${encodeURIComponent("Un chauffeur-patron peut televerser uniquement Carte Rose ou Assurance.")}`);
+  }
+
+  let vehicleQuery = supabase
     .from("vehicles")
     .select("id")
-    .eq("owner_id", user.id)
-    .eq("driver_id", parsed.data.driver_id)
-    .maybeSingle();
+    .eq("owner_id", user.id);
+
+  if (parsed.data.vehicle_id) {
+    vehicleQuery = vehicleQuery.eq("id", parsed.data.vehicle_id);
+  }
+
+  if (!isSelfUpload) {
+    vehicleQuery = vehicleQuery.eq("driver_id", parsed.data.driver_id);
+  }
+
+  const { data: vehicle, error: vehicleError } = await vehicleQuery.maybeSingle();
 
   if (vehicleError || !vehicle) {
-    redirect(`${ROUTES.INVESTOR_DOCUMENTS}?error=${encodeURIComponent("Ce chauffeur n'est pas assigne a votre flotte.")}`);
+    const message = isSelfUpload
+      ? "Aucun vehicule ne vous appartient pour associer ce document."
+      : "Ce chauffeur n'est pas assigne a ce vehicule de votre flotte.";
+    redirect(`${returnPath}?error=${encodeURIComponent(message)}`);
   }
 
   const storageName = safeStorageName(file.name) || "document";
-  const storagePath = `${user.id}/${parsed.data.driver_id}/${Date.now()}-${storageName}`;
+  const storagePath = `${user.id}/${parsed.data.driver_id}/${vehicle.id}/${Date.now()}-${storageName}`;
 
   const { error: uploadError } = await supabase.storage
     .from("legal-documents")
@@ -67,7 +101,7 @@ export async function uploadLegalDocument(formData: FormData) {
     });
 
   if (uploadError) {
-    redirect(`${ROUTES.INVESTOR_DOCUMENTS}?error=${encodeURIComponent(uploadError.message)}`);
+    redirect(`${returnPath}?error=${encodeURIComponent(uploadError.message)}`);
   }
 
   const { data: publicUrlData } = supabase.storage
@@ -77,16 +111,18 @@ export async function uploadLegalDocument(formData: FormData) {
   const { error: insertError } = await supabase.from("legal_documents").insert({
     owner_id: user.id,
     driver_id: parsed.data.driver_id,
+    vehicle_id: vehicle.id,
+    document_type: parsed.data.document_type,
     document_name: parsed.data.document_name,
     file_url: publicUrlData.publicUrl,
     storage_path: storagePath
   });
 
   if (insertError) {
-    redirect(`${ROUTES.INVESTOR_DOCUMENTS}?error=${encodeURIComponent(insertError.message)}`);
+    redirect(`${returnPath}?error=${encodeURIComponent(insertError.message)}`);
   }
 
   revalidatePath(ROUTES.INVESTOR_DOCUMENTS);
   revalidatePath(ROUTES.DRIVER_DOCUMENTS);
-  redirect(`${ROUTES.INVESTOR_DOCUMENTS}?uploaded=1`);
+  redirect(`${returnPath}?uploaded=1`);
 }

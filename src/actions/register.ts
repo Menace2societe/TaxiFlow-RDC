@@ -14,6 +14,7 @@ export async function registerPartner(formData: FormData) {
     const fullName = String(formData.get("full_name") ?? "").trim();
     const phone = String(formData.get("phone") ?? "").trim();
     const role = String(formData.get("role") ?? "driver") as UserRole;
+    const isOwnerDriver = role === "driver" && formData.get("is_owner_driver") === "on";
 
     if (!allowed.includes(role)) {
       redirect(`${ROUTES.REGISTER}?error=Role%20invalide.`);
@@ -32,7 +33,8 @@ export async function registerPartner(formData: FormData) {
         data: {
           full_name: fullName || null,
           phone: phone || null,
-          role
+          role,
+          is_owner_driver: isOwnerDriver
         }
       }
     });
@@ -47,7 +49,8 @@ export async function registerPartner(formData: FormData) {
         id: data.user.id,
         full_name: fullName || null,
         phone: phone || null,
-        role
+        role,
+        is_owner_driver: isOwnerDriver
       });
 
       // On log l'erreur mais on ne bloque pas l'inscription — le trigger
