@@ -26,6 +26,7 @@ const navItems = {
     { href: ROUTES.DRIVER_PORTAL, label: "Portail terrain", icon: LayoutDashboard },
     { href: ROUTES.DRIVER_DASHBOARD, label: "Mes Recettes", icon: ReceiptText },
     { href: ROUTES.DRIVER_MAINTENANCE, label: "Maintenance Moto/Taxi", icon: Wrench },
+    { href: ROUTES.DRIVER_DOCUMENTS, label: "Documents Legaux", icon: FileText },
     { href: ROUTES.DRIVER_PROFILE, label: "Mon Profil", icon: UserRound }
   ],
   investor: [

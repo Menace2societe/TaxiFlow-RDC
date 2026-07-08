@@ -54,6 +54,8 @@ function revalidateBreakdownViews() {
 }
 
 export async function reportBreakdown(formData: FormData) {
+  const returnPath = String(formData.get("return_path") ?? ROUTES.DRIVER_PORTAL);
+
   try {
     const supabase = await createClient();
     const {
@@ -61,7 +63,7 @@ export async function reportBreakdown(formData: FormData) {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      redirect(loginWithNext(ROUTES.DRIVER_PORTAL));
+      redirect(loginWithNext(returnPath));
     }
 
     const { data: assigned, error: vehicleError } = await supabase
@@ -73,12 +75,12 @@ export async function reportBreakdown(formData: FormData) {
     if (vehicleError) {
       console.error("[reportBreakdown] Vehicle lookup failed:", vehicleError.message);
       redirect(
-        `${ROUTES.DRIVER_PORTAL}?error=${encodeURIComponent("Impossible de verifier votre vehicule. Reessayez.")}`
+        `${returnPath}?error=${encodeURIComponent("Impossible de verifier votre vehicule. Reessayez.")}`
       );
     }
 
     if (!assigned?.id) {
-      redirect(`${ROUTES.DRIVER_PORTAL}?error=${encodeURIComponent("Aucun vehicule assigne a votre compte.")}`);
+      redirect(`${returnPath}?error=${encodeURIComponent("Aucun vehicule assigne a votre compte.")}`);
     }
 
     const parsed = reportSchema.safeParse({
@@ -88,7 +90,7 @@ export async function reportBreakdown(formData: FormData) {
     });
 
     if (!parsed.success) {
-      redirect(`${ROUTES.DRIVER_PORTAL}?error=${encodeURIComponent("Donnees de panne invalides.")}`);
+      redirect(`${returnPath}?error=${encodeURIComponent("Donnees de panne invalides.")}`);
     }
 
     const { error: insertError } = await supabase.from("breakdowns").insert({
@@ -102,7 +104,7 @@ export async function reportBreakdown(formData: FormData) {
 
     if (insertError) {
       console.error("[reportBreakdown] Insert failed:", insertError.message);
-      redirect(`${ROUTES.DRIVER_PORTAL}?error=${encodeURIComponent(insertError.message)}`);
+      redirect(`${returnPath}?error=${encodeURIComponent(insertError.message)}`);
     }
 
     const { error: statusError } = await supabase
@@ -116,7 +118,7 @@ export async function reportBreakdown(formData: FormData) {
     }
 
     revalidateBreakdownViews();
-    redirect(`${ROUTES.DRIVER_PORTAL}?breakdown=1`);
+    redirect(`${returnPath}?breakdown=1`);
   } catch (error) {
     if (isNextRedirect(error)) {
       throw error;
@@ -124,7 +126,7 @@ export async function reportBreakdown(formData: FormData) {
 
     console.error("[reportBreakdown] Unexpected failure:", error);
     redirect(
-      `${ROUTES.DRIVER_PORTAL}?error=${encodeURIComponent("Signalement impossible. Verifiez votre connexion et reessayez.")}`
+      `${returnPath}?error=${encodeURIComponent("Signalement impossible. Verifiez votre connexion et reessayez.")}`
     );
   }
 }

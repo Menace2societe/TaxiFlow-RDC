@@ -495,7 +495,7 @@ export function summarize(entries: DashboardEntry[], vehicles: DashboardVehicle[
     (sum, entry) => sum + entry.fuel_cdf + entry.maintenance_cdf,
     0
   );
-  const activeVehicles = vehicles.filter((vehicle) => vehicle.status === "active").length;
+  const activeVehicles = vehicles.filter((vehicle) => vehicle.status === "en service").length;
   const target = vehicles.reduce((sum, vehicle) => sum + vehicle.target_daily_revenue, 0);
 
   return {

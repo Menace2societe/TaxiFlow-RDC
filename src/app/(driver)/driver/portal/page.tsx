@@ -166,14 +166,14 @@ export default async function DriverPortalPage({ searchParams }: PortalPageProps
                     <span className="badge badge-neutral">{vehicle.plate_number}</span>
                     <span className="badge badge-neutral uppercase">{vehicle.type}</span>
                     <span className={`badge ${
-                      vehicle.status === "active" ? "badge-green" :
+                      vehicle.status === "en service" ? "badge-green" :
                       vehicle.status === "maintenance" ? "badge-amber" : "badge-neutral"
                     }`}>
                       <span className={`h-1.5 w-1.5 rounded-full ${
-                        vehicle.status === "active" ? "bg-emerald-400" :
+                        vehicle.status === "en service" ? "bg-emerald-400" :
                         vehicle.status === "maintenance" ? "bg-amber-400" : "bg-neutral-400"
                       }`} />
-                      {vehicle.status === "active" ? "En service" :
+                      {vehicle.status === "en service" ? "En service" :
                        vehicle.status === "maintenance" ? "Maintenance" : "Au repos"}
                     </span>
                   </div>

@@ -14,7 +14,7 @@ const statusActions: Array<{
 }> = [
   {
     label: "en service",
-    dbStatus: "active",
+    dbStatus: "en service",
     icon: CheckCircle2,
     baseClass:
       "border-emerald-500/20 bg-neutral-900/80 text-neutral-400 hover:bg-emerald-500/10 hover:border-emerald-500/40 hover:text-emerald-300",
@@ -38,7 +38,7 @@ const statusActions: Array<{
   },
   {
     label: "repos",
-    dbStatus: "inactive",
+    dbStatus: "repos",
     icon: CirclePause,
     baseClass:
       "border-neutral-700/50 bg-neutral-900/80 text-neutral-400 hover:bg-neutral-800 hover:border-neutral-600 hover:text-neutral-300",
@@ -94,7 +94,7 @@ export function VehicleStatusControls({
                       "h-2 w-2 shrink-0 rounded-full",
                       action.dotClass,
                       compact ? "" : "absolute left-2.5 top-1/2 -translate-y-1/2",
-                      action.dbStatus === "active" ? "pulse-ring-active" : ""
+                      action.dbStatus === "en service" ? "pulse-ring-active" : ""
                     ].join(" ")}
                   />
                 )}

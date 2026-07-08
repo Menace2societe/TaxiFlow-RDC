@@ -10,15 +10,15 @@ import type { VehicleStatus } from "@/lib/supabase/types";
 export type VehicleOperationalStatus = "en service" | "maintenance" | "repos";
 
 const operationalStatusToDatabaseStatus: Record<VehicleOperationalStatus, VehicleStatus> = {
-  "en service": "active",
+  "en service": "en service",
   maintenance: "maintenance",
-  repos: "inactive"
+  repos: "repos"
 };
 
 const nextStatus: Record<VehicleStatus, VehicleStatus> = {
-  active: "inactive",
-  inactive: "active",
-  maintenance: "active"
+  "en service": "repos",
+  repos: "en service",
+  maintenance: "en service"
 };
 
 const createVehicleSchema = z.object({
@@ -74,7 +74,7 @@ export async function updateVehicleStatus(vehicleId: string, status: VehicleOper
 
 export async function toggleVehicleStatus(formData: FormData) {
   const vehicleId = String(formData.get("vehicle_id") ?? "");
-  const currentStatus = String(formData.get("current_status") ?? "inactive") as VehicleStatus;
+  const currentStatus = String(formData.get("current_status") ?? "repos") as VehicleStatus;
 
   if (!vehicleId) {
     redirect(`${ROUTES.DASHBOARD_FLEET}?error=Vehicule introuvable`);
@@ -92,7 +92,7 @@ export async function toggleVehicleStatus(formData: FormData) {
   const { error } = await supabase
     .from("vehicles")
     .update({
-      status: nextStatus[currentStatus] ?? "active"
+      status: nextStatus[currentStatus] ?? "en service"
     })
     .eq("id", vehicleId)
     .eq("owner_id", user.id);
@@ -134,7 +134,7 @@ export async function createVehicle(formData: FormData) {
     plate_number: parsed.data.plate_number,
     label: parsed.data.label,
     type: parsed.data.type,
-    status: "inactive",
+    status: "repos",
     target_daily_revenue: parsed.data.target_daily_revenue
   });
 
@@ -180,7 +180,7 @@ export async function createVehicleFromInvestorDashboard(formData: FormData): Pr
       plate_number: parsed.data.plate_number,
       label: parsed.data.label,
       type: parsed.data.type,
-      status: "inactive",
+      status: "repos",
       target_daily_revenue: parsed.data.target_daily_revenue
     });
 

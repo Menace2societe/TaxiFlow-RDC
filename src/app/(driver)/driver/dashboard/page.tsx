@@ -30,7 +30,7 @@ type DriverDashboardPageProps = {
 };
 
 const vehicleStatusView: Record<VehicleStatus, { label: string; className: string; icon: typeof CheckCircle2 }> = {
-  active: {
+  "en service": {
     label: "En service",
     className: "border-emerald-500/40 bg-emerald-500/15 text-emerald-300",
     icon: CheckCircle2
@@ -40,7 +40,7 @@ const vehicleStatusView: Record<VehicleStatus, { label: string; className: strin
     className: "border-amber-500/40 bg-amber-500/15 text-amber-300",
     icon: Wrench
   },
-  inactive: {
+  repos: {
     label: "Au repos",
     className: "border-neutral-600 bg-neutral-800/80 text-neutral-300",
     icon: CirclePause
@@ -224,7 +224,7 @@ export default async function DriverDashboardPage({ searchParams }: DriverDashbo
                     </span>
                     {currentStatus && (
                       <span className={`badge ${
-                        vehicle.status === "active" ? "badge-green" :
+                        vehicle.status === "en service" ? "badge-green" :
                         vehicle.status === "maintenance" ? "badge-amber" : "badge-neutral"
                       }`}>
                         {currentStatus.label}
@@ -265,27 +265,26 @@ export default async function DriverDashboardPage({ searchParams }: DriverDashbo
             </div>
             <form action={recordDriverPayment} className="grid gap-3">
               <input type="hidden" name="return_path" value={ROUTES.DRIVER_DASHBOARD} />
+              <input type="hidden" name="driver_id" value={driverId} />
               <div>
                 <label htmlFor="payment-amount" className="mb-1.5 block text-xs font-medium text-neutral-400">
                   Montant en CDF
                 </label>
                 <input
                   id="payment-amount"
-                  className="field"
+                  className="field relative z-20 cursor-text"
                   name="amount"
                   type="number"
                   min="1"
                   step="1"
                   inputMode="decimal"
                   placeholder="Ex : 15 000"
-                  disabled={!vehicle}
                   required
                 />
               </div>
               <button
                 className="btn-primary w-full"
                 type="submit"
-                disabled={!vehicle}
               >
                 <Banknote size={17} aria-hidden />
                 Envoyer le versement
@@ -305,15 +304,15 @@ export default async function DriverDashboardPage({ searchParams }: DriverDashbo
               <h2 className="text-base font-semibold text-amber-100">Signaler une panne</h2>
             </div>
             <form action={reportBreakdown} className="grid gap-3">
+              <input type="hidden" name="driver_id" value={driverId} />
               <div>
                 <label htmlFor="breakdown-type" className="mb-1.5 block text-xs font-medium text-neutral-400">
                   Type de panne
                 </label>
                 <select
                   id="breakdown-type"
-                  className="field"
+                  className="field relative z-20 cursor-text"
                   name="type"
-                  disabled={!vehicle}
                   defaultValue=""
                 >
                   <option value="" disabled>Choisir le type...</option>
@@ -331,14 +330,13 @@ export default async function DriverDashboardPage({ searchParams }: DriverDashbo
                 </label>
                 <input
                   id="breakdown-cost"
-                  className="field"
+                  className="field relative z-20 cursor-text"
                   name="estimated_cost"
                   type="number"
                   min="0"
                   step="1"
                   inputMode="decimal"
                   placeholder="0"
-                  disabled={!vehicle}
                 />
               </div>
               <div>
@@ -347,17 +345,15 @@ export default async function DriverDashboardPage({ searchParams }: DriverDashbo
                 </label>
                 <input
                   id="breakdown-desc"
-                  className="field"
+                  className="field relative z-20 cursor-text"
                   name="description"
                   maxLength={500}
                   placeholder="Ex : crevaison roue arrière"
-                  disabled={!vehicle}
                 />
               </div>
               <button
                 className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 text-sm font-semibold text-amber-200 transition-all hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
                 type="submit"
-                disabled={!vehicle}
               >
                 <Wrench size={16} aria-hidden />
                 Signaler la panne

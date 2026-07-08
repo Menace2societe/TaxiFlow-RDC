@@ -6,7 +6,7 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
-export type VehicleStatus = "active" | "maintenance" | "inactive";
+export type VehicleStatus = "en service" | "maintenance" | "repos";
 export type VehicleType = "taxi" | "moto";
 export type UserRole = "driver" | "investor" | "admin";
 export type EntryCurrency = "CDF" | "USD";
@@ -174,6 +174,34 @@ export type Database = {
           vehicle_id?: string;
           investor_id?: string;
           status?: PaymentStatus;
+        };
+        Relationships: [];
+      };
+      legal_documents: {
+        Row: {
+          id: string;
+          owner_id: string;
+          driver_id: string;
+          document_name: string;
+          file_url: string;
+          storage_path: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          owner_id: string;
+          driver_id: string;
+          document_name: string;
+          file_url: string;
+          storage_path: string;
+          created_at?: string;
+        };
+        Update: {
+          owner_id?: string;
+          driver_id?: string;
+          document_name?: string;
+          file_url?: string;
+          storage_path?: string;
         };
         Relationships: [];
       };

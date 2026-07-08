@@ -8,8 +8,8 @@ type FleetPageProps = {
 };
 
 const statusLabels = {
-  active: "En service",
-  inactive: "Repos",
+  "en service": "En service",
+  repos: "Repos",
   maintenance: "Maintenance"
 };
 
@@ -35,7 +35,7 @@ export default async function FleetPage({ searchParams }: FleetPageProps) {
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {vehicles.map((vehicle) => {
           const Icon = vehicle.type === "moto" ? Bike : CarTaxiFront;
-          const isActive = vehicle.status === "active";
+          const isActive = vehicle.status === "en service";
 
           return (
             <article key={vehicle.id} className="rounded-lg border border-white/10 bg-stone-950 p-4 text-stone-100 shadow-soft md:p-5">

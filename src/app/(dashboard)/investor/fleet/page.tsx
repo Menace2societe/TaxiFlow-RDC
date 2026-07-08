@@ -35,7 +35,7 @@ const statusConfig: Record<
   VehicleStatus,
   { label: string; badgeClass: string; dotClass: string; icon: typeof CheckCircle2 }
 > = {
-  active: {
+  "en service": {
     label: "En service",
     badgeClass: "badge badge-green",
     dotClass: "bg-emerald-400",
@@ -47,7 +47,7 @@ const statusConfig: Record<
     dotClass: "bg-amber-400",
     icon: Wrench
   },
-  inactive: {
+  repos: {
     label: "Au repos",
     badgeClass: "badge badge-neutral",
     dotClass: "bg-neutral-400",
@@ -101,7 +101,7 @@ export default async function InvestorFleetPage({ searchParams }: FleetPageProps
   const revenueByVehicle = revenueCdfByVehicle(monthEntries);
   const filtered = filterByStatus(vehicles, selectedStatus);
 
-  const activeCount = vehicles.filter((v) => v.status === "active").length;
+  const activeCount = vehicles.filter((v) => v.status === "en service").length;
   const maintenanceCount = vehicles.filter((v) => v.status === "maintenance").length;
   const assignedCount = vehicles.filter((v) => v.driver_id !== null).length;
   const assignedDriverIds = vehicles
@@ -115,9 +115,9 @@ export default async function InvestorFleetPage({ searchParams }: FleetPageProps
 
   const filterLinks: Array<{ key: string; label: string }> = [
     { key: "all", label: "Tous" },
-    { key: "active", label: "En service" },
+    { key: "en service", label: "En service" },
     { key: "maintenance", label: "Maintenance" },
-    { key: "inactive", label: "Au repos" }
+    { key: "repos", label: "Au repos" }
   ];
 
   return (

@@ -10,6 +10,7 @@ export const ROUTES = {
   DRIVER_PORTAL: "/driver/portal",
   DRIVER_DASHBOARD: "/driver/dashboard",
   DRIVER_MAINTENANCE: "/driver/maintenance",
+  DRIVER_DOCUMENTS: "/driver/documents",
   DRIVER_PROFILE: "/driver/profile",
   INVESTOR_DASHBOARD: "/investor/dashboard",
   INVESTOR_FLEET: "/investor/fleet",

@@ -634,7 +634,7 @@ export default function InvestorDashboardPage() {
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 text-sm text-stone-300">
-                    <Badge variant={vehicle.status === "active" ? "success" : vehicle.status === "maintenance" ? "warning" : "neutral"}>{vehicle.status}</Badge>
+                    <Badge variant={vehicle.status === "en service" ? "success" : vehicle.status === "maintenance" ? "warning" : "neutral"}>{vehicle.status}</Badge>
                     <span className="inline-flex items-center gap-1">
                       <Clock size={14} aria-hidden />
                       {formatCdf(vehicle.target_daily_revenue)}/jour
