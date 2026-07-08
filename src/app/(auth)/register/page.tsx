@@ -21,16 +21,16 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
   const error = params?.error;
 
   return (
-    <div className="w-full max-w-md">
+    <div className="w-full max-w-md animate-fade-in-up">
       {/* ── Header ── */}
       <div className="mb-8">
-        <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 shadow-lg shadow-emerald-900/30">
-          <UserPlus className="text-white" size={20} aria-hidden />
+        <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 shadow-lg shadow-emerald-900/40">
+          <UserPlus className="text-white" size={22} aria-hidden />
         </div>
-        <h1 className="text-2xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
+        <h1 className="text-2xl font-bold tracking-tight text-white">
           Rejoindre TaxiFlow RDC
         </h1>
-        <p className="mt-1.5 text-sm leading-relaxed text-stone-500 dark:text-stone-400">
+        <p className="mt-2 text-sm leading-relaxed text-neutral-400">
           Propriétaire de flotte ou chauffeur sur le terrain — créez votre accès en moins de 2 minutes.
         </p>
       </div>
@@ -39,7 +39,7 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
       {error && (
         <div
           role="alert"
-          className="mb-5 flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900/60 dark:bg-red-950/50 dark:text-red-300"
+          className="mb-5 flex items-start gap-2.5 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300"
         >
           <span className="mt-0.5 shrink-0">⚠</span>
           <span>{error}</span>
@@ -47,15 +47,15 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
       )}
 
       {/* ── Form ── */}
-      <form action={registerPartner} className="space-y-4">
+      <form action={registerPartner} className="space-y-5">
 
         {/* Nom complet */}
         <div className="space-y-1.5">
           <label
             htmlFor="reg-fullname"
-            className="flex items-center gap-1.5 text-sm font-medium text-stone-700 dark:text-stone-300"
+            className="flex items-center gap-1.5 text-sm font-medium text-neutral-300"
           >
-            <User size={13} aria-hidden className="text-stone-400" />
+            <User size={13} aria-hidden className="text-neutral-500" />
             Nom complet
           </label>
           <input
@@ -70,33 +70,34 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
           />
         </div>
 
-        {/* Téléphone */}
+        {/* ── Téléphone : badge fixe +243 + vrai input tel ── */}
         <div className="space-y-1.5">
           <label
-            htmlFor="reg-phone"
-            className="flex items-center gap-1.5 text-sm font-medium text-stone-700 dark:text-stone-300"
+            htmlFor="phone"
+            className="flex items-center gap-1.5 text-sm font-medium text-neutral-300"
           >
-            <Phone size={13} aria-hidden className="text-stone-400" />
+            <Phone size={13} aria-hidden className="text-neutral-500" />
             Téléphone
           </label>
-          <div className="flex w-full items-center gap-2">
-            <span className="field flex min-w-[75px] shrink-0 cursor-default select-none items-center justify-center bg-stone-100 px-3 text-sm font-semibold text-stone-600 dark:bg-stone-800 dark:text-stone-300">
+          <div className="flex w-full items-center gap-2 rounded-lg border border-neutral-800 bg-neutral-900/70 p-1.5">
+            <span className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-md border border-emerald-500/25 bg-emerald-500/10 px-3 text-sm font-bold text-emerald-300">
               +243
             </span>
             <input
-              id="reg-phone"
-              className="field min-w-0 flex-1 w-full"
-              name="phone"
+              id="phone"
               type="tel"
+              name="phone"
               autoComplete="tel"
-              placeholder="812345678"
+              inputMode="tel"
+              placeholder="812 345 678"
+              className="flex-1 w-full relative z-10 cursor-text px-3 py-2 bg-neutral-950 text-white border border-neutral-800 rounded-md focus:ring-2 focus:ring-emerald-500"
             />
           </div>
         </div>
 
         {/* Sélecteur de rôle */}
         <fieldset className="space-y-2">
-          <legend className="flex items-center gap-1.5 text-sm font-medium text-stone-700 dark:text-stone-300">
+          <legend className="flex items-center gap-1.5 text-sm font-medium text-neutral-300">
             Je m&apos;inscris en tant que
           </legend>
           <div className="grid grid-cols-2 gap-3">
@@ -111,20 +112,20 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
                 className="peer sr-only"
                 aria-labelledby="role-driver-label"
               />
-              <div className="flex flex-col items-center gap-2.5 rounded-xl border-2 border-stone-200 bg-stone-50 p-4 text-center transition-all peer-checked:border-emerald-500 peer-checked:bg-emerald-50 peer-checked:shadow-sm peer-checked:shadow-emerald-500/10 peer-focus-visible:ring-2 peer-focus-visible:ring-emerald-400 peer-focus-visible:ring-offset-2 dark:border-stone-700 dark:bg-stone-800/60 dark:peer-checked:border-emerald-500 dark:peer-checked:bg-emerald-950/40">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white shadow-sm dark:bg-stone-700 peer-checked:dark:bg-emerald-900/40">
+              <div className="flex flex-col items-center gap-2.5 rounded-xl border-2 border-neutral-700 bg-neutral-800/60 p-4 text-center transition-all peer-checked:border-emerald-500 peer-checked:bg-emerald-950/40 peer-focus-visible:ring-2 peer-focus-visible:ring-emerald-400">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-neutral-700/60 peer-checked:bg-emerald-900/60">
                   <UserRound
-                    className="text-stone-500 transition-colors peer-checked:text-emerald-600 dark:text-stone-400 dark:peer-checked:text-emerald-400"
+                    className="text-neutral-400 transition-colors peer-checked:text-emerald-400"
                     size={22}
                     aria-hidden
                   />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-stone-800 dark:text-stone-100">
+                  <p className="text-sm font-semibold text-white">
                     Chauffeur
                   </p>
-                  <p className="text-xs text-stone-500 dark:text-stone-400">
-                    Terrain & versements
+                  <p className="text-xs text-neutral-400">
+                    Terrain &amp; versements
                   </p>
                 </div>
               </div>
@@ -139,20 +140,20 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
                 className="peer sr-only"
                 aria-labelledby="role-investor-label"
               />
-              <div className="flex flex-col items-center gap-2.5 rounded-xl border-2 border-stone-200 bg-stone-50 p-4 text-center transition-all peer-checked:border-emerald-500 peer-checked:bg-emerald-50 peer-checked:shadow-sm peer-checked:shadow-emerald-500/10 peer-focus-visible:ring-2 peer-focus-visible:ring-emerald-400 peer-focus-visible:ring-offset-2 dark:border-stone-700 dark:bg-stone-800/60 dark:peer-checked:border-emerald-500 dark:peer-checked:bg-emerald-950/40">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white shadow-sm dark:bg-stone-700 peer-checked:dark:bg-emerald-900/40">
+              <div className="flex flex-col items-center gap-2.5 rounded-xl border-2 border-neutral-700 bg-neutral-800/60 p-4 text-center transition-all peer-checked:border-emerald-500 peer-checked:bg-emerald-950/40 peer-focus-visible:ring-2 peer-focus-visible:ring-emerald-400">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-neutral-700/60 peer-checked:bg-emerald-900/60">
                   <Building2
-                    className="text-stone-500 transition-colors peer-checked:text-emerald-600 dark:text-stone-400 dark:peer-checked:text-emerald-400"
+                    className="text-neutral-400 transition-colors peer-checked:text-emerald-400"
                     size={22}
                     aria-hidden
                   />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-stone-800 dark:text-stone-100">
+                  <p className="text-sm font-semibold text-white">
                     Investisseur
                   </p>
-                  <p className="text-xs text-stone-500 dark:text-stone-400">
-                    Flotte & revenus
+                  <p className="text-xs text-neutral-400">
+                    Flotte &amp; revenus
                   </p>
                 </div>
               </div>
@@ -165,9 +166,9 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
         <div className="space-y-1.5">
           <label
             htmlFor="reg-email"
-            className="flex items-center gap-1.5 text-sm font-medium text-stone-700 dark:text-stone-300"
+            className="flex items-center gap-1.5 text-sm font-medium text-neutral-300"
           >
-            <Mail size={13} aria-hidden className="text-stone-400" />
+            <Mail size={13} aria-hidden className="text-neutral-500" />
             Adresse email
           </label>
           <input
@@ -185,11 +186,11 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
         <div className="space-y-1.5">
           <label
             htmlFor="reg-password"
-            className="flex items-center gap-1.5 text-sm font-medium text-stone-700 dark:text-stone-300"
+            className="flex items-center gap-1.5 text-sm font-medium text-neutral-300"
           >
-            <Lock size={13} aria-hidden className="text-stone-400" />
+            <Lock size={13} aria-hidden className="text-neutral-500" />
             Mot de passe{" "}
-            <span className="ml-auto font-normal text-stone-400">(min. 8 caractères)</span>
+            <span className="ml-auto font-normal text-neutral-500">(min. 8 caractères)</span>
           </label>
           <input
             id="reg-password"
@@ -213,7 +214,7 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
           Créer mon compte
         </button>
 
-        <p className="text-center text-xs text-stone-400 dark:text-stone-500">
+        <p className="text-center text-xs text-neutral-500">
           En créant un compte, vous acceptez les conditions d&apos;utilisation de TaxiFlow RDC.
         </p>
       </form>
@@ -221,10 +222,10 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
       {/* ── Divider ── */}
       <div className="relative my-6">
         <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-stone-200 dark:border-stone-700" />
+          <div className="w-full border-t border-neutral-800" />
         </div>
         <div className="relative flex justify-center">
-          <span className="bg-white px-3 text-xs text-stone-400 dark:bg-stone-900 dark:text-stone-500">
+          <span className="bg-neutral-950 px-3 text-xs text-neutral-500">
             Déjà inscrit ?
           </span>
         </div>

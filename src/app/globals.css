@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: light dark;
+  color-scheme: dark;
 }
 
 * {
@@ -12,15 +12,9 @@
 
 body {
   margin: 0;
-  background: #101815;
-  color: #f7f3ea;
-}
-
-@media (prefers-color-scheme: dark) {
-  body {
-    background: #101815;
-    color: #f7f3ea;
-  }
+  background: #0a0f0d;
+  color: #f0ede8;
+  font-family: "Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 a {
@@ -34,14 +28,171 @@ textarea {
   font: inherit;
 }
 
+/* ─── FIELD : champ de formulaire universel ─────────────────────────────────── */
 .field {
-  @apply w-full min-h-[48px] rounded-md border border-stone-700 bg-stone-950 px-3 py-2 text-base text-stone-50 outline-none transition placeholder:text-stone-500 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 md:text-sm;
+  @apply relative z-10 w-full min-h-[48px] cursor-text rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-base text-white outline-none transition-all placeholder:text-neutral-500 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/25 hover:border-neutral-600 disabled:cursor-not-allowed disabled:opacity-40;
 }
 
+select.field {
+  @apply cursor-pointer appearance-none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 2.5rem;
+}
+
+/* ─── BUTTONS ──────────────────────────────────────────────────────────────── */
 .btn-primary {
-  @apply inline-flex min-h-[48px] items-center justify-center gap-2 rounded-md bg-palm px-4 text-sm font-semibold text-white transition hover:bg-palm/90 focus:outline-none focus:ring-2 focus:ring-palm/30 disabled:cursor-not-allowed disabled:bg-stone-400;
+  @apply relative z-10 inline-flex min-h-[48px] items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 text-sm font-semibold text-white transition-all hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
 }
 
 .btn-secondary {
-  @apply inline-flex min-h-[48px] items-center justify-center gap-2 rounded-md border border-stone-700 bg-stone-900 px-4 text-sm font-semibold text-stone-100 transition hover:bg-stone-800;
+  @apply relative z-10 inline-flex min-h-[48px] items-center justify-center gap-2 rounded-lg border border-neutral-700 bg-neutral-800 px-5 text-sm font-semibold text-neutral-100 transition-all hover:bg-neutral-700 hover:border-neutral-600 focus:outline-none focus:ring-2 focus:ring-neutral-500/30;
+}
+
+.btn-warning {
+  @apply relative z-10 inline-flex min-h-[48px] items-center justify-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-5 text-sm font-semibold text-amber-200 transition-all hover:bg-amber-500/20 focus:outline-none focus:ring-2 focus:ring-amber-500/30 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40;
+}
+
+/* ─── CARDS ────────────────────────────────────────────────────────────────── */
+.card {
+  @apply rounded-xl border border-neutral-800 bg-neutral-900/60 backdrop-blur-sm;
+}
+
+.card-header {
+  @apply border-b border-neutral-800 px-5 py-4;
+}
+
+/* ─── SECTION LABEL ─────────────────────────────────────────────────────────── */
+.section-label {
+  @apply text-xs font-semibold uppercase tracking-widest text-neutral-500;
+}
+
+/* ─── STAT CARD GLOW ────────────────────────────────────────────────────────── */
+.stat-glow-emerald {
+  box-shadow: 0 0 24px rgba(16, 185, 129, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.stat-glow-cyan {
+  box-shadow: 0 0 24px rgba(6, 182, 212, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.stat-glow-amber {
+  box-shadow: 0 0 24px rgba(245, 158, 11, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.stat-glow-red {
+  box-shadow: 0 0 24px rgba(239, 68, 68, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* ─── TABLE ────────────────────────────────────────────────────────────────── */
+.data-table {
+  @apply w-full text-left text-sm;
+}
+
+.data-table thead tr {
+  @apply bg-neutral-950/80 text-xs uppercase tracking-wider text-neutral-400;
+}
+
+.data-table thead th {
+  @apply px-5 py-3 font-medium;
+}
+
+.data-table tbody tr {
+  @apply border-t border-neutral-800/50 transition-colors hover:bg-neutral-800/30;
+}
+
+.data-table tbody tr:nth-child(even) {
+  @apply bg-neutral-950/30;
+}
+
+.data-table tbody td {
+  @apply px-5 py-3.5;
+}
+
+/* ─── STATUS BADGE ──────────────────────────────────────────────────────────── */
+.badge {
+  @apply inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-semibold;
+}
+
+.badge-green {
+  @apply border-emerald-500/30 bg-emerald-500/10 text-emerald-300;
+}
+
+.badge-amber {
+  @apply border-amber-500/30 bg-amber-500/10 text-amber-300;
+}
+
+.badge-red {
+  @apply border-red-500/30 bg-red-500/10 text-red-300;
+}
+
+.badge-neutral {
+  @apply border-neutral-600 bg-neutral-800/70 text-neutral-300;
+}
+
+.badge-cyan {
+  @apply border-cyan-500/30 bg-cyan-500/10 text-cyan-300;
+}
+
+/* ─── FORM LABEL ─────────────────────────────────────────────────────────────── */
+.form-label {
+  @apply flex items-center gap-1.5 text-sm font-medium text-neutral-300;
+}
+
+/* ─── DIVIDER ────────────────────────────────────────────────────────────────── */
+.divider {
+  @apply relative my-6;
+}
+
+.divider::before {
+  content: '';
+  @apply absolute inset-0 flex items-center border-t border-neutral-800;
+}
+
+/* ─── ANIMATIONS ─────────────────────────────────────────────────────────────── */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.35s ease-out both;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out both;
+}
+
+@keyframes pulse-ring {
+  0%   { box-shadow: 0 0 0 0   rgba(16, 185, 129, 0.4); }
+  70%  { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0   rgba(16, 185, 129, 0); }
+}
+
+.pulse-ring-active {
+  animation: pulse-ring 2s ease-out infinite;
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #1a1a1a 25%, #262626 50%, #1a1a1a 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 6px;
 }

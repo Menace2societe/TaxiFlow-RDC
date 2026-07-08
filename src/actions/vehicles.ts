@@ -46,33 +46,29 @@ function revalidateFleetPaths() {
   revalidatePath(ROUTES.DRIVER_PORTAL);
 }
 
-export async function updateVehicleStatus(vehicleId: string, status: VehicleOperationalStatus): Promise<VehicleActionState> {
+export async function updateVehicleStatus(vehicleId: string, status: VehicleOperationalStatus): Promise<void> {
   try {
     if (!vehicleId) {
-      return { ok: false, message: "Vehicule introuvable." };
+      return;
     }
 
     const databaseStatus = operationalStatusToDatabaseStatus[status];
 
     if (!databaseStatus) {
-      return { ok: false, message: "Statut vehicule invalide." };
+      return;
     }
 
     const supabase = await createClient();
     const { error } = await supabase.from("vehicles").update({ status: databaseStatus }).eq("id", vehicleId);
 
     if (error) {
-      return { ok: false, message: error.message };
+      console.error("[updateVehicleStatus]", error.message);
+      return;
     }
 
     revalidateFleetPaths();
-    return { ok: true, message: "Statut du vehicule mis a jour." };
   } catch (error) {
     console.error("[updateVehicleStatus]", error);
-    return {
-      ok: false,
-      message: "Impossible de mettre a jour le statut du vehicule."
-    };
   }
 }
 
@@ -234,4 +230,97 @@ export async function deleteVehicle(formData: FormData) {
 
   revalidateFleetPaths();
   redirect(`${ROUTES.INVESTOR_FLEET}?deleted=1`);
+}
+
+// ── Schema pour l'assignation directe par ID ──────────────────────────────────
+const assignDriverByIdSchema = z.object({
+  vehicle_id: z.string().uuid(),
+  driver_id: z
+    .string()
+    .transform((v) => v.trim())
+    .refine((v) => v === "" || z.string().uuid().safeParse(v).success, "UUID chauffeur invalide.")
+    .transform((v) => (v === "" ? null : v))
+});
+
+export type AssignDriverActionState = {
+  ok: boolean;
+  message: string;
+};
+
+/**
+ * Assigne (ou désassigne) un chauffeur à un véhicule en mettant à jour
+ * `vehicles.driver_id`. Vérifie que le véhicule appartient à l'utilisateur.
+ */
+export async function assignDriverToVehicleById(
+  _prev: AssignDriverActionState,
+  formData: FormData
+): Promise<AssignDriverActionState> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { ok: false, message: "Session expirée. Reconnectez-vous." };
+    }
+
+    const parsed = assignDriverByIdSchema.safeParse({
+      vehicle_id: formData.get("vehicle_id"),
+      driver_id: formData.get("driver_id")
+    });
+
+    if (!parsed.success) {
+      const first = Object.values(parsed.error.flatten().fieldErrors)[0]?.[0] ?? "Données invalides.";
+      return { ok: false, message: first };
+    }
+
+    // Vérifier la propriété du véhicule
+    const { data: owned, error: ownErr } = await supabase
+      .from("vehicles")
+      .select("id,label")
+      .eq("id", parsed.data.vehicle_id)
+      .eq("owner_id", user.id)
+      .maybeSingle();
+
+    if (ownErr || !owned) {
+      return { ok: false, message: "Véhicule introuvable ou accès refusé." };
+    }
+
+    // Libérer l'ancien véhicule si le chauffeur est déjà assigné ailleurs
+    if (parsed.data.driver_id) {
+      const { error: clearErr } = await supabase
+        .from("vehicles")
+        .update({ driver_id: null })
+        .eq("owner_id", user.id)
+        .eq("driver_id", parsed.data.driver_id)
+        .neq("id", parsed.data.vehicle_id);
+
+      if (clearErr) {
+        console.warn("[assignDriverToVehicleById] clear conflict:", clearErr.message);
+      }
+    }
+
+    const { error } = await supabase
+      .from("vehicles")
+      .update({ driver_id: parsed.data.driver_id })
+      .eq("id", parsed.data.vehicle_id)
+      .eq("owner_id", user.id);
+
+    if (error) {
+      return { ok: false, message: error.message };
+    }
+
+    revalidateFleetPaths();
+    revalidatePath(ROUTES.INVESTOR_DASHBOARD);
+
+    const msg = parsed.data.driver_id
+      ? `Chauffeur assigné à ${owned.label}.`
+      : `Chauffeur retiré de ${owned.label}.`;
+
+    return { ok: true, message: msg };
+  } catch (err) {
+    console.error("[assignDriverToVehicleById]", err);
+    return { ok: false, message: "Assignation impossible. Vérifiez la connexion." };
+  }
 }

@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import type { EntryCurrency, VehicleStatus } from "@/lib/supabase/types";
+import type { BreakdownStatus, EntryCurrency, PaymentStatus, VehicleStatus } from "@/lib/supabase/types";
 
 export type DashboardVehicle = {
   id: string;
@@ -26,6 +26,27 @@ export type DashboardEntry = {
   fuel_cdf: number;
   maintenance_cdf: number;
   notes: string | null;
+};
+
+export type DashboardPayment = {
+  id: string;
+  amount: number;
+  driver_id: string;
+  vehicle_id: string;
+  investor_id: string;
+  status: PaymentStatus;
+  created_at: string;
+};
+
+export type DashboardBreakdown = {
+  id: string;
+  vehicle_id: string;
+  reported_by: string;
+  type: string;
+  description: string | null;
+  estimated_cost: number;
+  status: BreakdownStatus;
+  created_at: string;
 };
 
 export async function getCurrentUserId() {
@@ -373,6 +394,97 @@ export async function getDriverRecentEntries(
     }));
   } catch (err) {
     console.error("[getDriverRecentEntries] Exception :", err);
+    return [];
+  }
+}
+
+export async function getDriverRecentPayments(driverId: string, limit = 8): Promise<DashboardPayment[]> {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("payments")
+      .select("id,amount,driver_id,vehicle_id,investor_id,status,created_at")
+      .eq("driver_id", driverId)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.warn("[getDriverRecentPayments] Erreur :", error.message);
+      return [];
+    }
+
+    return (data ?? []).map((row) => ({
+      id: row.id,
+      amount: Number(row.amount ?? 0),
+      driver_id: row.driver_id,
+      vehicle_id: row.vehicle_id,
+      investor_id: row.investor_id,
+      status: row.status,
+      created_at: row.created_at
+    }));
+  } catch (err) {
+    console.error("[getDriverRecentPayments] Exception :", err);
+    return [];
+  }
+}
+
+export async function getDriverRecentBreakdowns(driverId: string, limit = 8): Promise<DashboardBreakdown[]> {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("breakdowns")
+      .select("id,vehicle_id,reported_by,type,description,estimated_cost,status,created_at")
+      .eq("reported_by", driverId)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.warn("[getDriverRecentBreakdowns] Erreur :", error.message);
+      return [];
+    }
+
+    return (data ?? []).map((row) => ({
+      id: row.id,
+      vehicle_id: row.vehicle_id,
+      reported_by: row.reported_by,
+      type: row.type,
+      description: row.description,
+      estimated_cost: Number(row.estimated_cost ?? 0),
+      status: row.status,
+      created_at: row.created_at
+    }));
+  } catch (err) {
+    console.error("[getDriverRecentBreakdowns] Exception :", err);
+    return [];
+  }
+}
+
+export async function getOwnerRecentPayments(ownerId: string, limit = 20): Promise<DashboardPayment[]> {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("payments")
+      .select("id,amount,driver_id,vehicle_id,investor_id,status,created_at")
+      .eq("investor_id", ownerId)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.warn("[getOwnerRecentPayments] Erreur :", error.message);
+      return [];
+    }
+
+    return (data ?? []).map((row) => ({
+      id: row.id,
+      amount: Number(row.amount ?? 0),
+      driver_id: row.driver_id,
+      vehicle_id: row.vehicle_id,
+      investor_id: row.investor_id,
+      status: row.status,
+      created_at: row.created_at
+    }));
+  } catch (err) {
+    console.error("[getOwnerRecentPayments] Exception :", err);
     return [];
   }
 }
