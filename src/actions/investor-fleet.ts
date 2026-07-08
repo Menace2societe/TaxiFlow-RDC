@@ -464,6 +464,12 @@ export async function assignFoundDriverToVehicle(
   _prev: QuickAssignActionState,
   formData: FormData
 ): Promise<QuickAssignActionState> {
+  // ─── DEBUG : log immédiat avant tout traitement ───────────────────────────
+  const driverIdRaw = String(formData.get("driver_id") ?? "").trim();
+  const vehicleIdRaw = String(formData.get("vehicle_id") ?? "").trim();
+  console.log("Assignation de :", driverIdRaw);
+  console.log("[assignFoundDriverToVehicle] driver_id reçu :", JSON.stringify(driverIdRaw), "| vehicle_id reçu :", JSON.stringify(vehicleIdRaw));
+
   try {
     const supabase = await createClient();
     const {
@@ -474,8 +480,6 @@ export async function assignFoundDriverToVehicle(
       return { ok: false, message: "Session expirée. Reconnectez-vous." };
     }
 
-    const driverIdRaw = String(formData.get("driver_id") ?? "").trim();
-    const vehicleIdRaw = String(formData.get("vehicle_id") ?? "").trim();
 
     const uuidSchema = z.string().uuid();
     const driverParsed = uuidSchema.safeParse(driverIdRaw);

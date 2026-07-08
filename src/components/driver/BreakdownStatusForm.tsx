@@ -1,55 +1,77 @@
 "use client";
 
 import { useFormState, useFormStatus } from "react-dom";
-import { Loader2, RefreshCw } from "lucide-react";
+import { CheckCircle2, Loader2, RefreshCw, Wrench } from "lucide-react";
 import {
   updateBreakdownStatus,
   type BreakdownActionState
 } from "@/actions/breakdowns";
 import type { BreakdownStatus } from "@/lib/supabase/types";
 
-const statusTransitions: Record<
-  BreakdownStatus,
-  { next: BreakdownStatus; label: string; btnClass: string }[]
-> = {
+// ─── Table de transitions de statut ───────────────────────────────────────────
+
+type Transition = {
+  next: BreakdownStatus;
+  label: string;
+  pendingLabel: string;
+  icon: typeof Wrench;
+  btnClass: string;
+};
+
+const statusTransitions: Record<BreakdownStatus, Transition[]> = {
+  // Panne signalée → Démarrer la réparation
   open: [
     {
       next: "in_progress",
-      label: "Démarrer réparation",
+      label: "Démarrer la réparation",
+      pendingLabel: "Démarrage…",
+      icon: Wrench,
       btnClass:
         "inline-flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-300 transition-all hover:bg-amber-500/20 disabled:opacity-50"
     }
   ],
+  // En réparation → Confirmer que la réparation est terminée
   in_progress: [
     {
       next: "resolved",
-      label: "Marquer résolue",
+      label: "Confirmer la réparation",
+      pendingLabel: "Confirmation…",
+      icon: CheckCircle2,
       btnClass:
         "inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-300 transition-all hover:bg-emerald-500/20 disabled:opacity-50"
     }
   ],
+  // Résolue → pas d'action possible (cycle terminé)
   resolved: []
 };
 
 const initialState: BreakdownActionState = { ok: false, message: "" };
 
-function SubmitBtn({ label, btnClass }: { label: string; btnClass: string }) {
+// ─── Bouton de soumission ──────────────────────────────────────────────────────
+
+function SubmitBtn({ transition }: { transition: Transition }) {
   const { pending } = useFormStatus();
+  const Icon = transition.icon;
   return (
-    <button type="submit" disabled={pending} className={btnClass}>
+    <button type="submit" disabled={pending} className={transition.btnClass}>
       {pending ? (
         <Loader2 size={12} className="animate-spin" />
       ) : (
-        <RefreshCw size={12} />
+        <Icon size={12} />
       )}
-      {pending ? "Mise à jour…" : label}
+      {pending ? transition.pendingLabel : transition.label}
     </button>
   );
 }
 
+// ─── Composant public ──────────────────────────────────────────────────────────
+
 /**
  * Affiche les boutons de transition de statut d'une panne.
- * Chaque bouton soumet un formulaire avec breakdown_id + new_status.
+ * Cycle : open → in_progress → resolved
+ *
+ * Important : ce composant doit être rendu hors de tout <form> parent.
+ * Chaque transition a son propre <form> indépendant avec breakdown_id + new_status.
  */
 export function BreakdownStatusForm({
   breakdownId,
@@ -64,12 +86,12 @@ export function BreakdownStatusForm({
   if (transitions.length === 0) return null;
 
   return (
-    <div className="space-y-1.5">
+    <div className="flex flex-wrap items-center gap-2">
       {transitions.map((t) => (
         <form key={t.next} action={formAction}>
           <input type="hidden" name="breakdown_id" value={breakdownId} />
           <input type="hidden" name="new_status" value={t.next} />
-          <SubmitBtn label={t.label} btnClass={t.btnClass} />
+          <SubmitBtn transition={t} />
         </form>
       ))}
       {state.message && (

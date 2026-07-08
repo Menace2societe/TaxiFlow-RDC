@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { loginWithNext, ROUTES } from "@/lib/routes";
 
@@ -123,5 +124,104 @@ export async function recordDriverPayment(formData: FormData) {
 
     console.error("[recordDriverPayment] Unexpected failure:", error);
     redirect(`${returnPath}?error=${encodeURIComponent("Versement impossible. Reessayez dans un instant.")}`);
+  }
+}
+
+// ─── Mise à jour du statut de versement (chauffeur-patron uniquement) ─────────
+
+const updatePaymentStatusSchema = z.object({
+  payment_id: z.string().uuid(),
+  new_status: z.enum(["pending", "approved", "rejected"])
+});
+
+export type UpdatePaymentStatusState = {
+  ok: boolean;
+  message: string;
+};
+
+/**
+ * Permet à un chauffeur-patron (owner_id === driver_id) de modifier le statut
+ * de ses propres versements. Sécurité : le payment doit appartenir à l'utilisateur
+ * connecté (driver_id = user.id ET vehicle.owner_id = user.id).
+ */
+export async function updatePaymentStatus(
+  _prev: UpdatePaymentStatusState,
+  formData: FormData
+): Promise<UpdatePaymentStatusState> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { ok: false, message: "Session expirée. Reconnectez-vous." };
+    }
+
+    const parsed = updatePaymentStatusSchema.safeParse({
+      payment_id: formData.get("payment_id"),
+      new_status: formData.get("new_status")
+    });
+
+    if (!parsed.success) {
+      const first = Object.values(parsed.error.flatten().fieldErrors)[0]?.[0] ?? "Données invalides.";
+      return { ok: false, message: first };
+    }
+
+    const { payment_id, new_status } = parsed.data;
+
+    // Récupérer le versement — vérifier que c'est bien celui du chauffeur connecté
+    const { data: payment, error: payErr } = await supabase
+      .from("payments")
+      .select("id, driver_id, vehicle_id, status")
+      .eq("id", payment_id)
+      .eq("driver_id", user.id)
+      .maybeSingle();
+
+    if (payErr || !payment) {
+      return { ok: false, message: "Versement introuvable ou accès refusé." };
+    }
+
+    // Double vérification : le véhicule doit avoir owner_id = user.id (chauffeur-patron)
+    const { data: vehicle, error: vErr } = await supabase
+      .from("vehicles")
+      .select("id, owner_id")
+      .eq("id", payment.vehicle_id)
+      .eq("owner_id", user.id)
+      .maybeSingle();
+
+    if (vErr || !vehicle) {
+      return {
+        ok: false,
+        message: "Accès refusé. Seul le chauffeur-patron peut modifier ses versements."
+      };
+    }
+
+    // Mettre à jour le statut
+    const { error: updateErr } = await supabase
+      .from("payments")
+      .update({ status: new_status })
+      .eq("id", payment_id)
+      .eq("driver_id", user.id);
+
+    if (updateErr) {
+      console.error("[updatePaymentStatus] update error:", updateErr.message);
+      return { ok: false, message: updateErr.message };
+    }
+
+    revalidatePath(ROUTES.DRIVER_PORTAL);
+    revalidatePath(ROUTES.DRIVER_DASHBOARD);
+    revalidatePath(ROUTES.INVESTOR_DASHBOARD);
+
+    const labels: Record<string, string> = {
+      pending: "En attente",
+      approved: "Approuvé",
+      rejected: "Rejeté"
+    };
+
+    return { ok: true, message: `Versement marqué comme : ${labels[new_status] ?? new_status}.` };
+  } catch (err) {
+    console.error("[updatePaymentStatus]", err);
+    return { ok: false, message: "Mise à jour impossible. Vérifiez la connexion." };
   }
 }

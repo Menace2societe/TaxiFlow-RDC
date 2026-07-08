@@ -17,6 +17,7 @@ import { reportBreakdown } from "@/actions/breakdowns";
 import { recordDriverPayment } from "@/actions/payments";
 import { VehicleStatusControls } from "@/components/VehicleStatusControls";
 import { OwnerDriverRegisterVehicleForm } from "@/components/driver/OwnerDriverRegisterVehicleForm";
+import { OwnerPaymentActions } from "@/components/driver/OwnerPaymentActions";
 import {
   getCurrentUserId,
   getDriverAssignedVehicle,
@@ -374,6 +375,7 @@ export default async function DriverPortalPage({ searchParams }: PortalPageProps
                   <th>Date</th>
                   <th>Montant</th>
                   <th>Statut</th>
+                  {isOwnerDriver && <th className="text-right">Actions</th>}
                 </tr>
               </thead>
               <tbody>
@@ -393,6 +395,14 @@ export default async function DriverPortalPage({ searchParams }: PortalPageProps
                           {sv.label}
                         </span>
                       </td>
+                      {isOwnerDriver && (
+                        <td className="text-right">
+                          <OwnerPaymentActions
+                            paymentId={payment.id}
+                            currentStatus={payment.status}
+                          />
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
