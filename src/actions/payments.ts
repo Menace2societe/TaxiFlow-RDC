@@ -84,14 +84,28 @@ export async function recordDriverPayment(formData: FormData) {
       redirect(loginWithNext(returnPath));
     }
 
+    // Récupérer le véhicule assigné au chauffeur + son propriétaire (investor_id)
     const { data: vehicle, error: vehicleError } = await supabase
       .from("vehicles")
       .select("id,owner_id")
       .eq("driver_id", user.id)
       .maybeSingle();
 
-    if (vehicleError || !vehicle) {
-      redirect(`${returnPath}?error=${encodeURIComponent(vehicleError?.message ?? "Aucun vehicule assigne.")}`);
+    if (vehicleError) {
+      console.error("[recordDriverPayment] Erreur récupération véhicule :", vehicleError.message);
+      redirect(`${returnPath}?error=${encodeURIComponent(vehicleError.message ?? "Erreur récupération véhicule.")}`);
+    }
+
+    if (!vehicle) {
+      redirect(`${returnPath}?error=${encodeURIComponent("Aucun véhicule assigné. Contactez votre investisseur.")}`);
+    }
+
+    // Sécurité critique : owner_id est l'investor_id qui recevra le versement.
+    // Sans lui, le paiement ne serait visible par aucun investisseur.
+    const investorId = vehicle.owner_id;
+    if (!investorId) {
+      console.error("[recordDriverPayment] owner_id manquant sur le véhicule :", vehicle.id);
+      redirect(`${returnPath}?error=${encodeURIComponent("Véhicule sans propriétaire. Contactez le support.")}`);
     }
 
     const normalizedAmount = Number(amount);
@@ -99,13 +113,15 @@ export async function recordDriverPayment(formData: FormData) {
       redirect(`${returnPath}?error=${encodeURIComponent("Montant de versement invalide.")}`);
     }
 
-    // Règle métier : si owner_id === driver_id, c'est un chauffeur-patron →
-    // il n'a pas d'investisseur tiers, le versement est auto-approuvé.
-    const isOwnerDriver = vehicle.owner_id === user.id;
+    // Chauffeur-patron : owner_id === driver_id → versement auto-approuvé
+    const isOwnerDriver = investorId === user.id;
 
-    const result = await recordPayment(amount, user.id, vehicle.id, vehicle.owner_id, isOwnerDriver);
+    console.log("[recordDriverPayment] Insertion versement — driver:", user.id, "| vehicle:", vehicle.id, "| investor_id:", investorId, "| isOwnerDriver:", isOwnerDriver, "| montant:", normalizedAmount);
+
+    const result = await recordPayment(normalizedAmount, user.id, vehicle.id, investorId, isOwnerDriver);
 
     if (!result.ok) {
+      console.error("[recordDriverPayment] recordPayment a échoué :", result.message);
       redirect(`${returnPath}?error=${encodeURIComponent(result.message)}`);
     }
 
