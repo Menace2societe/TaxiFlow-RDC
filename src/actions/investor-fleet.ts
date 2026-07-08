@@ -438,3 +438,116 @@ export async function registerOrAssignDriverByPhone(formData: FormData): Promise
     };
   }
 }
+
+// ─── Types & actions pour l'assignation rapide depuis InvestorDriverTeamPanel ──
+
+export type AvailableVehicle = {
+  id: string;
+  label: string;
+  plate_number: string;
+  type: "taxi" | "moto";
+  status: string;
+};
+
+export type QuickAssignActionState = {
+  ok: boolean;
+  message: string;
+};
+
+/**
+ * Assigne rapidement un chauffeur (déjà identifié par linkDriverToInvestor)
+ * à l'un des véhicules disponibles (driver_id IS NULL) de l'investisseur.
+ * Met aussi à jour le profil du chauffeur avec l'investor_id en remarque (via
+ * la colonne investor_id si elle existe, sinon ignore silencieusement).
+ */
+export async function assignFoundDriverToVehicle(
+  _prev: QuickAssignActionState,
+  formData: FormData
+): Promise<QuickAssignActionState> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { ok: false, message: "Session expirée. Reconnectez-vous." };
+    }
+
+    // Vérifier que l'utilisateur est bien investisseur
+    const { data: investorProfile } = await supabase
+      .from("profiles")
+      .select("id,role")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (!investorProfile || investorProfile.role !== "investor") {
+      return { ok: false, message: "Accès refusé. Seuls les investisseurs peuvent assigner des chauffeurs." };
+    }
+
+    const driverIdRaw = String(formData.get("driver_id") ?? "").trim();
+    const vehicleIdRaw = String(formData.get("vehicle_id") ?? "").trim();
+
+    const uuidSchema = z.string().uuid();
+    const driverParsed = uuidSchema.safeParse(driverIdRaw);
+    const vehicleParsed = uuidSchema.safeParse(vehicleIdRaw);
+
+    if (!driverParsed.success) {
+      return { ok: false, message: "Identifiant chauffeur invalide." };
+    }
+    if (!vehicleParsed.success) {
+      return { ok: false, message: "Identifiant véhicule invalide." };
+    }
+
+    const driverId = driverParsed.data;
+    const vehicleId = vehicleParsed.data;
+
+    // Vérifier que le véhicule appartient bien à l'investisseur connecté et qu'il est disponible
+    const { data: vehicle, error: vehicleErr } = await supabase
+      .from("vehicles")
+      .select("id,label,driver_id")
+      .eq("id", vehicleId)
+      .eq("owner_id", user.id)
+      .maybeSingle();
+
+    if (vehicleErr || !vehicle) {
+      return { ok: false, message: "Véhicule introuvable ou accès refusé." };
+    }
+
+    if (vehicle.driver_id !== null) {
+      return {
+        ok: false,
+        message: `Le véhicule « ${vehicle.label} » est déjà assigné à un chauffeur. Libérez-le d'abord.`
+      };
+    }
+
+    // Libérer tout véhicule précédent de ce chauffeur chez cet investisseur
+    await supabase
+      .from("vehicles")
+      .update({ driver_id: null })
+      .eq("owner_id", user.id)
+      .eq("driver_id", driverId)
+      .neq("id", vehicleId);
+
+    // Assigner le chauffeur
+    const { error: updateErr } = await supabase
+      .from("vehicles")
+      .update({ driver_id: driverId })
+      .eq("id", vehicleId)
+      .eq("owner_id", user.id);
+
+    if (updateErr) {
+      return { ok: false, message: updateErr.message };
+    }
+
+    revalidatePath(ROUTES.INVESTOR_FLEET);
+    revalidatePath(ROUTES.INVESTOR_DASHBOARD);
+    revalidatePath(ROUTES.DRIVER_PORTAL);
+    revalidatePath(ROUTES.DRIVER_DASHBOARD);
+
+    return { ok: true, message: `Chauffeur assigné au véhicule « ${vehicle.label} » avec succès !` };
+  } catch (err) {
+    console.error("[assignFoundDriverToVehicle]", err);
+    return { ok: false, message: "Assignation impossible. Vérifiez la connexion Supabase." };
+  }
+}

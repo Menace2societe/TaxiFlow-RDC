@@ -247,6 +247,112 @@ export type AssignDriverActionState = {
   message: string;
 };
 
+export type OwnerDriverVehicleActionState = {
+  ok: boolean;
+  message: string;
+};
+
+const ownerDriverVehicleSchema = z.object({
+  make: z.string().min(2, "La marque est obligatoire.").max(60).transform((v) => v.trim()),
+  model: z.string().min(1, "Le modèle est obligatoire.").max(60).transform((v) => v.trim()),
+  plate_number: z
+    .string()
+    .min(3, "La plaque est obligatoire.")
+    .max(20)
+    .transform((v) => v.trim().toUpperCase()),
+  type: z.enum(["taxi", "moto"], { error: () => "Type de véhicule invalide." }),
+  target_daily_revenue: z.coerce
+    .number({ error: () => "Montant invalide." })
+    .positive("L'objectif journalier doit être positif.")
+});
+
+/**
+ * Permet à un chauffeur-patron (is_owner_driver: true) de créer et de
+ * s'auto-assigner un véhicule : owner_id = driver_id = userId connecté.
+ */
+export async function registerOwnerDriverVehicle(
+  _prev: OwnerDriverVehicleActionState,
+  formData: FormData
+): Promise<OwnerDriverVehicleActionState> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { ok: false, message: "Session expirée. Reconnectez-vous." };
+    }
+
+    // Vérifier que l'utilisateur est bien chauffeur-patron
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("id,is_owner_driver,role")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profileError || !profile) {
+      return { ok: false, message: "Profil introuvable. Reconnectez-vous." };
+    }
+
+    if (!profile.is_owner_driver) {
+      return {
+        ok: false,
+        message: "Action réservée aux chauffeurs-patrons (is_owner_driver)."
+      };
+    }
+
+    const parsed = ownerDriverVehicleSchema.safeParse({
+      make: formData.get("make"),
+      model: formData.get("model"),
+      plate_number: formData.get("plate_number"),
+      type: formData.get("type"),
+      target_daily_revenue: formData.get("target_daily_revenue")
+    });
+
+    if (!parsed.success) {
+      const first =
+        Object.values(parsed.error.flatten().fieldErrors)[0]?.[0] ?? "Données invalides.";
+      return { ok: false, message: first };
+    }
+
+    const label = `${parsed.data.make} ${parsed.data.model}`.trim();
+
+    const { error } = await supabase.from("vehicles").insert({
+      owner_id: user.id,
+      driver_id: user.id, // Chauffeur-patron : il est à la fois investisseur et chauffeur
+      plate_number: parsed.data.plate_number,
+      label,
+      type: parsed.data.type,
+      status: "repos",
+      target_daily_revenue: parsed.data.target_daily_revenue
+    });
+
+    if (error?.code === "23505") {
+      return { ok: false, message: "Cette plaque est déjà enregistrée dans le système." };
+    }
+
+    if (error) {
+      return { ok: false, message: error.message };
+    }
+
+    revalidateFleetPaths();
+    revalidatePath(ROUTES.DRIVER_PORTAL);
+    revalidatePath(ROUTES.DRIVER_DASHBOARD);
+
+    return {
+      ok: true,
+      message: `Véhicule « ${label} » enregistré et assigné avec succès !`
+    };
+  } catch (err) {
+    console.error("[registerOwnerDriverVehicle]", err);
+    return {
+      ok: false,
+      message: "Enregistrement impossible. Vérifiez votre connexion."
+    };
+  }
+}
+
 /**
  * Assigne (ou désassigne) un chauffeur à un véhicule en mettant à jour
  * `vehicles.driver_id`. Vérifie que le véhicule appartient à l'utilisateur.

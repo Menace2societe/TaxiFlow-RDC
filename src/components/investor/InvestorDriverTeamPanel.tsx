@@ -2,6 +2,8 @@
 
 import { useRef } from "react";
 import {
+  CarTaxiFront,
+  CheckCircle2,
   Loader2,
   Phone,
   Search,
@@ -9,16 +11,21 @@ import {
   UserCheck,
   UserPlus,
   Users,
-  CarTaxiFront,
-  CheckCircle2
+  AlertTriangle
 } from "lucide-react";
 import { useFormState, useFormStatus } from "react-dom";
-import { linkDriverToInvestor, type LinkDriverActionState } from "@/actions/investor-fleet";
+import {
+  linkDriverToInvestor,
+  assignFoundDriverToVehicle,
+  type LinkDriverActionState,
+  type AvailableVehicle,
+  type QuickAssignActionState
+} from "@/actions/investor-fleet";
 import type { DashboardVehicle } from "@/lib/dashboard/data";
 
-const initialState: LinkDriverActionState = { ok: false, message: "" };
+// ─── Bouton rechercher ────────────────────────────────────────────────────────
 
-function SubmitInviteButton() {
+function SubmitSearchButton() {
   const { pending } = useFormStatus();
   return (
     <button
@@ -31,10 +38,87 @@ function SubmitInviteButton() {
       ) : (
         <Search size={15} />
       )}
-      {pending ? "Recherche en cours..." : "Rechercher le chauffeur"}
+      {pending ? "Recherche en cours…" : "Rechercher le chauffeur"}
     </button>
   );
 }
+
+// ─── Bouton assigner (1 véhicule) ─────────────────────────────────────────────
+
+function SubmitQuickAssignButton({ vehicleLabel }: { vehicleLabel: string }) {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-300 transition-all hover:bg-emerald-500/20 disabled:opacity-50"
+    >
+      {pending ? (
+        <Loader2 size={12} className="animate-spin" />
+      ) : (
+        <UserCheck size={12} />
+      )}
+      {pending ? "Assignation…" : `Assigner à ${vehicleLabel}`}
+    </button>
+  );
+}
+
+// ─── Carte d'un véhicule disponible avec bouton d'assignation ─────────────────
+
+const initialQuickState: QuickAssignActionState = { ok: false, message: "" };
+
+function AvailableVehicleCard({
+  vehicle,
+  driverId,
+  driverName
+}: {
+  vehicle: AvailableVehicle;
+  driverId: string;
+  driverName: string;
+}) {
+  const [state, formAction] = useFormState(assignFoundDriverToVehicle, initialQuickState);
+
+  return (
+    <div className="rounded-lg border border-neutral-700 bg-neutral-800/40 p-3 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="rounded-md bg-emerald-500/10 p-1.5 shrink-0">
+            <CarTaxiFront size={14} className="text-emerald-400" />
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-white">{vehicle.label}</p>
+            <p className="text-[10px] text-neutral-500">{vehicle.plate_number} · {vehicle.type}</p>
+          </div>
+        </div>
+
+        <form action={formAction} className="shrink-0">
+          <input type="hidden" name="vehicle_id" value={vehicle.id} />
+          <input type="hidden" name="driver_id" value={driverId} />
+          <SubmitQuickAssignButton vehicleLabel={driverName} />
+        </form>
+      </div>
+
+      {state.message && (
+        <div
+          className={`flex items-center gap-1.5 rounded px-2 py-1 text-[11px] font-medium ${
+            state.ok
+              ? "bg-emerald-500/10 text-emerald-300"
+              : "bg-red-500/10 text-red-300"
+          }`}
+        >
+          {state.ok ? (
+            <CheckCircle2 size={11} className="shrink-0" />
+          ) : (
+            <AlertTriangle size={11} className="shrink-0" />
+          )}
+          {state.message}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 type TeamDriver = {
   id: string;
@@ -47,13 +131,25 @@ type Props = {
   vehicles: DashboardVehicle[];
 };
 
+const initialSearchState: LinkDriverActionState = { ok: false, message: "" };
+
+const statusDot: Record<string, string> = {
+  "en service": "bg-emerald-400",
+  maintenance: "bg-amber-400",
+  repos: "bg-neutral-500"
+};
+
+// ─── Composant principal ──────────────────────────────────────────────────────
+
 /**
  * Panneau d'équipe chauffeurs pour l'investisseur.
  * - Liste les chauffeurs liés (via vehicles.driver_id)
  * - Formulaire de recherche/invitation par téléphone ou UUID
+ * - Dès qu'un chauffeur est trouvé, affiche la liste des véhicules disponibles
+ *   (driver_id IS NULL) avec des boutons d'assignation rapide.
  */
 export function InvestorDriverTeamPanel({ vehicles }: Props) {
-  const [state, formAction] = useFormState(linkDriverToInvestor, initialState);
+  const [state, formAction] = useFormState(linkDriverToInvestor, initialSearchState);
   const formRef = useRef<HTMLFormElement>(null);
 
   // Dériver les chauffeurs liés depuis la liste de véhicules
@@ -75,11 +171,16 @@ export function InvestorDriverTeamPanel({ vehicles }: Props) {
     new Map(teamDrivers.map((d) => [d.id, d])).values()
   );
 
-  const statusDot: Record<string, string> = {
-    "en service": "bg-emerald-400",
-    maintenance: "bg-amber-400",
-    repos: "bg-neutral-500"
-  };
+  // Véhicules disponibles pour assignation (driver_id === null)
+  const availableVehicles: AvailableVehicle[] = vehicles
+    .filter((v) => v.driver_id === null)
+    .map((v) => ({
+      id: v.id,
+      label: v.label,
+      plate_number: v.plate_number,
+      type: v.type,
+      status: v.status
+    }));
 
   return (
     <div className="space-y-5">
@@ -160,13 +261,13 @@ export function InvestorDriverTeamPanel({ vehicles }: Props) {
         </div>
       )}
 
-      {/* ─── Formulaire d'invitation ─── */}
+      {/* ─── Formulaire de recherche / invitation ─── */}
       <div className="rounded-xl border border-neutral-800 bg-neutral-900/50 p-4">
         <div className="flex items-center gap-2 mb-4">
           <div className="rounded-lg bg-emerald-500/10 p-1.5">
             <UserPlus size={15} className="text-emerald-400" />
           </div>
-          <h3 className="text-sm font-semibold text-white">Inviter un chauffeur</h3>
+          <h3 className="text-sm font-semibold text-white">Inviter / Rechercher un chauffeur</h3>
         </div>
 
         <form ref={formRef} action={formAction} className="space-y-3">
@@ -176,7 +277,7 @@ export function InvestorDriverTeamPanel({ vehicles }: Props) {
                 htmlFor="link-driver-identifier"
                 className="mb-1.5 block text-xs font-medium text-neutral-400"
               >
-                Téléphone (+243...) ou UUID
+                Téléphone (+243…) ou UUID
               </label>
               <input
                 id="link-driver-identifier"
@@ -205,7 +306,7 @@ export function InvestorDriverTeamPanel({ vehicles }: Props) {
             </div>
           </div>
 
-          {/* Feedback */}
+          {/* Message de feedback (erreur ou succès générique) */}
           {state.message && (
             <div
               className={`flex items-start gap-2 rounded-lg px-3 py-2.5 text-xs font-medium ${
@@ -214,33 +315,65 @@ export function InvestorDriverTeamPanel({ vehicles }: Props) {
                   : "border border-red-500/30 bg-red-500/10 text-red-300"
               }`}
             >
-              {state.ok ? <CheckCircle2 size={13} className="mt-0.5 shrink-0" /> : null}
+              {state.ok ? (
+                <CheckCircle2 size={13} className="mt-0.5 shrink-0" />
+              ) : (
+                <AlertTriangle size={13} className="mt-0.5 shrink-0" />
+              )}
               <span>{state.message}</span>
             </div>
           )}
 
-          {/* Si chauffeur trouvé, afficher son profil */}
+          {/* ─── Chauffeur identifié → profil + véhicules disponibles ─── */}
           {state.ok && state.driver && (
-            <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/5 px-3 py-2.5">
-              <p className="text-xs text-emerald-400 font-medium mb-1">Chauffeur identifié :</p>
-              <div className="flex items-center gap-2">
-                <div className="rounded-full bg-emerald-500/15 p-1.5">
-                  <User size={12} className="text-emerald-400" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-white">{state.driver.full_name ?? "N/A"}</p>
-                  {state.driver.phone && (
-                    <p className="text-xs text-neutral-500">{state.driver.phone}</p>
-                  )}
+            <div className="space-y-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
+              {/* Profil trouvé */}
+              <div>
+                <p className="mb-1.5 text-xs font-semibold text-emerald-400">
+                  Chauffeur identifié :
+                </p>
+                <div className="flex items-center gap-2">
+                  <div className="rounded-full bg-emerald-500/15 p-1.5">
+                    <User size={12} className="text-emerald-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-white">
+                      {state.driver.full_name ?? "N/A"}
+                    </p>
+                    {state.driver.phone && (
+                      <p className="text-xs text-neutral-500">{state.driver.phone}</p>
+                    )}
+                  </div>
                 </div>
               </div>
-              <p className="mt-2 text-[11px] text-emerald-300/70">
-                Assignez ce chauffeur à un de vos véhicules dans la liste ci-dessus.
-              </p>
+
+              {/* Véhicules disponibles */}
+              {availableVehicles.length > 0 ? (
+                <div className="space-y-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
+                    Vos véhicules disponibles ({availableVehicles.length})
+                  </p>
+                  <div className="space-y-2">
+                    {availableVehicles.map((vehicle) => (
+                      <AvailableVehicleCard
+                        key={vehicle.id}
+                        vehicle={vehicle}
+                        driverId={state.driver!.id}
+                        driverName={state.driver!.full_name ?? "ce chauffeur"}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <p className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-[11px] text-amber-300">
+                  Tous vos véhicules sont déjà assignés. Libérez un véhicule depuis la liste
+                  ci-dessus pour pouvoir assigner ce chauffeur.
+                </p>
+              )}
             </div>
           )}
 
-          <SubmitInviteButton />
+          <SubmitSearchButton />
         </form>
       </div>
     </div>

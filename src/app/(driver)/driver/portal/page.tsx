@@ -10,14 +10,17 @@ import {
   ReceiptText,
   TrendingUp,
   Wrench,
-  Activity
+  Activity,
+  BadgeCheck
 } from "lucide-react";
 import { reportBreakdown } from "@/actions/breakdowns";
 import { recordDriverPayment } from "@/actions/payments";
 import { VehicleStatusControls } from "@/components/VehicleStatusControls";
+import { OwnerDriverRegisterVehicleForm } from "@/components/driver/OwnerDriverRegisterVehicleForm";
 import {
   getCurrentUserId,
   getDriverAssignedVehicle,
+  getDriverProfile,
   getDriverRecentPayments
 } from "@/lib/dashboard/data";
 import { loginWithNext, ROUTES } from "@/lib/routes";
@@ -63,12 +66,14 @@ export default async function DriverPortalPage({ searchParams }: PortalPageProps
     redirect(loginWithNext(ROUTES.DRIVER_PORTAL));
   }
 
-  const [vehicle, recentPayments] = await Promise.all([
+  const [vehicle, recentPayments, driverProfile] = await Promise.all([
     getDriverAssignedVehicle(userId),
-    getDriverRecentPayments(userId, 8)
+    getDriverRecentPayments(userId, 8),
+    getDriverProfile(userId)
   ]);
 
   const hasVehicle = Boolean(vehicle);
+  const isOwnerDriver = Boolean(driverProfile?.is_owner_driver);
   const pendingTotal = recentPayments
     .filter((p) => p.status === "pending")
     .reduce((sum, p) => sum + p.amount, 0);
@@ -189,7 +194,19 @@ export default async function DriverPortalPage({ searchParams }: PortalPageProps
                 <VehicleStatusControls vehicleId={vehicle.id} currentStatus={vehicle.status} compact />
               </div>
             </>
+          ) : isOwnerDriver ? (
+            /* ─── Chauffeur-patron sans véhicule : formulaire d'auto-enregistrement ─── */
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-2.5">
+                <BadgeCheck size={15} className="text-emerald-400 shrink-0" />
+                <p className="text-xs font-medium text-emerald-300">
+                  Mode chauffeur-patron actif — Enregistrez votre propre véhicule ci-dessous.
+                </p>
+              </div>
+              <OwnerDriverRegisterVehicleForm />
+            </div>
           ) : (
+            /* ─── Chauffeur standard sans véhicule : message d'attente ─── */
             <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-neutral-800">
                 <CarTaxiFront size={22} className="text-neutral-600" />
