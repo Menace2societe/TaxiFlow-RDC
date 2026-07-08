@@ -228,9 +228,7 @@ export async function updatePaymentStatus(
       return { ok: false, message: updateErr.message };
     }
 
-    revalidatePath(ROUTES.DRIVER_PORTAL, "layout");
-    revalidatePath(ROUTES.DRIVER_DASHBOARD, "layout");
-    revalidatePath(ROUTES.INVESTOR_DASHBOARD, "layout");
+    revalidatePaymentViews();
 
     const labels: Record<string, string> = {
       pending: "En attente",

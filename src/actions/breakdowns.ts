@@ -88,6 +88,11 @@ export async function reportBreakdown(formData: FormData) {
       redirect(`${returnPath}?error=${encodeURIComponent("Aucun vehicule assigne a votre compte.")}`);
     }
 
+    if (!assigned.owner_id) {
+      console.error("[reportBreakdown] owner_id manquant sur le vehicule :", assigned.id);
+      redirect(`${returnPath}?error=${encodeURIComponent("Vehicule sans proprietaire. Contactez le support.")}`);
+    }
+
     const parsed = reportSchema.safeParse({
       type: formData.get("type"),
       description: formData.get("description"),

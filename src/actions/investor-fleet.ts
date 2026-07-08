@@ -78,11 +78,14 @@ export async function linkDriverToInvestor(
     // Vérifier que l'utilisateur est bien investisseur
     const { data: investorProfile, error: profileError } = await supabase
       .from("profiles")
-      .select("id,role")
+      .select("id,role,is_owner_driver")
       .eq("id", user.id)
       .maybeSingle();
 
-    if (profileError || !investorProfile || investorProfile.role !== "investor") {
+    const canManageFleet =
+      investorProfile?.role === "investor" || investorProfile?.is_owner_driver === true;
+
+    if (profileError || !investorProfile || !canManageFleet) {
       return { ok: false, message: "Accès refusé. Seuls les investisseurs peuvent lier des chauffeurs." };
     }
 
