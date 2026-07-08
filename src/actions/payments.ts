@@ -12,10 +12,13 @@ export type PaymentActionResult = {
 };
 
 function revalidatePaymentViews() {
-  revalidatePath(ROUTES.DASHBOARD_OVERVIEW);
-  revalidatePath(ROUTES.INVESTOR_DASHBOARD);
-  revalidatePath(ROUTES.DRIVER_DASHBOARD);
-  revalidatePath(ROUTES.DRIVER_PORTAL);
+  // Utiliser 'layout' pour forcer une invalidation profonde du cache RSC.
+  // Sans ce segment, Next.js peut servir le payload en cache même après
+  // une écriture en base de données — rendant les versements invisibles côté investisseur.
+  revalidatePath(ROUTES.DASHBOARD_OVERVIEW, "layout");
+  revalidatePath(ROUTES.INVESTOR_DASHBOARD, "layout");
+  revalidatePath(ROUTES.DRIVER_DASHBOARD, "layout");
+  revalidatePath(ROUTES.DRIVER_PORTAL, "layout");
 }
 
 export async function recordPayment(
@@ -225,9 +228,9 @@ export async function updatePaymentStatus(
       return { ok: false, message: updateErr.message };
     }
 
-    revalidatePath(ROUTES.DRIVER_PORTAL);
-    revalidatePath(ROUTES.DRIVER_DASHBOARD);
-    revalidatePath(ROUTES.INVESTOR_DASHBOARD);
+    revalidatePath(ROUTES.DRIVER_PORTAL, "layout");
+    revalidatePath(ROUTES.DRIVER_DASHBOARD, "layout");
+    revalidatePath(ROUTES.INVESTOR_DASHBOARD, "layout");
 
     const labels: Record<string, string> = {
       pending: "En attente",

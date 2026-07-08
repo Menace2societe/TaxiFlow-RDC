@@ -45,12 +45,15 @@ function isNextRedirect(error: unknown) {
 }
 
 function revalidateBreakdownViews() {
-  revalidatePath(ROUTES.DRIVER_PORTAL);
-  revalidatePath(ROUTES.DRIVER_DASHBOARD);
-  revalidatePath(ROUTES.DRIVER_MAINTENANCE);
-  revalidatePath(ROUTES.INVESTOR_DASHBOARD);
-  revalidatePath(ROUTES.INVESTOR_FLEET);
-  revalidatePath(ROUTES.DASHBOARD_OVERVIEW);
+  // Utiliser 'layout' pour forcer une invalidation profonde du cache RSC :
+  // sans cela, Next.js peut renvoyer le payload RSC en cache même après une
+  // mise à jour en base de données.
+  revalidatePath(ROUTES.DRIVER_PORTAL, "layout");
+  revalidatePath(ROUTES.DRIVER_DASHBOARD, "layout");
+  revalidatePath(ROUTES.DRIVER_MAINTENANCE, "layout");
+  revalidatePath(ROUTES.INVESTOR_DASHBOARD, "layout");
+  revalidatePath(ROUTES.INVESTOR_FLEET, "layout");
+  revalidatePath(ROUTES.DASHBOARD_OVERVIEW, "layout");
 }
 
 export async function reportBreakdown(formData: FormData) {
@@ -66,9 +69,11 @@ export async function reportBreakdown(formData: FormData) {
       redirect(loginWithNext(returnPath));
     }
 
+    // Récupérer owner_id en plus de l'id : c'est l'investor_id qui sera notifié
+    // de la panne via la requête dashboard investisseur (filtrage par vehicle_id).
     const { data: assigned, error: vehicleError } = await supabase
       .from("vehicles")
-      .select("id")
+      .select("id,owner_id")
       .eq("driver_id", user.id)
       .maybeSingle();
 
@@ -250,18 +255,27 @@ export async function updateBreakdownStatus(
       return { ok: false, message: "Panne introuvable." };
     }
 
-    // Vérifier que ce véhicule est bien assigné à l'utilisateur connecté
+    // Vérifier que ce véhicule est assigné à l'utilisateur connecté.
+    // Deux cas légitimes :
+    //   1. Chauffeur (driver_id = user.id) — doit pouvoir gérer les pannes de son véhicule.
+    //   2. Investisseur/Patron (owner_id = user.id) — doit pouvoir gérer les pannes de sa flotte.
     const { data: vehicle, error: vErr } = await supabase
       .from("vehicles")
-      .select("id,status")
+      .select("id,status,driver_id,owner_id")
       .eq("id", breakdown.vehicle_id)
-      .eq("driver_id", user.id)
       .maybeSingle();
 
     if (vErr || !vehicle) {
+      return { ok: false, message: "Véhicule de la panne introuvable." };
+    }
+
+    const isDriver = vehicle.driver_id === user.id;
+    const isOwner = vehicle.owner_id === user.id;
+
+    if (!isDriver && !isOwner) {
       return {
         ok: false,
-        message: "Accès refusé. Cette panne ne concerne pas votre véhicule."
+        message: "Accès refusé. Vous n'êtes ni le chauffeur ni le propriétaire de ce véhicule."
       };
     }
 

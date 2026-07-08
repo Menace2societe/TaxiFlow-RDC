@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useFormState, useFormStatus } from "react-dom";
 import { CheckCircle2, Loader2, Wrench } from "lucide-react";
@@ -72,9 +72,14 @@ function SubmitBtn({ transition }: { transition: Transition }) {
  * Affiche les boutons de transition de statut d'une panne.
  * Cycle : open → in_progress → resolved
  *
- * Après chaque action réussie, router.refresh() est appelé pour forcer
- * Next.js à re-fetcher le RSC payload et mettre à jour les props (badge,
- * compteurs KPI, bouton suivant) sans rechargement complet de la page.
+ * Stratégie de rafraîchissement :
+ * - Un `useRef` suit le dernier message de succès traité pour éviter les
+ *   faux-positifs (useEffect qui se déclencherait deux fois pour le même état).
+ * - Dès qu'un nouveau message de succès arrive, on appelle `router.refresh()`
+ *   qui force Next.js à re-fetcher le RSC payload depuis le serveur.
+ * - La Server Action exécute `revalidatePath(..., 'layout')`, invalidant ainsi
+ *   le cache RSC en profondeur — les données fraîches (nouveau statut, KPI,
+ *   badge) arrivent sans rechargement complet de la page.
  */
 export function BreakdownStatusForm({
   breakdownId,
@@ -87,12 +92,16 @@ export function BreakdownStatusForm({
   const [state, formAction] = useFormState(updateBreakdownStatus, initialState);
   const transitions = statusTransitions[currentStatus] ?? [];
 
-  // Déclenche un refresh RSC dès que l'action serveur retourne ok: true.
-  // Cela force Next.js à re-lire les données fraîches (nouveau statut,
-  // nouveaux compteurs KPI) et à re-passer les props mises à jour au
-  // composant, sans rechargement complet de la page.
+  // Ref pour suivre le dernier message de succès traité.
+  // Garantit que router.refresh() est appelé exactement une fois par action
+  // réussie, même si la même réponse ok + message est retournée deux fois.
+  const lastRefreshedMessage = useRef<string>("");
+
   useEffect(() => {
-    if (state.ok) {
+    if (state.ok && state.message && state.message !== lastRefreshedMessage.current) {
+      lastRefreshedMessage.current = state.message;
+      // Force le rechargement des Server Components sans rechargement complet :
+      // re-fetche le RSC payload depuis le serveur avec les données fraîches.
       router.refresh();
     }
   }, [state.ok, state.message, router]);
