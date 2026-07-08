@@ -2,6 +2,7 @@ import Link from "next/link";
 import { UserPlus, Building2, UserRound, Mail, Lock, Phone, User } from "lucide-react";
 import { registerPartner } from "@/actions/register";
 import { ROUTES } from "@/lib/routes";
+import { OwnerDriverToggle } from "@/components/auth/OwnerDriverToggle";
 
 // ─── Metadata ─────────────────────────────────────────────────────────────────
 export const metadata = {
@@ -161,6 +162,9 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
 
           </div>
         </fieldset>
+
+        {/* Toggle Chauffeur-Patron — visible uniquement si rôle = driver */}
+        <OwnerDriverToggle />
 
         {/* Email */}
         <div className="space-y-1.5">

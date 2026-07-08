@@ -568,3 +568,90 @@ export function topDriverName(entries: DashboardEntry[], vehicles: DashboardVehi
 
   return Object.entries(totals).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "Aucun";
 }
+
+export type DriverProfileExtended = {
+  id: string;
+  full_name: string | null;
+  role: string;
+  phone: string | null;
+  is_owner_driver: boolean;
+};
+
+/**
+ * Récupère le profil complet d'un chauffeur incluant is_owner_driver.
+ * Utilisé par le dashboard chauffeur pour déterminer la branche d'affichage.
+ */
+export async function getDriverProfile(driverId: string): Promise<DriverProfileExtended | null> {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id,full_name,role,phone,is_owner_driver")
+      .eq("id", driverId)
+      .maybeSingle();
+
+    if (error) {
+      console.warn("[getDriverProfile] Erreur :", error.message);
+      return null;
+    }
+
+    if (!data) return null;
+
+    return {
+      id: data.id,
+      full_name: (data as { full_name?: string | null }).full_name ?? null,
+      role: data.role,
+      phone: (data as { phone?: string | null }).phone ?? null,
+      is_owner_driver: Boolean((data as { is_owner_driver?: boolean }).is_owner_driver)
+    };
+  } catch (err) {
+    console.error("[getDriverProfile] Exception :", err);
+    return null;
+  }
+}
+
+export type DriverActiveContract = {
+  id: string;
+  contract_type: "employe" | "location_vente";
+  status: string;
+  possession_total_cdf: number | null;
+  possession_paid_cdf: number | null;
+  vehicle_id: string | null;
+};
+
+/**
+ * Récupère le contrat actif d'un chauffeur depuis driver_contracts.
+ * Retourne null si aucun contrat actif n'existe.
+ */
+export async function getDriverActiveContract(driverId: string): Promise<DriverActiveContract | null> {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("driver_contracts")
+      .select("id,contract_type,status,possession_total_cdf,possession_paid_cdf,vehicle_id")
+      .eq("driver_id", driverId)
+      .eq("status", "active")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.warn("[getDriverActiveContract] Erreur :", error.message);
+      return null;
+    }
+
+    if (!data) return null;
+
+    return {
+      id: data.id,
+      contract_type: data.contract_type as "employe" | "location_vente",
+      status: data.status,
+      possession_total_cdf: data.possession_total_cdf ?? null,
+      possession_paid_cdf: data.possession_paid_cdf ?? null,
+      vehicle_id: data.vehicle_id ?? null
+    };
+  } catch (err) {
+    console.error("[getDriverActiveContract] Exception :", err);
+    return null;
+  }
+}

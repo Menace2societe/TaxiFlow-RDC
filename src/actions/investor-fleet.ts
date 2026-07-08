@@ -29,6 +29,16 @@ export type DriverAssignmentActionState = {
   message: string;
 };
 
+export type LinkDriverActionState = {
+  ok: boolean;
+  message: string;
+  driver?: {
+    id: string;
+    full_name: string | null;
+    phone: string | null;
+  };
+};
+
 function createServiceClient() {
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return null;
@@ -43,6 +53,163 @@ function createServiceClient() {
 
 function normalizePhone(phone: string | null | undefined) {
   return (phone ?? "").replace(/\s+/g, "");
+}
+
+/**
+ * Permet à un investisseur d'inviter ou de trouver un chauffeur par son numéro
+ * de téléphone (+243XXXXXXXXX) ou son UUID.
+ * Si le chauffeur n'existe pas encore, il est créé via le service role.
+ * La liaison effective se fait ensuite via l'assignation à un véhicule.
+ */
+export async function linkDriverToInvestor(
+  _prev: LinkDriverActionState,
+  formData: FormData
+): Promise<LinkDriverActionState> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { ok: false, message: "Session expirée. Reconnectez-vous pour lier un chauffeur." };
+    }
+
+    // Vérifier que l'utilisateur est bien investisseur
+    const { data: investorProfile, error: profileError } = await supabase
+      .from("profiles")
+      .select("id,role")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profileError || !investorProfile || investorProfile.role !== "investor") {
+      return { ok: false, message: "Accès refusé. Seuls les investisseurs peuvent lier des chauffeurs." };
+    }
+
+    const rawIdentifier = String(formData.get("identifier") ?? "").trim();
+    const fullName = String(formData.get("full_name") ?? "").trim();
+
+    if (!rawIdentifier) {
+      return { ok: false, message: "Renseignez le numéro de téléphone ou l'UUID du chauffeur." };
+    }
+
+    // Normaliser l'identifiant : téléphone (+243...) ou UUID
+    const normalizedPhone = rawIdentifier.startsWith("+")
+      ? rawIdentifier.replace(/\s+/g, "")
+      : rawIdentifier.startsWith("0")
+        ? "+243" + rawIdentifier.slice(1).replace(/\s+/g, "")
+        : rawIdentifier;
+
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(normalizedPhone);
+    const isPhone = phoneRegex.test(normalizedPhone);
+
+    if (!isUUID && !isPhone) {
+      return {
+        ok: false,
+        message: "Format invalide. Utilisez le format +243XXXXXXXXX ou l'UUID du chauffeur."
+      };
+    }
+
+    // Rechercher le chauffeur par téléphone ou UUID
+    const { data: profiles, error: profilesError } = await supabase
+      .from("profiles")
+      .select("id,full_name,phone,role");
+
+    if (profilesError) {
+      return { ok: false, message: profilesError.message };
+    }
+
+    let driver: { id: string; full_name: string | null; phone: string | null; role: string } | null = null;
+
+    if (isUUID) {
+      driver = (profiles ?? []).find((p) => p.id === normalizedPhone) ?? null;
+    } else {
+      driver = (profiles ?? []).find((p) => normalizePhone(p.phone) === normalizedPhone) ?? null;
+    }
+
+    // Si non trouvé, créer via service role
+    if (!driver) {
+      if (!isPhone) {
+        return { ok: false, message: "Aucun chauffeur trouvé avec cet identifiant." };
+      }
+
+      const serviceClient = createServiceClient();
+      if (!serviceClient) {
+        return {
+          ok: false,
+          message:
+            "Aucun chauffeur avec ce telephone. Configurez SUPABASE_SERVICE_ROLE_KEY pour inscrire un nouveau chauffeur."
+        };
+      }
+
+      if (!fullName || fullName.length < 2) {
+        return { ok: false, message: "Le nom complet est requis pour créer un nouveau chauffeur." };
+      }
+
+      const { data: createdUser, error: createError } = await serviceClient.auth.admin.createUser({
+        phone: normalizedPhone,
+        phone_confirm: true,
+        user_metadata: {
+          full_name: fullName,
+          phone: normalizedPhone,
+          role: "driver"
+        }
+      });
+
+      if (createError || !createdUser.user) {
+        return { ok: false, message: createError?.message ?? "Création du compte chauffeur impossible." };
+      }
+
+      const { error: upsertError } = await serviceClient.from("profiles").upsert({
+        id: createdUser.user.id,
+        full_name: fullName,
+        phone: normalizedPhone,
+        role: "driver"
+      });
+
+      if (upsertError) {
+        return { ok: false, message: upsertError.message };
+      }
+
+      driver = {
+        id: createdUser.user.id,
+        full_name: fullName,
+        phone: normalizedPhone,
+        role: "driver"
+      };
+    }
+
+    if (driver.role !== "driver") {
+      return { ok: false, message: "Ce compte n'est pas un chauffeur et ne peut pas être lié." };
+    }
+
+    // Vérifier si le chauffeur est déjà lié à un véhicule de cet investisseur
+    const { data: existingLink } = await supabase
+      .from("vehicles")
+      .select("id,label")
+      .eq("owner_id", user.id)
+      .eq("driver_id", driver.id)
+      .maybeSingle();
+
+    if (existingLink) {
+      return {
+        ok: true,
+        message: `${driver.full_name ?? "Ce chauffeur"} est déjà dans votre équipe (véhicule : ${existingLink.label}).`,
+        driver: { id: driver.id, full_name: driver.full_name, phone: driver.phone }
+      };
+    }
+
+    revalidatePath(ROUTES.INVESTOR_FLEET);
+
+    return {
+      ok: true,
+      message: `${driver.full_name ?? normalizedPhone} a été trouvé. Assignez-le maintenant à un véhicule de votre flotte.`,
+      driver: { id: driver.id, full_name: driver.full_name, phone: driver.phone }
+    };
+  } catch (err) {
+    console.error("[linkDriverToInvestor]", err);
+    return { ok: false, message: "Liaison impossible. Vérifiez la connexion Supabase." };
+  }
 }
 
 export async function assignDriverToVehicle(formData: FormData) {

@@ -61,36 +61,71 @@ export async function uploadLegalDocument(formData: FormData) {
   }
 
   const isSelfUpload = parsed.data.driver_id === user.id;
-  const allowedSelfTypes = new Set<DocumentType>(ownerDriverDocumentTypeOptions.map((option) => option.value));
+
+  // Types autorisés pour le self-upload (Chauffeur-Patron)
+  const allowedSelfTypes = new Set<DocumentType>([
+    ...ownerDriverDocumentTypeOptions.map((option) => option.value),
+    "permis"
+  ]);
 
   if (isSelfUpload && !allowedSelfTypes.has(parsed.data.document_type)) {
-    redirect(`${returnPath}?error=${encodeURIComponent("Un chauffeur-patron peut televerser uniquement Carte Rose ou Assurance.")}`);
+    redirect(`${returnPath}?error=${encodeURIComponent("Un chauffeur-patron peut televerser uniquement Carte Rose, Assurance ou Permis.")}`);
   }
 
-  let vehicleQuery = supabase
-    .from("vehicles")
-    .select("id")
-    .eq("owner_id", user.id);
+  // Résolution du véhicule
+  let resolvedVehicleId: string | null = null;
 
   if (parsed.data.vehicle_id) {
-    vehicleQuery = vehicleQuery.eq("id", parsed.data.vehicle_id);
-  }
+    // Un véhicule spécifique est demandé : vérifier la propriété
+    const ownerIdToCheck = isSelfUpload ? user.id : user.id;
+    const { data: vehicle, error: vehicleError } = await supabase
+      .from("vehicles")
+      .select("id")
+      .eq("id", parsed.data.vehicle_id)
+      .eq("owner_id", ownerIdToCheck)
+      .maybeSingle();
 
-  if (!isSelfUpload) {
-    vehicleQuery = vehicleQuery.eq("driver_id", parsed.data.driver_id);
-  }
+    if (vehicleError || !vehicle) {
+      // Tenter via driver_id si pas owner (cas investisseur)
+      if (!isSelfUpload) {
+        const { data: driverVehicle, error: dvErr } = await supabase
+          .from("vehicles")
+          .select("id")
+          .eq("id", parsed.data.vehicle_id)
+          .eq("driver_id", parsed.data.driver_id)
+          .maybeSingle();
 
-  const { data: vehicle, error: vehicleError } = await vehicleQuery.maybeSingle();
+        if (dvErr || !driverVehicle) {
+          redirect(`${returnPath}?error=${encodeURIComponent("Ce vehicule ne correspond pas au chauffeur selectionne.")}`);
+        }
+        resolvedVehicleId = driverVehicle?.id ?? null;
+      } else {
+        // Chauffeur-Patron : le véhicule doit lui appartenir
+        redirect(`${returnPath}?error=${encodeURIComponent("Ce vehicule ne vous appartient pas.")}`);
+      }
+    } else {
+      resolvedVehicleId = vehicle.id;
+    }
+  } else if (!isSelfUpload) {
+    // Investisseur sans vehicle_id spécifié : trouver le véhicule assigné à ce chauffeur
+    const { data: vehicle } = await supabase
+      .from("vehicles")
+      .select("id")
+      .eq("owner_id", user.id)
+      .eq("driver_id", parsed.data.driver_id)
+      .maybeSingle();
 
-  if (vehicleError || !vehicle) {
-    const message = isSelfUpload
-      ? "Aucun vehicule ne vous appartient pour associer ce document."
-      : "Ce chauffeur n'est pas assigne a ce vehicule de votre flotte.";
-    redirect(`${returnPath}?error=${encodeURIComponent(message)}`);
+    resolvedVehicleId = vehicle?.id ?? null;
+
+    if (!resolvedVehicleId) {
+      redirect(`${returnPath}?error=${encodeURIComponent("Ce chauffeur n'est pas assigne a un vehicule de votre flotte.")}`);
+    }
   }
+  // Sinon : self-upload sans vehicle_id = autorisé (document sans véhicule)
 
   const storageName = safeStorageName(file.name) || "document";
-  const storagePath = `${user.id}/${parsed.data.driver_id}/${vehicle.id}/${Date.now()}-${storageName}`;
+  const vehicleSegment = resolvedVehicleId ?? "no-vehicle";
+  const storagePath = `${user.id}/${parsed.data.driver_id}/${vehicleSegment}/${Date.now()}-${storageName}`;
 
   const { error: uploadError } = await supabase.storage
     .from("legal-documents")
@@ -111,7 +146,7 @@ export async function uploadLegalDocument(formData: FormData) {
   const { error: insertError } = await supabase.from("legal_documents").insert({
     owner_id: user.id,
     driver_id: parsed.data.driver_id,
-    vehicle_id: vehicle.id,
+    vehicle_id: resolvedVehicleId,
     document_type: parsed.data.document_type,
     document_name: parsed.data.document_name,
     file_url: publicUrlData.publicUrl,

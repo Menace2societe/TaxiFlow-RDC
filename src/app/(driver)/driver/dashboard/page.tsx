@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   AlertTriangle,
@@ -6,6 +7,10 @@ import {
   CheckCircle2,
   CirclePause,
   Clock3,
+  Crown,
+  ExternalLink,
+  FileText,
+  PlusCircle,
   ReceiptText,
   TrendingUp,
   Wrench,
@@ -14,12 +19,16 @@ import {
 import { reportBreakdown } from "@/actions/breakdowns";
 import { recordDriverPayment } from "@/actions/payments";
 import { VehicleStatusControls } from "@/components/VehicleStatusControls";
+import { ContractInfoBanner } from "@/components/driver/ContractInfoBanner";
 import {
   getCurrentUserId,
   getDriverAssignedVehicle,
   getDriverRecentBreakdowns,
   getDriverRecentEntries,
-  getDriverRecentPayments
+  getDriverRecentPayments,
+  getDriverProfile,
+  getDriverActiveContract,
+  getOwnerVehicles
 } from "@/lib/dashboard/data";
 import { loginWithNext, ROUTES } from "@/lib/routes";
 import type { BreakdownStatus, PaymentStatus, VehicleStatus } from "@/lib/supabase/types";
@@ -75,12 +84,20 @@ export default async function DriverDashboardPage({ searchParams }: DriverDashbo
     redirect(loginWithNext(ROUTES.DRIVER_DASHBOARD));
   }
 
-  const [vehicle, entries, payments, breakdowns] = await Promise.all([
+  const [vehicle, entries, payments, breakdowns, driverProfile, activeContract] = await Promise.all([
     getDriverAssignedVehicle(driverId),
     getDriverRecentEntries(driverId, 8),
     getDriverRecentPayments(driverId, 8),
-    getDriverRecentBreakdowns(driverId, 8)
+    getDriverRecentBreakdowns(driverId, 8),
+    getDriverProfile(driverId),
+    getDriverActiveContract(driverId)
   ]);
+
+  const isOwnerDriver = driverProfile?.is_owner_driver === true;
+
+  // Pour un Chauffeur-Patron, récupérer ses propres véhicules s'il n'en a pas un assigné
+  const ownedVehicles = isOwnerDriver ? await getOwnerVehicles(driverId) : [];
+  const displayVehicle = vehicle ?? (ownedVehicles[0] ?? null);
 
   const recentRevenue = entries.reduce((sum, entry) => sum + entry.revenue_cdf, 0);
   const pendingPayments = payments.filter((payment) => payment.status === "pending");
@@ -89,9 +106,9 @@ export default async function DriverDashboardPage({ searchParams }: DriverDashbo
     .filter((p) => p.status === "approved")
     .reduce((sum, p) => sum + p.amount, 0);
   const openBreakdowns = breakdowns.filter((breakdown) => breakdown.status !== "resolved").length;
-  const currentStatus = vehicle ? vehicleStatusView[vehicle.status] : null;
+  const currentStatus = displayVehicle ? vehicleStatusView[displayVehicle.status] : null;
   const StatusIcon = currentStatus?.icon ?? CirclePause;
-  const dailyTarget = vehicle?.target_daily_revenue ?? 0;
+  const dailyTarget = displayVehicle?.target_daily_revenue ?? 0;
   const progressPct = dailyTarget > 0 ? Math.min(100, Math.round((recentRevenue / dailyTarget) * 100)) : 0;
 
   return (
@@ -101,22 +118,101 @@ export default async function DriverDashboardPage({ searchParams }: DriverDashbo
         <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 via-transparent to-transparent" />
         <div className="relative flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-emerald-400">Espace chauffeur</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-xs font-semibold uppercase tracking-widest text-emerald-400">Espace chauffeur</p>
+              {isOwnerDriver && (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-amber-300">
+                  <Crown size={11} aria-hidden />
+                  Chauffeur-Patron
+                </span>
+              )}
+            </div>
             <h1 className="mt-2 text-3xl font-bold tracking-tight text-white">Tableau de bord terrain</h1>
             <p className="mt-2 max-w-2xl text-sm text-neutral-400">
-              Contrôle du véhicule, déclaration des versements et suivi maintenance en temps réel.
+              {isOwnerDriver
+                ? "Vous gérez votre propre véhicule en toute autonomie. Accédez à vos documents et courses directement."
+                : "Contrôle du véhicule, déclaration des versements et suivi maintenance en temps réel."}
             </p>
           </div>
-          {currentStatus ? (
-            <span className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold ${currentStatus.className}`}>
-              <StatusIcon size={16} aria-hidden />
-              {currentStatus.label}
-            </span>
-          ) : (
-            <span className="badge badge-neutral">Aucun véhicule</span>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            {isOwnerDriver && (
+              <Link
+                href={ROUTES.DRIVER_DOCUMENTS}
+                className="inline-flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm font-semibold text-amber-200 transition-all hover:bg-amber-500/20"
+              >
+                <FileText size={15} aria-hidden />
+                Mes documents
+                <ExternalLink size={13} />
+              </Link>
+            )}
+            {currentStatus ? (
+              <span className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold ${currentStatus.className}`}>
+                <StatusIcon size={16} aria-hidden />
+                {currentStatus.label}
+              </span>
+            ) : (
+              <span className="badge badge-neutral">Aucun véhicule</span>
+            )}
+          </div>
         </div>
       </header>
+
+      {/* ─── Bannière contrat ─────────────────────────────────────────────────── */}
+      {activeContract && !isOwnerDriver && (
+        <ContractInfoBanner contract={activeContract} />
+      )}
+
+      {/* ─── Section Chauffeur-Patron (autonome) ─────────────────────────────── */}
+      {isOwnerDriver && (
+        <section className="rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-950/20 via-neutral-900 to-neutral-900 p-5">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="rounded-xl bg-amber-500/15 p-2.5">
+              <Crown className="text-amber-400" size={20} aria-hidden />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold text-amber-100">Espace Chauffeur-Patron</h2>
+              <p className="text-xs text-amber-300/60">Gérez vos ressources en toute autonomie</p>
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Link
+              href={ROUTES.DRIVER_DOCUMENTS}
+              className="flex items-center gap-3 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 transition-all hover:bg-amber-500/10"
+            >
+              <div className="rounded-lg bg-amber-500/15 p-2">
+                <FileText size={18} className="text-amber-400" aria-hidden />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-amber-100">Mes Documents</p>
+                <p className="text-xs text-amber-300/60">Carte Rose, Assurance, Permis</p>
+              </div>
+              <ExternalLink size={13} className="ml-auto text-amber-400/50" />
+            </Link>
+            <Link
+              href={ROUTES.DRIVER_MAINTENANCE}
+              className="flex items-center gap-3 rounded-xl border border-neutral-700 bg-neutral-800/50 p-4 transition-all hover:bg-neutral-800"
+            >
+              <div className="rounded-lg bg-amber-500/10 p-2">
+                <Wrench size={18} className="text-amber-400" aria-hidden />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-white">Maintenance</p>
+                <p className="text-xs text-neutral-500">Suivi pannes véhicule</p>
+              </div>
+              <ExternalLink size={13} className="ml-auto text-neutral-600" />
+            </Link>
+            <div className="flex items-center gap-3 rounded-xl border border-neutral-700 bg-neutral-800/50 p-4">
+              <div className="rounded-lg bg-emerald-500/10 p-2">
+                <TrendingUp size={18} className="text-emerald-400" aria-hidden />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-white">{ownedVehicles.length} véhicule(s)</p>
+                <p className="text-xs text-neutral-500">Votre flotte personnelle</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ─── Alertes ─────────────────────────────────────────────────────────── */}
       {searchParams?.error && (
@@ -179,7 +275,7 @@ export default async function DriverDashboardPage({ searchParams }: DriverDashbo
           <p className="mt-1 text-xs text-neutral-500">{pendingPayments.length} versement(s)</p>
         </div>
 
-        {/* Objectif journalier */}
+        {/* Versements approuvés */}
         <div className="card p-5 stat-glow-cyan">
           <div className="rounded-lg bg-cyan-500/10 p-2.5 w-fit">
             <Banknote className="text-cyan-400" size={20} aria-hidden />
@@ -211,44 +307,66 @@ export default async function DriverDashboardPage({ searchParams }: DriverDashbo
               <CarTaxiFront size={28} className="text-emerald-400" aria-hidden />
             </div>
             <div className="flex-1 min-w-0">
-              <h2 className="text-lg font-semibold text-white">Véhicule assigné</h2>
-              {vehicle ? (
+              <h2 className="text-lg font-semibold text-white">
+                {isOwnerDriver ? "Mon véhicule" : "Véhicule assigné"}
+              </h2>
+              {displayVehicle ? (
                 <>
-                  <p className="mt-1 text-2xl font-bold text-white truncate">{vehicle.label}</p>
+                  <p className="mt-1 text-2xl font-bold text-white truncate">{displayVehicle.label}</p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     <span className="badge badge-neutral">
-                      {vehicle.plate_number}
+                      {displayVehicle.plate_number}
                     </span>
                     <span className="badge badge-neutral uppercase">
-                      {vehicle.type}
+                      {displayVehicle.type}
                     </span>
                     {currentStatus && (
                       <span className={`badge ${
-                        vehicle.status === "en service" ? "badge-green" :
-                        vehicle.status === "maintenance" ? "badge-amber" : "badge-neutral"
+                        displayVehicle.status === "en service" ? "badge-green" :
+                        displayVehicle.status === "maintenance" ? "badge-amber" : "badge-neutral"
                       }`}>
                         {currentStatus.label}
                       </span>
                     )}
                   </div>
                   <p className="mt-2 text-sm text-neutral-500">
-                    Objectif journalier : <span className="text-neutral-300 font-medium">{formatCDF(vehicle.target_daily_revenue)}</span>
+                    Objectif journalier : <span className="text-neutral-300 font-medium">{formatCDF(displayVehicle.target_daily_revenue)}</span>
                   </p>
                 </>
               ) : (
                 <p className="mt-2 text-sm text-neutral-400">
-                  Aucun véhicule assigné. Contactez votre investisseur.
+                  {isOwnerDriver
+                    ? "Aucun véhicule enregistré. Ajoutez votre véhicule via la flotte investisseur."
+                    : "Aucun véhicule assigné. Contactez votre investisseur."}
                 </p>
               )}
             </div>
           </div>
 
-          {vehicle && (
+          {displayVehicle && (
             <div className="mt-6 rounded-xl border border-neutral-800 bg-neutral-950/50 p-4">
               <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-neutral-500">
                 Changer le statut du véhicule
               </p>
-              <VehicleStatusControls vehicleId={vehicle.id} currentStatus={vehicle.status} />
+              <VehicleStatusControls vehicleId={displayVehicle.id} currentStatus={displayVehicle.status} />
+            </div>
+          )}
+
+          {/* Sélecteur de véhicule pour Chauffeur-Patron avec plusieurs véhicules */}
+          {isOwnerDriver && ownedVehicles.length > 1 && (
+            <div className="mt-4 rounded-xl border border-neutral-800 bg-neutral-950/50 p-4">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-neutral-500">
+                <PlusCircle size={11} className="inline mr-1" />
+                {ownedVehicles.length} véhicules dans votre flotte
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {ownedVehicles.map((v) => (
+                  <span key={v.id} className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-700 bg-neutral-800/50 px-2.5 py-1 text-xs text-neutral-300">
+                    <CarTaxiFront size={11} className="text-emerald-400" />
+                    {v.label}
+                  </span>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -289,7 +407,7 @@ export default async function DriverDashboardPage({ searchParams }: DriverDashbo
                 <Banknote size={17} aria-hidden />
                 Envoyer le versement
               </button>
-              {!vehicle && (
+              {!displayVehicle && (
                 <p className="text-center text-xs text-neutral-500">Aucun véhicule assigné</p>
               )}
             </form>

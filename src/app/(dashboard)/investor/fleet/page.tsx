@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { AssignDriverPanel } from "@/components/investor/AssignDriverPanel";
 import { InvestorDeleteVehicleForm } from "@/components/investor/InvestorDeleteVehicleForm";
+import { InvestorDriverTeamPanel } from "@/components/investor/InvestorDriverTeamPanel";
 import { InvestorVehicleCreateModal } from "@/components/investor/InvestorVehicleCreateModal";
 import { VehicleStatusControls } from "@/components/VehicleStatusControls";
 import { assignDriverToVehicle } from "@/actions/investor-fleet";
@@ -270,6 +271,11 @@ export default async function InvestorFleetPage({ searchParams }: FleetPageProps
           </Link>
         ))}
       </div>
+
+      {/* ─── Équipe de Chauffeurs ─────────────────────────────────────────────────── */}
+      <section className="rounded-2xl border border-neutral-800 bg-neutral-900/30 p-5">
+        <InvestorDriverTeamPanel vehicles={vehicles} />
+      </section>
 
       {/* ─── Liste vehicules ─────────────────────────────────────────────────────── */}
       {filtered.length === 0 ? (
