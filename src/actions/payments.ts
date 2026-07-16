@@ -17,6 +17,7 @@ function revalidatePaymentViews() {
   // une écriture en base de données — rendant les versements invisibles côté investisseur.
   revalidatePath(ROUTES.DASHBOARD_OVERVIEW, "layout");
   revalidatePath(ROUTES.INVESTOR_DASHBOARD, "layout");
+  revalidatePath(ROUTES.INVESTOR_REVENUE, "layout");
   revalidatePath(ROUTES.DRIVER_DASHBOARD, "layout");
   revalidatePath(ROUTES.DRIVER_PORTAL, "layout");
 }
@@ -41,7 +42,7 @@ export async function recordPayment(
     }
 
     // Règle métier : chauffeur-patron = pas d'investisseur tiers → statut approuvé d'emblée.
-    const status = isOwnerDriver ? "approved" : "pending";
+    const status = isOwnerDriver ? "validated" : "pending";
 
     const supabase = await createClient();
     const { error } = await supabase.from("payments").insert({
@@ -49,7 +50,10 @@ export async function recordPayment(
       driver_id: driverId,
       vehicle_id: vehicleId,
       investor_id: investorId,
-      status
+      status,
+      source: "automated",
+      session_type: "driver_revenue",
+      payment_date: new Date().toISOString().slice(0, 10)
     });
 
     if (error) {
@@ -146,11 +150,216 @@ export async function recordDriverPayment(formData: FormData) {
   }
 }
 
+// ─── Actions de validation/rejet côté Investisseur ───────────────────────────
+
+/**
+ * Permet à l'investisseur connecté d'approuver un versement "pending".
+ * Sécurité : le payment.investor_id doit correspondre à l'utilisateur connecté.
+ */
+export async function approvePayment(paymentId: string): Promise<PaymentActionResult> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { ok: false, message: "Session expirée. Reconnectez-vous." };
+    }
+
+    if (!paymentId || typeof paymentId !== "string") {
+      return { ok: false, message: "Identifiant de versement invalide." };
+    }
+
+    // Vérifier que ce versement appartient bien à l'investisseur connecté
+    const { data: payment, error: fetchErr } = await supabase
+      .from("payments")
+      .select("id, status")
+      .eq("id", paymentId)
+      .eq("investor_id", user.id)
+      .maybeSingle();
+
+    if (fetchErr || !payment) {
+      return { ok: false, message: "Versement introuvable ou accès refusé." };
+    }
+
+    const { error: updateErr } = await supabase
+      .from("payments")
+      .update({
+        status: "approved",
+        validated_at: new Date().toISOString(),
+        reviewed_by: user.id
+      })
+      .eq("id", paymentId)
+      .eq("investor_id", user.id);
+
+    if (updateErr) {
+      console.error("[approvePayment] update error:", updateErr.message);
+      return { ok: false, message: updateErr.message };
+    }
+
+    revalidatePaymentViews();
+    return { ok: true, message: "Versement approuvé avec succès." };
+  } catch (err) {
+    console.error("[approvePayment]", err);
+    return { ok: false, message: "Approbation impossible. Vérifiez la connexion." };
+  }
+}
+
+/**
+ * Permet à l'investisseur connecté de rejeter un versement "pending".
+ * Sécurité : le payment.investor_id doit correspondre à l'utilisateur connecté.
+ */
+export async function rejectPayment(
+  paymentId: string,
+  reason?: string
+): Promise<PaymentActionResult> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { ok: false, message: "Session expirée. Reconnectez-vous." };
+    }
+
+    if (!paymentId || typeof paymentId !== "string") {
+      return { ok: false, message: "Identifiant de versement invalide." };
+    }
+
+    const { data: payment, error: fetchErr } = await supabase
+      .from("payments")
+      .select("id, status")
+      .eq("id", paymentId)
+      .eq("investor_id", user.id)
+      .maybeSingle();
+
+    if (fetchErr || !payment) {
+      return { ok: false, message: "Versement introuvable ou accès refusé." };
+    }
+
+    const { error: updateErr } = await supabase
+      .from("payments")
+      .update({
+        status: "rejected",
+        rejected_at: new Date().toISOString(),
+        reviewed_by: user.id,
+        rejection_reason: reason ?? null
+      })
+      .eq("id", paymentId)
+      .eq("investor_id", user.id);
+
+    if (updateErr) {
+      console.error("[rejectPayment] update error:", updateErr.message);
+      return { ok: false, message: updateErr.message };
+    }
+
+    revalidatePaymentViews();
+    return { ok: true, message: "Versement rejeté." };
+  } catch (err) {
+    console.error("[rejectPayment]", err);
+    return { ok: false, message: "Rejet impossible. Vérifiez la connexion." };
+  }
+}
+
+// ─── Schéma Zod pour le versement manuel ─────────────────────────────────────
+
+const manualPaymentSchema = z.object({
+  driverId: z.string().uuid("Chauffeur invalide."),
+  amount: z.coerce
+    .number()
+    .positive("Le montant doit être positif."),
+  paymentDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Date invalide (format YYYY-MM-DD attendu)."),
+  notes: z.string().max(500, "Notes trop longues (max 500 caractères).").optional()
+});
+
+export type ManualPaymentInput = z.infer<typeof manualPaymentSchema>;
+
+/**
+ * Enregistre un versement manuel par l'investisseur (ex : paiement en espèces hors ligne).
+ * Le versement est directement marqué 'approved' car saisi par le propriétaire lui-même.
+ */
+export async function recordManualPayment(
+  rawData: ManualPaymentInput
+): Promise<PaymentActionResult> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { ok: false, message: "Session expirée. Reconnectez-vous." };
+    }
+
+    // Validation Zod
+    const parsed = manualPaymentSchema.safeParse(rawData);
+    if (!parsed.success) {
+      const firstError =
+        Object.values(parsed.error.flatten().fieldErrors)[0]?.[0] ?? "Données invalides.";
+      return { ok: false, message: firstError };
+    }
+
+    const { driverId, amount, paymentDate, notes } = parsed.data;
+
+    // Récupérer le véhicule du chauffeur qui appartient à cet investisseur
+    const { data: vehicle, error: vErr } = await supabase
+      .from("vehicles")
+      .select("id, owner_id")
+      .eq("driver_id", driverId)
+      .eq("owner_id", user.id)
+      .maybeSingle();
+
+    if (vErr) {
+      console.error("[recordManualPayment] Erreur récupération véhicule:", vErr.message);
+      return { ok: false, message: "Impossible de récupérer le véhicule du chauffeur." };
+    }
+
+    if (!vehicle) {
+      return {
+        ok: false,
+        message: "Aucun véhicule trouvé pour ce chauffeur dans votre flotte."
+      };
+    }
+
+    const { error: insertErr } = await supabase.from("payments").insert({
+      amount: Number(amount),
+      driver_id: driverId,
+      vehicle_id: vehicle.id,
+      investor_id: user.id,
+      status: "approved",
+      source: "manual_backup",
+      session_type: "driver_revenue",
+      payment_date: paymentDate,
+      comment: notes ?? null,
+      validated_at: new Date().toISOString(),
+      reviewed_by: user.id
+    });
+
+    if (insertErr) {
+      console.error("[recordManualPayment] insert error:", insertErr.message);
+      return { ok: false, message: insertErr.message };
+    }
+
+    revalidatePaymentViews();
+    return { ok: true, message: "Versement manuel enregistré et approuvé." };
+  } catch (err) {
+    console.error("[recordManualPayment]", err);
+    return {
+      ok: false,
+      message: "Enregistrement impossible. Vérifiez la connexion Supabase."
+    };
+  }
+}
+
 // ─── Mise à jour du statut de versement (chauffeur-patron uniquement) ─────────
 
 const updatePaymentStatusSchema = z.object({
   payment_id: z.string().uuid(),
-  new_status: z.enum(["pending", "approved", "rejected"])
+  new_status: z.enum(["pending", "approved", "validated", "rejected"])
 });
 
 export type UpdatePaymentStatusState = {

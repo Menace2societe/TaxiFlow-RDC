@@ -11,7 +11,9 @@ export type VehicleType = "taxi" | "moto";
 export type UserRole = "driver" | "investor" | "admin";
 export type EntryCurrency = "CDF" | "USD";
 export type BreakdownStatus = "open" | "in_progress" | "resolved";
-export type PaymentStatus = "pending" | "approved" | "rejected";
+export type PaymentStatus = "pending" | "approved" | "validated" | "rejected";
+export type PaymentSource = "automated" | "manual_backup";
+export type RevenueSessionType = "driver_revenue" | "investor_revenue";
 export type DocumentType =
   | "contrat_employe"
   | "contrat_location_vente"
@@ -170,6 +172,14 @@ export type Database = {
           vehicle_id: string;
           investor_id: string;
           status: PaymentStatus;
+          source: PaymentSource;
+          session_type: RevenueSessionType;
+          payment_date: string;
+          comment: string | null;
+          rejection_reason: string | null;
+          validated_at: string | null;
+          rejected_at: string | null;
+          reviewed_by: string | null;
           created_at: string;
         };
         Insert: {
@@ -179,6 +189,14 @@ export type Database = {
           vehicle_id: string;
           investor_id: string;
           status?: PaymentStatus;
+          source?: PaymentSource;
+          session_type?: RevenueSessionType;
+          payment_date?: string;
+          comment?: string | null;
+          rejection_reason?: string | null;
+          validated_at?: string | null;
+          rejected_at?: string | null;
+          reviewed_by?: string | null;
           created_at?: string;
         };
         Update: {
@@ -187,6 +205,14 @@ export type Database = {
           vehicle_id?: string;
           investor_id?: string;
           status?: PaymentStatus;
+          source?: PaymentSource;
+          session_type?: RevenueSessionType;
+          payment_date?: string;
+          comment?: string | null;
+          rejection_reason?: string | null;
+          validated_at?: string | null;
+          rejected_at?: string | null;
+          reviewed_by?: string | null;
         };
         Relationships: [];
       };
@@ -280,6 +306,8 @@ export type Database = {
     Enums: {
       breakdown_status: BreakdownStatus;
       payment_status: PaymentStatus;
+      payment_source: PaymentSource;
+      revenue_session_type: RevenueSessionType;
       vehicle_status: VehicleStatus;
       user_role: UserRole;
       document_type_enum: DocumentType;

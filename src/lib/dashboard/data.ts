@@ -710,3 +710,245 @@ export async function getDriverActiveContract(driverId: string): Promise<DriverA
     return null;
   }
 }
+
+// ─── Données enrichies pour le portail investisseur ──────────────────────────
+
+export type InvestorPayment = {
+  id: string;
+  amount: number;
+  driver_id: string;
+  driver_name: string | null;
+  vehicle_id: string;
+  vehicle_label: string | null;
+  investor_id: string;
+  status: PaymentStatus;
+  source: string;
+  payment_date: string;
+  comment: string | null;
+  created_at: string;
+};
+
+/**
+ * Récupère les versements d'un investisseur, enrichis avec le nom du chauffeur
+ * et le label du véhicule (double lookup + Map pour minimiser les requêtes).
+ */
+export async function getInvestorPayments(
+  investorId: string,
+  limit = 30
+): Promise<InvestorPayment[]> {
+  try {
+    const supabase = await createClient();
+
+    const { data, error } = await supabase
+      .from("payments")
+      .select("id,amount,driver_id,vehicle_id,investor_id,status,source,payment_date,comment,created_at")
+      .eq("investor_id", investorId)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.warn("[getInvestorPayments] Erreur :", error.message);
+      return [];
+    }
+
+    const rows = data ?? [];
+    const driverIds = Array.from(new Set(rows.map((r) => r.driver_id).filter(Boolean))) as string[];
+    const vehicleIds = Array.from(new Set(rows.map((r) => r.vehicle_id).filter(Boolean))) as string[];
+
+    // Lookup chauffeurs
+    const driverNameById = new Map<string, string | null>();
+    if (driverIds.length > 0) {
+      const { data: drivers } = await supabase
+        .from("profiles")
+        .select("id,full_name")
+        .in("id", driverIds);
+      (drivers ?? []).forEach((d) => {
+        driverNameById.set(d.id, (d as { full_name?: string | null }).full_name ?? null);
+      });
+    }
+
+    // Lookup véhicules
+    const vehicleLabelById = new Map<string, string | null>();
+    if (vehicleIds.length > 0) {
+      const { data: vehicles } = await supabase
+        .from("vehicles")
+        .select("id,label")
+        .in("id", vehicleIds);
+      (vehicles ?? []).forEach((v) => {
+        vehicleLabelById.set(v.id, (v as { label?: string | null }).label ?? null);
+      });
+    }
+
+    return rows.map((row) => ({
+      id: row.id,
+      amount: Number(row.amount ?? 0),
+      driver_id: row.driver_id,
+      driver_name: driverNameById.get(row.driver_id) ?? null,
+      vehicle_id: row.vehicle_id,
+      vehicle_label: vehicleLabelById.get(row.vehicle_id) ?? null,
+      investor_id: row.investor_id,
+      status: row.status as PaymentStatus,
+      source: String((row as { source?: string }).source ?? "automated"),
+      payment_date: (row as { payment_date?: string }).payment_date ?? row.created_at.slice(0, 10),
+      comment: (row as { comment?: string | null }).comment ?? null,
+      created_at: row.created_at
+    }));
+  } catch (err) {
+    console.error("[getInvestorPayments] Exception :", err);
+    return [];
+  }
+}
+
+export type TrendPoint = { date: string; amount: number };
+
+/**
+ * Agrège les versements approuvés/validés d'un investisseur par jour
+ * sur les N derniers jours. Retourne un tableau trié du plus ancien au plus récent.
+ */
+export async function getInvestorPaymentTrend(
+  investorId: string,
+  days = 30
+): Promise<TrendPoint[]> {
+  try {
+    const supabase = await createClient();
+    const since = new Date();
+    since.setDate(since.getDate() - (days - 1));
+    since.setHours(0, 0, 0, 0);
+    const sinceStr = since.toISOString().slice(0, 10);
+
+    const { data, error } = await supabase
+      .from("payments")
+      .select("payment_date,amount,status")
+      .eq("investor_id", investorId)
+      .in("status", ["approved", "validated"])
+      .gte("payment_date", sinceStr)
+      .order("payment_date", { ascending: true });
+
+    if (error) {
+      console.warn("[getInvestorPaymentTrend] Erreur :", error.message);
+      return [];
+    }
+
+    // Agréger par date
+    const byDate = new Map<string, number>();
+    (data ?? []).forEach((row) => {
+      const d = (row as { payment_date?: string }).payment_date ?? "";
+      byDate.set(d, (byDate.get(d) ?? 0) + Number(row.amount ?? 0));
+    });
+
+    // Construire le tableau complet (0 pour les jours sans versement)
+    const result: TrendPoint[] = [];
+    for (let i = 0; i < days; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - (days - 1 - i));
+      const dateStr = d.toISOString().slice(0, 10);
+      const label = new Intl.DateTimeFormat("fr-CD", { day: "2-digit", month: "short" }).format(d);
+      result.push({ date: label, amount: byDate.get(dateStr) ?? 0 });
+    }
+
+    return result;
+  } catch (err) {
+    console.error("[getInvestorPaymentTrend] Exception :", err);
+    return [];
+  }
+}
+
+/**
+ * Agrège les versements approuvés/validés d'un chauffeur par jour
+ * sur les N derniers jours. Retourne un tableau trié du plus ancien au plus récent.
+ */
+export async function getDriverPaymentTrend(
+  driverId: string,
+  days = 30
+): Promise<TrendPoint[]> {
+  try {
+    const supabase = await createClient();
+    const since = new Date();
+    since.setDate(since.getDate() - (days - 1));
+    since.setHours(0, 0, 0, 0);
+    const sinceStr = since.toISOString().slice(0, 10);
+
+    const { data, error } = await supabase
+      .from("payments")
+      .select("payment_date,amount,status")
+      .eq("driver_id", driverId)
+      .in("status", ["approved", "validated"])
+      .gte("payment_date", sinceStr)
+      .order("payment_date", { ascending: true });
+
+    if (error) {
+      console.warn("[getDriverPaymentTrend] Erreur :", error.message);
+      return [];
+    }
+
+    const byDate = new Map<string, number>();
+    (data ?? []).forEach((row) => {
+      const d = (row as { payment_date?: string }).payment_date ?? "";
+      byDate.set(d, (byDate.get(d) ?? 0) + Number(row.amount ?? 0));
+    });
+
+    const result: TrendPoint[] = [];
+    for (let i = 0; i < days; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - (days - 1 - i));
+      const dateStr = d.toISOString().slice(0, 10);
+      const label = new Intl.DateTimeFormat("fr-CD", { day: "2-digit", month: "short" }).format(d);
+      result.push({ date: label, amount: byDate.get(dateStr) ?? 0 });
+    }
+
+    return result;
+  } catch (err) {
+    console.error("[getDriverPaymentTrend] Exception :", err);
+    return [];
+  }
+}
+
+export type FleetDriver = { id: string; full_name: string | null };
+
+/**
+ * Récupère la liste des chauffeurs actuellement assignés à un véhicule
+ * appartenant à l'investisseur connecté. Utilisé pour le dropdown du formulaire
+ * de versement manuel.
+ */
+export async function getInvestorFleetDrivers(investorId: string): Promise<FleetDriver[]> {
+  try {
+    const supabase = await createClient();
+
+    // Récupérer les vehicle driver_id depuis la flotte de l'investisseur
+    const { data: vehicles, error: vErr } = await supabase
+      .from("vehicles")
+      .select("driver_id")
+      .eq("owner_id", investorId)
+      .not("driver_id", "is", null);
+
+    if (vErr || !vehicles || vehicles.length === 0) {
+      return [];
+    }
+
+    const driverIds = Array.from(
+      new Set((vehicles as { driver_id: string | null }[]).map((v) => v.driver_id).filter(Boolean))
+    ) as string[];
+
+    if (driverIds.length === 0) return [];
+
+    const { data: profiles, error: pErr } = await supabase
+      .from("profiles")
+      .select("id,full_name")
+      .in("id", driverIds)
+      .order("full_name");
+
+    if (pErr) {
+      console.warn("[getInvestorFleetDrivers] Erreur profils :", pErr.message);
+      return [];
+    }
+
+    return (profiles ?? []).map((p) => ({
+      id: p.id,
+      full_name: (p as { full_name?: string | null }).full_name ?? null
+    }));
+  } catch (err) {
+    console.error("[getInvestorFleetDrivers] Exception :", err);
+    return [];
+  }
+}
+

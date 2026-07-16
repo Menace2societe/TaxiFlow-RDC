@@ -11,18 +11,21 @@ import {
   TrendingUp,
   Wrench,
   Activity,
-  BadgeCheck
+  BadgeCheck,
+  Sparkles
 } from "lucide-react";
 import { reportBreakdown } from "@/actions/breakdowns";
 import { recordDriverPayment } from "@/actions/payments";
 import { VehicleStatusControls } from "@/components/VehicleStatusControls";
 import { OwnerDriverRegisterVehicleForm } from "@/components/driver/OwnerDriverRegisterVehicleForm";
 import { OwnerPaymentActions } from "@/components/driver/OwnerPaymentActions";
+import { RevenueTrendChart } from "@/components/shared/RevenueTrendChart";
 import {
   getCurrentUserId,
   getDriverAssignedVehicle,
   getDriverProfile,
-  getDriverRecentPayments
+  getDriverRecentPayments,
+  getDriverPaymentTrend
 } from "@/lib/dashboard/data";
 import { loginWithNext, ROUTES } from "@/lib/routes";
 import type { PaymentStatus } from "@/lib/supabase/types";
@@ -36,21 +39,11 @@ const paymentStatusConfig: Record<
   PaymentStatus,
   { label: string; badgeClass: string; dotClass: string }
 > = {
-  approved: {
-    label: "Approuvé",
-    badgeClass: "badge badge-green",
-    dotClass: "bg-emerald-400"
-  },
-  pending: {
-    label: "En attente",
-    badgeClass: "badge badge-amber",
-    dotClass: "bg-amber-400"
-  },
-  rejected: {
-    label: "Rejeté",
-    badgeClass: "badge badge-red",
-    dotClass: "bg-red-400"
-  }
+  approved:  { label: "Approuvé",   badgeClass: "badge badge-green", dotClass: "bg-emerald-400" },
+  validated: { label: "Validé",     badgeClass: "badge badge-green", dotClass: "bg-emerald-400" },
+  pending:   { label: "En attente", badgeClass: "badge badge-amber", dotClass: "bg-amber-400"   },
+  rejected:  { label: "Rejeté",     badgeClass: "badge badge-red",   dotClass: "bg-red-400"     }
+
 };
 
 function formatDate(iso: string) {
@@ -67,10 +60,11 @@ export default async function DriverPortalPage({ searchParams }: PortalPageProps
     redirect(loginWithNext(ROUTES.DRIVER_PORTAL));
   }
 
-  const [vehicle, recentPayments, driverProfile] = await Promise.all([
+  const [vehicle, recentPayments, driverProfile, paymentTrend] = await Promise.all([
     getDriverAssignedVehicle(userId),
     getDriverRecentPayments(userId, 8),
-    getDriverProfile(userId)
+    getDriverProfile(userId),
+    getDriverPaymentTrend(userId, 30)
   ]);
 
   const hasVehicle = Boolean(vehicle);
@@ -129,7 +123,7 @@ export default async function DriverPortalPage({ searchParams }: PortalPageProps
       )}
 
       {/* ─── Résumé KPI ────────────────────────────────────────────────────────── */}
-      <section className="grid grid-cols-3 gap-3">
+      <section className="grid grid-cols-3 gap-3" aria-label="Résumé des versements">
         <div className="card p-4 stat-glow-amber">
           <div className="rounded-lg bg-amber-500/10 p-2 w-fit">
             <Clock3 className="text-amber-400" size={16} aria-hidden />
@@ -150,6 +144,23 @@ export default async function DriverPortalPage({ searchParams }: PortalPageProps
           </div>
           <p className="mt-3 text-[10px] font-semibold uppercase tracking-wider text-neutral-500">Rejeté</p>
           <p className="mt-1 text-lg font-bold text-white tabular-nums">{formatCDF(rejectedTotal)}</p>
+        </div>
+      </section>
+
+      {/* ─── Graphique de tendance des versements ─────────────────────────────── */}
+      <section className="card overflow-hidden">
+        <div className="card-header flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-white">Mes versements approuvés</h2>
+            <p className="mt-0.5 text-xs text-neutral-500">Évolution sur les 30 derniers jours</p>
+          </div>
+          <div className="flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/5 px-2.5 py-1 text-[11px] font-medium text-emerald-400">
+            <Sparkles size={10} />
+            30 jours
+          </div>
+        </div>
+        <div className="p-4">
+          <RevenueTrendChart data={paymentTrend} color="#10b981" height={180} />
         </div>
       </section>
 

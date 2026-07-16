@@ -55,6 +55,42 @@ function normalizePhone(phone: string | null | undefined) {
   return (phone ?? "").replace(/\s+/g, "");
 }
 
+function revalidateFleetAssignmentViews() {
+  revalidatePath(ROUTES.INVESTOR_FLEET, "layout");
+  revalidatePath(ROUTES.INVESTOR_DASHBOARD, "layout");
+  revalidatePath(ROUTES.DRIVER_PORTAL, "layout");
+  revalidatePath(ROUTES.DRIVER_DASHBOARD, "layout");
+}
+
+async function syncAssignedDriverProfile(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  driverId: string
+) {
+  const { error } = await supabase
+    .from("profiles")
+    .update({ role: "driver" })
+    .eq("id", driverId);
+
+  if (!error) {
+    return;
+  }
+
+  const serviceClient = createServiceClient();
+  if (!serviceClient) {
+    console.warn("[syncAssignedDriverProfile] Profil non synchronise :", error.message);
+    return;
+  }
+
+  const { error: serviceError } = await serviceClient
+    .from("profiles")
+    .update({ role: "driver" })
+    .eq("id", driverId);
+
+  if (serviceError) {
+    console.warn("[syncAssignedDriverProfile] Echec service role :", serviceError.message);
+  }
+}
+
 /**
  * Permet à un investisseur d'inviter ou de trouver un chauffeur par son numéro
  * de téléphone (+243XXXXXXXXX) ou son UUID.
@@ -84,14 +120,12 @@ export async function linkDriverToInvestor(
 
     console.log("[DEBUG LIAISON] Profil utilisateur connecté :", investorProfile);
 
-    const canManageFleet =
-      investorProfile?.role === "investor" ||
-      investorProfile?.role === "driver" ||
-      investorProfile?.is_owner_driver === true;
-
-    if (profileError || !investorProfile || !canManageFleet) {
-      return { ok: false, message: "Accès refusé. Seuls les investisseurs peuvent lier des chauffeurs." };
+    if (profileError) {
+      console.warn("[DEBUG LIAISON] Erreur lecture profil :", profileError.message);
     }
+
+    // Toute session authentifiee peut rechercher un chauffeur ici. L'assignation
+    // reste securisee plus bas par owner_id sur le vehicule cible.
 
     const rawIdentifier = String(formData.get("identifier") ?? "").trim();
     const fullName = String(formData.get("full_name") ?? "").trim();
@@ -295,8 +329,11 @@ export async function assignDriverToVehicle(formData: FormData) {
     redirect(`${ROUTES.INVESTOR_FLEET}?error=${encodeURIComponent(error.message)}`);
   }
 
-  revalidatePath(ROUTES.INVESTOR_FLEET, "layout");
-  revalidatePath(ROUTES.DRIVER_PORTAL);
+  if (driverId) {
+    await syncAssignedDriverProfile(supabase, driverId);
+  }
+
+  revalidateFleetAssignmentViews();
   redirect(`${ROUTES.INVESTOR_FLEET}?assigned=1`);
 }
 
@@ -432,9 +469,8 @@ export async function registerOrAssignDriverByPhone(formData: FormData): Promise
       return { ok: false, message: updateError.message };
     }
 
-    revalidatePath(ROUTES.INVESTOR_DASHBOARD);
-    revalidatePath(ROUTES.INVESTOR_FLEET, "layout");
-    revalidatePath(ROUTES.DRIVER_PORTAL);
+    await syncAssignedDriverProfile(supabase, driver.id);
+    revalidateFleetAssignmentViews();
 
     return { ok: true, message: `${driver.full_name ?? parsed.data.full_name} est associe a ${ownedVehicle.label}.` };
   } catch (error) {
@@ -554,10 +590,8 @@ export async function assignFoundDriverToVehicle(
       return { ok: false, message: updateErr.message };
     }
 
-    revalidatePath(ROUTES.INVESTOR_FLEET, "layout");
-    revalidatePath(ROUTES.INVESTOR_DASHBOARD);
-    revalidatePath(ROUTES.DRIVER_PORTAL);
-    revalidatePath(ROUTES.DRIVER_DASHBOARD);
+    await syncAssignedDriverProfile(supabase, driverId);
+    revalidateFleetAssignmentViews();
 
     return { ok: true, message: `Chauffeur assigné au véhicule « ${vehicle.label} » avec succès !` };
   } catch (err) {

@@ -14,12 +14,14 @@ import {
   ReceiptText,
   TrendingUp,
   Wrench,
-  Fuel
+  Fuel,
+  Sparkles
 } from "lucide-react";
 import { reportBreakdown } from "@/actions/breakdowns";
 import { recordDriverPayment } from "@/actions/payments";
 import { VehicleStatusControls } from "@/components/VehicleStatusControls";
 import { ContractInfoBanner } from "@/components/driver/ContractInfoBanner";
+import { RevenueTrendChart } from "@/components/shared/RevenueTrendChart";
 import {
   getCurrentUserId,
   getDriverAssignedVehicle,
@@ -28,7 +30,8 @@ import {
   getDriverRecentPayments,
   getDriverProfile,
   getDriverActiveContract,
-  getOwnerVehicles
+  getOwnerVehicles,
+  getDriverPaymentTrend
 } from "@/lib/dashboard/data";
 import { loginWithNext, ROUTES } from "@/lib/routes";
 import type { BreakdownStatus, PaymentStatus, VehicleStatus } from "@/lib/supabase/types";
@@ -57,9 +60,10 @@ const vehicleStatusView: Record<VehicleStatus, { label: string; className: strin
 };
 
 const paymentStatusView: Record<PaymentStatus, { label: string; badgeClass: string; dotClass: string }> = {
-  approved: { label: "Approuvé", badgeClass: "badge badge-green", dotClass: "bg-emerald-400" },
-  pending:  { label: "En attente", badgeClass: "badge badge-amber", dotClass: "bg-amber-400" },
-  rejected: { label: "Rejeté", badgeClass: "badge badge-red", dotClass: "bg-red-400" }
+  approved:  { label: "Approuvé",   badgeClass: "badge badge-green", dotClass: "bg-emerald-400" },
+  validated: { label: "Validé",     badgeClass: "badge badge-green", dotClass: "bg-emerald-400" },
+  pending:   { label: "En attente", badgeClass: "badge badge-amber", dotClass: "bg-amber-400"   },
+  rejected:  { label: "Rejeté",     badgeClass: "badge badge-red",   dotClass: "bg-red-400"     }
 };
 
 const breakdownStatusView: Record<BreakdownStatus, { label: string; badgeClass: string }> = {
@@ -84,13 +88,14 @@ export default async function DriverDashboardPage({ searchParams }: DriverDashbo
     redirect(loginWithNext(ROUTES.DRIVER_DASHBOARD));
   }
 
-  const [vehicle, entries, payments, breakdowns, driverProfile, activeContract] = await Promise.all([
+  const [vehicle, entries, payments, breakdowns, driverProfile, activeContract, paymentTrend] = await Promise.all([
     getDriverAssignedVehicle(driverId),
     getDriverRecentEntries(driverId, 8),
     getDriverRecentPayments(driverId, 8),
     getDriverRecentBreakdowns(driverId, 8),
     getDriverProfile(driverId),
-    getDriverActiveContract(driverId)
+    getDriverActiveContract(driverId),
+    getDriverPaymentTrend(driverId, 30)
   ]);
 
   const isOwnerDriver = driverProfile?.is_owner_driver === true;
@@ -295,6 +300,23 @@ export default async function DriverDashboardPage({ searchParams }: DriverDashbo
             {openBreakdowns}
           </p>
           <p className="mt-1 text-xs text-neutral-500">Non résolues</p>
+        </div>
+      </section>
+
+      {/* ─── Graphique de tendance des versements ─────────────────────────────── */}
+      <section className="card overflow-hidden">
+        <div className="card-header flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-white">Mes versements approuvés</h2>
+            <p className="mt-0.5 text-xs text-neutral-500">Évolution sur les 30 derniers jours</p>
+          </div>
+          <div className="flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/5 px-2.5 py-1 text-[11px] font-medium text-emerald-400">
+            <Sparkles size={10} />
+            30 jours
+          </div>
+        </div>
+        <div className="px-5 pb-5 pt-4">
+          <RevenueTrendChart data={paymentTrend} color="#10b981" height={200} />
         </div>
       </section>
 
