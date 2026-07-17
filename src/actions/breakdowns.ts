@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { loginWithNext, ROUTES } from "@/lib/routes";
+import type { BreakdownStatus } from "@/lib/supabase/types";
 
 const reportSchema = z.object({
   type: z
@@ -336,14 +337,35 @@ export async function updateBreakdownStatus(
   }
 }
 
+// ─── Types internes pour les jointures ────────────────────────────────────────
+
+/**
+ * Shape retournée par Supabase lorsqu'on joint breakdowns ← vehicles.
+ * Supabase PostgREST retourne la relation many-to-one sous forme d'objet direct
+ * (pas un tableau) quand la FK est sur la table source.
+ */
+type BreakdownWithVehicleAuth = {
+  id: string;
+  vehicle_id: string;
+  status: BreakdownStatus;
+  vehicles: {
+    driver_id: string | null;
+    owner_id: string;
+    status: string;
+  } | null;
+};
+
 // ─── Actions sémantiques : startRepair / completeRepair ────────────────────────
-// Ces deux actions sont les déclencheurs directs exposés aux boutons UI.
-// Elles vérifient l'autorisation (chauffeur OU propriétaire), appliquent
-// la transition de statut et synchronisent vehicles.status en backup du trigger.
+// Chaque action utilise une seule requête avec jointure sur vehicles pour
+// récupérer à la fois les métadonnées de la panne ET les IDs d'autorisation
+// du véhicule associé — sans second aller-retour réseau ni risque RLS séparé.
 
 /**
  * Démarre la réparation d'une panne signalée (open → in_progress).
  * Accessible au chauffeur assigné au véhicule OU au propriétaire.
+ *
+ * Sécurité : jointure directe breakdowns → vehicles pour récupérer driver_id
+ * et owner_id sans requête séparée sur vehicles.
  */
 export async function startRepair(breakdownId: string): Promise<BreakdownActionState> {
   try {
@@ -356,55 +378,61 @@ export async function startRepair(breakdownId: string): Promise<BreakdownActionS
       return { ok: false, message: "Session expirée. Reconnectez-vous." };
     }
 
-    const { data: breakdown, error: bErr } = await supabase
+    // Jointure en une seule requête : panne + données d'autorisation du véhicule
+    const { data, error: fetchErr } = await supabase
       .from("breakdowns")
-      .select("id,vehicle_id,status")
+      .select("id, vehicle_id, status, vehicles(driver_id, owner_id, status)")
       .eq("id", breakdownId)
-      .maybeSingle();
+      .single();
 
-    if (bErr || !breakdown) {
-      return { ok: false, message: "Panne introuvable." };
+    if (fetchErr || !data) {
+      console.error("[startRepair] fetch:", fetchErr?.message);
+      return { ok: false, message: "Panne introuvable ou accès refusé." };
+    }
+
+    // Cast nécessaire : les types générés n'incluent pas la relation imbriquée
+    const breakdown = data as unknown as BreakdownWithVehicleAuth;
+    const vehicle = breakdown.vehicles;
+
+    if (!vehicle) {
+      return { ok: false, message: "Véhicule associé à la panne introuvable." };
+    }
+
+    // Validation d'autorisation : chauffeur du véhicule OU propriétaire
+    if (vehicle.driver_id !== user.id && vehicle.owner_id !== user.id) {
+      return {
+        ok: false,
+        message: "Accès refusé. Vous n'êtes ni le chauffeur ni le propriétaire de ce véhicule."
+      };
     }
 
     if (breakdown.status !== "open") {
       return { ok: false, message: "Cette panne n'est pas en statut « Signalée »." };
     }
 
-    const { data: vehicle, error: vErr } = await supabase
-      .from("vehicles")
-      .select("id,driver_id,owner_id,status")
-      .eq("id", breakdown.vehicle_id)
-      .maybeSingle();
-
-    if (vErr || !vehicle) {
-      return { ok: false, message: "Véhicule de la panne introuvable." };
-    }
-
-    if (vehicle.driver_id !== user.id && vehicle.owner_id !== user.id) {
-      return { ok: false, message: "Accès refusé. Vous n'êtes ni le chauffeur ni le propriétaire." };
-    }
-
+    // Mise à jour du statut de la panne — le trigger BDD synchro vehicles.status
     const { error: updateErr } = await supabase
       .from("breakdowns")
       .update({ status: "in_progress" })
       .eq("id", breakdownId);
 
     if (updateErr) {
+      console.error("[startRepair] update:", updateErr.message);
       return { ok: false, message: updateErr.message };
     }
 
-    // Synchronisation backup du statut véhicule (le trigger BDD couvre déjà ce cas)
+    // Backup synchronisation du statut véhicule si le trigger n'est pas actif
     if (vehicle.status !== "maintenance") {
       await supabase
         .from("vehicles")
         .update({ status: "maintenance" })
-        .eq("id", vehicle.id);
+        .eq("id", breakdown.vehicle_id);
     }
 
     revalidateBreakdownViews();
     return { ok: true, message: "Réparation démarrée avec succès." };
   } catch (err) {
-    console.error("[startRepair]", err);
+    console.error("[startRepair] unexpected:", err);
     return { ok: false, message: "Impossible de démarrer la réparation. Vérifiez la connexion." };
   }
 }
@@ -412,7 +440,9 @@ export async function startRepair(breakdownId: string): Promise<BreakdownActionS
 /**
  * Clôture la réparation et remet le véhicule en service (in_progress → resolved).
  * Accessible au chauffeur assigné au véhicule OU au propriétaire.
- * Si c'est la dernière panne active, vehicles.status repasse à 'en service'.
+ * Si c'est la dernière panne active sur ce véhicule, vehicles.status → 'en service'.
+ *
+ * Sécurité : même pattern de jointure directe que startRepair.
  */
 export async function completeRepair(breakdownId: string): Promise<BreakdownActionState> {
   try {
@@ -425,63 +455,68 @@ export async function completeRepair(breakdownId: string): Promise<BreakdownActi
       return { ok: false, message: "Session expirée. Reconnectez-vous." };
     }
 
-    const { data: breakdown, error: bErr } = await supabase
+    // Jointure en une seule requête : panne + données d'autorisation du véhicule
+    const { data, error: fetchErr } = await supabase
       .from("breakdowns")
-      .select("id,vehicle_id,status")
+      .select("id, vehicle_id, status, vehicles(driver_id, owner_id, status)")
       .eq("id", breakdownId)
-      .maybeSingle();
+      .single();
 
-    if (bErr || !breakdown) {
-      return { ok: false, message: "Panne introuvable." };
+    if (fetchErr || !data) {
+      console.error("[completeRepair] fetch:", fetchErr?.message);
+      return { ok: false, message: "Panne introuvable ou accès refusé." };
+    }
+
+    const breakdown = data as unknown as BreakdownWithVehicleAuth;
+    const vehicle = breakdown.vehicles;
+
+    if (!vehicle) {
+      return { ok: false, message: "Véhicule associé à la panne introuvable." };
+    }
+
+    // Validation d'autorisation : chauffeur du véhicule OU propriétaire
+    if (vehicle.driver_id !== user.id && vehicle.owner_id !== user.id) {
+      return {
+        ok: false,
+        message: "Accès refusé. Vous n'êtes ni le chauffeur ni le propriétaire de ce véhicule."
+      };
     }
 
     if (breakdown.status !== "in_progress") {
       return { ok: false, message: "Cette panne n'est pas en cours de réparation." };
     }
 
-    const { data: vehicle, error: vErr } = await supabase
-      .from("vehicles")
-      .select("id,driver_id,owner_id")
-      .eq("id", breakdown.vehicle_id)
-      .maybeSingle();
-
-    if (vErr || !vehicle) {
-      return { ok: false, message: "Véhicule de la panne introuvable." };
-    }
-
-    if (vehicle.driver_id !== user.id && vehicle.owner_id !== user.id) {
-      return { ok: false, message: "Accès refusé. Vous n'êtes ni le chauffeur ni le propriétaire." };
-    }
-
+    // Résoudre la panne
     const { error: updateErr } = await supabase
       .from("breakdowns")
       .update({ status: "resolved" })
       .eq("id", breakdownId);
 
     if (updateErr) {
+      console.error("[completeRepair] update:", updateErr.message);
       return { ok: false, message: updateErr.message };
     }
 
-    // Vérifier s'il reste des pannes actives sur ce véhicule (autres que celle qu'on vient de résoudre)
+    // Vérifier si d'autres pannes actives existent sur ce véhicule
     const { count } = await supabase
       .from("breakdowns")
       .select("id", { head: true, count: "exact" })
-      .eq("vehicle_id", vehicle.id)
+      .eq("vehicle_id", breakdown.vehicle_id)
       .neq("status", "resolved")
       .neq("id", breakdownId);
 
-    // Si plus aucune panne active → remettre en service (backup du trigger BDD)
+    // Dernière panne active → remettre en service (backup du trigger BDD)
     if ((count ?? 0) === 0) {
       await supabase
         .from("vehicles")
         .update({ status: "en service" })
-        .eq("id", vehicle.id);
+        .eq("id", breakdown.vehicle_id);
     }
 
     revalidateBreakdownViews();
     return { ok: true, message: "Réparation terminée. Véhicule remis en service." };
   } catch (err) {
-    console.error("[completeRepair]", err);
+    console.error("[completeRepair] unexpected:", err);
     return { ok: false, message: "Impossible de terminer la réparation. Vérifiez la connexion." };
   }
 }
