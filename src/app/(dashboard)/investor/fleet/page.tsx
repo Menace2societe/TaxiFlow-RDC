@@ -16,6 +16,7 @@ import { AssignDriverPanel } from "@/components/investor/AssignDriverPanel";
 import { InvestorDeleteVehicleForm } from "@/components/investor/InvestorDeleteVehicleForm";
 import { InvestorDriverTeamPanel } from "@/components/investor/InvestorDriverTeamPanel";
 import { InvestorVehicleCreateModal } from "@/components/investor/InvestorVehicleCreateModal";
+import { MaintenanceActionButtons } from "@/components/shared/MaintenanceActionButtons";
 import { VehicleStatusControls } from "@/components/VehicleStatusControls";
 import { assignDriverToVehicle } from "@/actions/investor-fleet";
 import {
@@ -24,6 +25,7 @@ import {
   getOwnerNonResolvedBreakdownsCount,
   getOwnerEntriesForDateRange,
   getOwnerVehicles,
+  getOwnerActiveBreakdownsByVehicle,
   revenueCdfByVehicle,
   type DashboardVehicle
 } from "@/lib/dashboard/data";
@@ -92,11 +94,12 @@ export default async function InvestorFleetPage({ searchParams }: FleetPageProps
   }
 
   const { startDate, endDate, daysInMonth } = kinshasaCurrentMonthRange();
-  const [vehicles, monthEntries, drivers, openBreakdowns] = await Promise.all([
+  const [vehicles, monthEntries, drivers, openBreakdowns, activeBreakdownByVehicle] = await Promise.all([
     getOwnerVehicles(ownerId),
     getOwnerEntriesForDateRange(ownerId, startDate, endDate),
     getDriverProfiles(),
-    getOwnerNonResolvedBreakdownsCount(ownerId)
+    getOwnerNonResolvedBreakdownsCount(ownerId),
+    getOwnerActiveBreakdownsByVehicle(ownerId)
   ]);
 
   const revenueByVehicle = revenueCdfByVehicle(monthEntries);
@@ -359,6 +362,16 @@ export default async function InvestorFleetPage({ searchParams }: FleetPageProps
                               currentStatus={vehicle.status}
                               compact
                             />
+                            {/* Boutons de réparation si panne active */}
+                            {vehicle.status === "maintenance" && (() => {
+                              const bd = activeBreakdownByVehicle.get(vehicle.id);
+                              return bd ? (
+                                <MaintenanceActionButtons
+                                  breakdownId={bd.id}
+                                  currentStatus={bd.status}
+                                />
+                              ) : null;
+                            })()}
                           </div>
                         </td>
                         <td>
@@ -455,6 +468,18 @@ export default async function InvestorFleetPage({ searchParams }: FleetPageProps
                         currentStatus={vehicle.status}
                         compact
                       />
+                      {/* Boutons de réparation si panne active (mobile) */}
+                      {vehicle.status === "maintenance" && (() => {
+                        const bd = activeBreakdownByVehicle.get(vehicle.id);
+                        return bd ? (
+                          <div className="mt-2">
+                            <MaintenanceActionButtons
+                              breakdownId={bd.id}
+                              currentStatus={bd.status}
+                            />
+                          </div>
+                        ) : null;
+                      })()}
                     </div>
 
                     {/* Assignation */}

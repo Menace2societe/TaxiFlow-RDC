@@ -952,3 +952,66 @@ export async function getInvestorFleetDrivers(investorId: string): Promise<Fleet
   }
 }
 
+// ─── Pannes actives par véhicule (flotte investisseur) ────────────────────────
+
+export type ActiveBreakdownSummary = {
+  id: string;
+  vehicle_id: string;
+  type: string;
+  status: BreakdownStatus;
+  created_at: string;
+};
+
+/**
+ * Récupère les pannes non résolues (open ou in_progress) pour tous les véhicules
+ * d'un propriétaire. Retourne une Map<vehicle_id, ActiveBreakdownSummary>
+ * contenant la panne la plus récente par véhicule — idéale pour enrichir une
+ * liste de véhicules sans N+1 requêtes.
+ */
+export async function getOwnerActiveBreakdownsByVehicle(
+  ownerId: string
+): Promise<Map<string, ActiveBreakdownSummary>> {
+  const result = new Map<string, ActiveBreakdownSummary>();
+
+  try {
+    const supabase = await createClient();
+
+    const { data: vehicles, error: vErr } = await supabase
+      .from("vehicles")
+      .select("id")
+      .eq("owner_id", ownerId);
+
+    if (vErr || !vehicles || vehicles.length === 0) return result;
+
+    const vehicleIds = vehicles.map((v: { id: string }) => v.id);
+
+    const { data, error } = await supabase
+      .from("breakdowns")
+      .select("id,vehicle_id,type,status,created_at")
+      .in("vehicle_id", vehicleIds)
+      .neq("status", "resolved")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.warn("[getOwnerActiveBreakdownsByVehicle] Erreur :", error.message);
+      return result;
+    }
+
+    // Conserver seulement la panne la plus récente par véhicule
+    for (const row of data ?? []) {
+      if (!result.has(row.vehicle_id)) {
+        result.set(row.vehicle_id, {
+          id: row.id,
+          vehicle_id: row.vehicle_id,
+          type: row.type,
+          status: row.status as BreakdownStatus,
+          created_at: row.created_at
+        });
+      }
+    }
+  } catch (err) {
+    console.error("[getOwnerActiveBreakdownsByVehicle] Exception :", err);
+  }
+
+  return result;
+}

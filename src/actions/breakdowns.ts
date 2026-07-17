@@ -335,3 +335,153 @@ export async function updateBreakdownStatus(
     return { ok: false, message: "Mise à jour impossible. Vérifiez la connexion." };
   }
 }
+
+// ─── Actions sémantiques : startRepair / completeRepair ────────────────────────
+// Ces deux actions sont les déclencheurs directs exposés aux boutons UI.
+// Elles vérifient l'autorisation (chauffeur OU propriétaire), appliquent
+// la transition de statut et synchronisent vehicles.status en backup du trigger.
+
+/**
+ * Démarre la réparation d'une panne signalée (open → in_progress).
+ * Accessible au chauffeur assigné au véhicule OU au propriétaire.
+ */
+export async function startRepair(breakdownId: string): Promise<BreakdownActionState> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { ok: false, message: "Session expirée. Reconnectez-vous." };
+    }
+
+    const { data: breakdown, error: bErr } = await supabase
+      .from("breakdowns")
+      .select("id,vehicle_id,status")
+      .eq("id", breakdownId)
+      .maybeSingle();
+
+    if (bErr || !breakdown) {
+      return { ok: false, message: "Panne introuvable." };
+    }
+
+    if (breakdown.status !== "open") {
+      return { ok: false, message: "Cette panne n'est pas en statut « Signalée »." };
+    }
+
+    const { data: vehicle, error: vErr } = await supabase
+      .from("vehicles")
+      .select("id,driver_id,owner_id,status")
+      .eq("id", breakdown.vehicle_id)
+      .maybeSingle();
+
+    if (vErr || !vehicle) {
+      return { ok: false, message: "Véhicule de la panne introuvable." };
+    }
+
+    if (vehicle.driver_id !== user.id && vehicle.owner_id !== user.id) {
+      return { ok: false, message: "Accès refusé. Vous n'êtes ni le chauffeur ni le propriétaire." };
+    }
+
+    const { error: updateErr } = await supabase
+      .from("breakdowns")
+      .update({ status: "in_progress" })
+      .eq("id", breakdownId);
+
+    if (updateErr) {
+      return { ok: false, message: updateErr.message };
+    }
+
+    // Synchronisation backup du statut véhicule (le trigger BDD couvre déjà ce cas)
+    if (vehicle.status !== "maintenance") {
+      await supabase
+        .from("vehicles")
+        .update({ status: "maintenance" })
+        .eq("id", vehicle.id);
+    }
+
+    revalidateBreakdownViews();
+    return { ok: true, message: "Réparation démarrée avec succès." };
+  } catch (err) {
+    console.error("[startRepair]", err);
+    return { ok: false, message: "Impossible de démarrer la réparation. Vérifiez la connexion." };
+  }
+}
+
+/**
+ * Clôture la réparation et remet le véhicule en service (in_progress → resolved).
+ * Accessible au chauffeur assigné au véhicule OU au propriétaire.
+ * Si c'est la dernière panne active, vehicles.status repasse à 'en service'.
+ */
+export async function completeRepair(breakdownId: string): Promise<BreakdownActionState> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { ok: false, message: "Session expirée. Reconnectez-vous." };
+    }
+
+    const { data: breakdown, error: bErr } = await supabase
+      .from("breakdowns")
+      .select("id,vehicle_id,status")
+      .eq("id", breakdownId)
+      .maybeSingle();
+
+    if (bErr || !breakdown) {
+      return { ok: false, message: "Panne introuvable." };
+    }
+
+    if (breakdown.status !== "in_progress") {
+      return { ok: false, message: "Cette panne n'est pas en cours de réparation." };
+    }
+
+    const { data: vehicle, error: vErr } = await supabase
+      .from("vehicles")
+      .select("id,driver_id,owner_id")
+      .eq("id", breakdown.vehicle_id)
+      .maybeSingle();
+
+    if (vErr || !vehicle) {
+      return { ok: false, message: "Véhicule de la panne introuvable." };
+    }
+
+    if (vehicle.driver_id !== user.id && vehicle.owner_id !== user.id) {
+      return { ok: false, message: "Accès refusé. Vous n'êtes ni le chauffeur ni le propriétaire." };
+    }
+
+    const { error: updateErr } = await supabase
+      .from("breakdowns")
+      .update({ status: "resolved" })
+      .eq("id", breakdownId);
+
+    if (updateErr) {
+      return { ok: false, message: updateErr.message };
+    }
+
+    // Vérifier s'il reste des pannes actives sur ce véhicule (autres que celle qu'on vient de résoudre)
+    const { count } = await supabase
+      .from("breakdowns")
+      .select("id", { head: true, count: "exact" })
+      .eq("vehicle_id", vehicle.id)
+      .neq("status", "resolved")
+      .neq("id", breakdownId);
+
+    // Si plus aucune panne active → remettre en service (backup du trigger BDD)
+    if ((count ?? 0) === 0) {
+      await supabase
+        .from("vehicles")
+        .update({ status: "en service" })
+        .eq("id", vehicle.id);
+    }
+
+    revalidateBreakdownViews();
+    return { ok: true, message: "Réparation terminée. Véhicule remis en service." };
+  } catch (err) {
+    console.error("[completeRepair]", err);
+    return { ok: false, message: "Impossible de terminer la réparation. Vérifiez la connexion." };
+  }
+}

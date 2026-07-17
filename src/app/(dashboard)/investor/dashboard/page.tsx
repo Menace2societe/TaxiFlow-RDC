@@ -25,6 +25,7 @@ import { createVehicleFromInvestorDashboard } from "@/actions/vehicles";
 import { RevenueChart } from "@/components/RevenueChart";
 import { VehicleMixChart } from "@/components/VehicleMixChart";
 import { WeeklyVehicleRevenueChart } from "@/components/WeeklyVehicleRevenueChart";
+import { MaintenanceActionButtons } from "@/components/shared/MaintenanceActionButtons";
 import { Badge } from "@/components/ui/badge";
 import type { DashboardEntry, DashboardVehicle } from "@/lib/dashboard/data";
 
@@ -594,17 +595,43 @@ export default function InvestorDashboardPage() {
                 {breakdowns.slice(0, 5).map((breakdown) => (
                   <article key={breakdown.id} className="p-5">
                     <div className="flex items-start justify-between gap-3">
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <p className="font-medium text-white">{breakdown.type}</p>
                         <p className="mt-1 text-sm text-stone-400">{breakdown.vehicle_label}</p>
                       </div>
-                      <Badge variant={breakdown.status === "resolved" ? "success" : "warning"}>{breakdown.status}</Badge>
+                      <span
+                        className={[
+                          "inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
+                          breakdown.status === "resolved"
+                            ? "bg-emerald-500/15 text-emerald-400"
+                            : breakdown.status === "in_progress"
+                            ? "bg-amber-500/15 text-amber-400"
+                            : "bg-red-500/15 text-red-400"
+                        ].join(" ")}
+                      >
+                        {breakdown.status === "resolved"
+                          ? "✅ Résolue"
+                          : breakdown.status === "in_progress"
+                          ? "⚙️ En réparation"
+                          : "🚨 Signalée"}
+                      </span>
                     </div>
-                    <p className="mt-3 text-sm text-stone-300">{breakdown.description || "Aucune description."}</p>
-                    <div className="mt-3 flex items-center justify-between gap-3 text-xs text-stone-500">
+                    <p className="mt-2 text-sm text-stone-300">
+                      {breakdown.description || "Aucune description."}
+                    </p>
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-stone-500">
                       <span>{formatDate(breakdown.created_at)}</span>
                       <span>{formatCdf(breakdown.estimated_cost)}</span>
                     </div>
+                    {/* Boutons d'action pour les pannes actives */}
+                    {breakdown.status !== "resolved" && (
+                      <div className="mt-3 border-t border-white/5 pt-3">
+                        <MaintenanceActionButtons
+                          breakdownId={breakdown.id}
+                          currentStatus={breakdown.status}
+                        />
+                      </div>
+                    )}
                   </article>
                 ))}
                 {breakdowns.length === 0 ? <EmptyState title="Aucune panne ouverte" text="Les signalements recents apparaitront ici." /> : null}

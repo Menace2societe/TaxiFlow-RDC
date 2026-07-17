@@ -21,11 +21,12 @@ import { reportBreakdown } from "@/actions/breakdowns";
 import { recordDriverPayment } from "@/actions/payments";
 import { VehicleStatusControls } from "@/components/VehicleStatusControls";
 import { ContractInfoBanner } from "@/components/driver/ContractInfoBanner";
+import { MaintenanceActionButtons } from "@/components/shared/MaintenanceActionButtons";
 import { RevenueTrendChart } from "@/components/shared/RevenueTrendChart";
 import {
   getCurrentUserId,
   getDriverAssignedVehicle,
-  getDriverRecentBreakdowns,
+  getDriverVehicleBreakdowns,
   getDriverRecentEntries,
   getDriverRecentPayments,
   getDriverProfile,
@@ -92,7 +93,7 @@ export default async function DriverDashboardPage({ searchParams }: DriverDashbo
     getDriverAssignedVehicle(driverId),
     getDriverRecentEntries(driverId, 8),
     getDriverRecentPayments(driverId, 8),
-    getDriverRecentBreakdowns(driverId, 8),
+    getDriverVehicleBreakdowns(driverId),
     getDriverProfile(driverId),
     getDriverActiveContract(driverId),
     getDriverPaymentTrend(driverId, 30)
@@ -569,6 +570,7 @@ export default async function DriverDashboardPage({ searchParams }: DriverDashbo
                   <th>Type</th>
                   <th>Coût</th>
                   <th>Statut</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -590,6 +592,12 @@ export default async function DriverDashboardPage({ searchParams }: DriverDashbo
                       </td>
                       <td>
                         <span className={sv.badgeClass}>{sv.label}</span>
+                      </td>
+                      <td>
+                        <MaintenanceActionButtons
+                          breakdownId={breakdown.id}
+                          currentStatus={breakdown.status}
+                        />
                       </td>
                     </tr>
                   );

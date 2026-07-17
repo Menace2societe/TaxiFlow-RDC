@@ -6,6 +6,7 @@ import {
   CarTaxiFront,
   CheckCircle2,
   Clock3,
+  Construction,
   LayoutDashboard,
   ReceiptText,
   TrendingUp,
@@ -19,16 +20,18 @@ import { recordDriverPayment } from "@/actions/payments";
 import { VehicleStatusControls } from "@/components/VehicleStatusControls";
 import { OwnerDriverRegisterVehicleForm } from "@/components/driver/OwnerDriverRegisterVehicleForm";
 import { OwnerPaymentActions } from "@/components/driver/OwnerPaymentActions";
+import { MaintenanceActionButtons } from "@/components/shared/MaintenanceActionButtons";
 import { RevenueTrendChart } from "@/components/shared/RevenueTrendChart";
 import {
   getCurrentUserId,
   getDriverAssignedVehicle,
   getDriverProfile,
   getDriverRecentPayments,
-  getDriverPaymentTrend
+  getDriverPaymentTrend,
+  getDriverVehicleBreakdowns
 } from "@/lib/dashboard/data";
 import { loginWithNext, ROUTES } from "@/lib/routes";
-import type { PaymentStatus } from "@/lib/supabase/types";
+import type { BreakdownStatus, PaymentStatus } from "@/lib/supabase/types";
 import { formatCDF } from "@/lib/utils/currency";
 
 type PortalPageProps = {
@@ -53,6 +56,33 @@ function formatDate(iso: string) {
   }).format(new Date(iso));
 }
 
+const breakdownStatusPortalConfig: Record<
+  BreakdownStatus,
+  { label: string; alertClass: string; borderClass: string; iconClass: string; icon: typeof Wrench }
+> = {
+  open: {
+    label: "Panne signalée — en attente de réparation",
+    alertClass: "bg-red-500/10",
+    borderClass: "border-red-500/30",
+    iconClass: "text-red-400",
+    icon: AlertTriangle
+  },
+  in_progress: {
+    label: "Réparation en cours",
+    alertClass: "bg-amber-500/10",
+    borderClass: "border-amber-500/30",
+    iconClass: "text-amber-400",
+    icon: Construction
+  },
+  resolved: {
+    label: "Réparation terminée",
+    alertClass: "bg-emerald-500/10",
+    borderClass: "border-emerald-500/30",
+    iconClass: "text-emerald-400",
+    icon: CheckCircle2
+  }
+};
+
 export default async function DriverPortalPage({ searchParams }: PortalPageProps) {
   const params = await searchParams;
   const userId = await getCurrentUserId();
@@ -60,12 +90,16 @@ export default async function DriverPortalPage({ searchParams }: PortalPageProps
     redirect(loginWithNext(ROUTES.DRIVER_PORTAL));
   }
 
-  const [vehicle, recentPayments, driverProfile, paymentTrend] = await Promise.all([
+  const [vehicle, recentPayments, driverProfile, paymentTrend, allBreakdowns] = await Promise.all([
     getDriverAssignedVehicle(userId),
     getDriverRecentPayments(userId, 8),
     getDriverProfile(userId),
-    getDriverPaymentTrend(userId, 30)
+    getDriverPaymentTrend(userId, 30),
+    getDriverVehicleBreakdowns(userId)
   ]);
+
+  // Panne la plus récente non résolue pour l'alerte active
+  const activeBreakdown = allBreakdowns.find((b) => b.status !== "resolved") ?? null;
 
   const hasVehicle = Boolean(vehicle);
   const isOwnerDriver = Boolean(driverProfile?.is_owner_driver);
@@ -163,6 +197,44 @@ export default async function DriverPortalPage({ searchParams }: PortalPageProps
           <RevenueTrendChart data={paymentTrend} color="#10b981" height={180} />
         </div>
       </section>
+
+      {/* ─── Alerte panne active ─────────────────────────────────────────────── */}
+      {activeBreakdown && (() => {
+        const cfg = breakdownStatusPortalConfig[activeBreakdown.status];
+        const AlertIcon = cfg.icon;
+        return (
+          <section
+            className={`overflow-hidden rounded-xl border ${cfg.borderClass} ${cfg.alertClass}`}
+            aria-live="polite"
+          >
+            <div className={`flex items-center gap-3 border-b ${cfg.borderClass} px-5 py-3.5`}>
+              <AlertIcon size={16} className={`${cfg.iconClass} shrink-0`} aria-hidden />
+              <div className="flex-1 min-w-0">
+                <p className={`text-sm font-semibold ${cfg.iconClass}`}>{cfg.label}</p>
+                <p className="text-xs text-neutral-400 mt-0.5">
+                  {activeBreakdown.type}
+                  {activeBreakdown.description ? ` — ${activeBreakdown.description}` : ""}
+                </p>
+              </div>
+              <Link
+                href={ROUTES.DRIVER_MAINTENANCE}
+                className="shrink-0 text-xs font-medium text-neutral-400 underline-offset-2 hover:text-white hover:underline"
+              >
+                Voir tout
+              </Link>
+            </div>
+            <div className="px-5 py-3.5">
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
+                Action rapide
+              </p>
+              <MaintenanceActionButtons
+                breakdownId={activeBreakdown.id}
+                currentStatus={activeBreakdown.status}
+              />
+            </div>
+          </section>
+        );
+      })()}
 
       {/* ─── Véhicule + Statut ─────────────────────────────────────────────────── */}
       <section className="card overflow-hidden">
