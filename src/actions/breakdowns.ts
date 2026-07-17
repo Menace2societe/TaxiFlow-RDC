@@ -410,15 +410,27 @@ export async function startRepair(breakdownId: string): Promise<BreakdownActionS
       return { ok: false, message: "Cette panne n'est pas en statut « Signalée »." };
     }
 
-    // Mise à jour du statut de la panne — le trigger BDD synchro vehicles.status
-    const { error: updateErr } = await supabase
+    // Mise à jour du statut de la panne — .select() force le retour des lignes modifiées
+    // afin de détecter un blocage RLS silencieux (0 lignes → succès apparent mais sans effet).
+    const { data: updated, error: updateErr } = await supabase
       .from("breakdowns")
       .update({ status: "in_progress" })
-      .eq("id", breakdownId);
+      .eq("id", breakdownId)
+      .select("id");
 
     if (updateErr) {
       console.error("[startRepair] update:", updateErr.message);
       return { ok: false, message: updateErr.message };
+    }
+
+    // Blocage RLS silencieux : Supabase ne remonte pas d'erreur mais n'a rien modifié
+    if (!updated || updated.length === 0) {
+      console.error("[startRepair] RLS block : 0 lignes mises à jour");
+      return {
+        ok: false,
+        message:
+          "Action bloquée par la sécurité de la base de données (RLS). Vérifiez vos droits d'accès."
+      };
     }
 
     // Backup synchronisation du statut véhicule si le trigger n'est pas actif
@@ -486,15 +498,26 @@ export async function completeRepair(breakdownId: string): Promise<BreakdownActi
       return { ok: false, message: "Cette panne n'est pas en cours de réparation." };
     }
 
-    // Résoudre la panne
-    const { error: updateErr } = await supabase
+    // Résoudre la panne — .select() pour détecter un blocage RLS silencieux
+    const { data: updated, error: updateErr } = await supabase
       .from("breakdowns")
       .update({ status: "resolved" })
-      .eq("id", breakdownId);
+      .eq("id", breakdownId)
+      .select("id");
 
     if (updateErr) {
       console.error("[completeRepair] update:", updateErr.message);
       return { ok: false, message: updateErr.message };
+    }
+
+    // Blocage RLS silencieux : Supabase ne remonte pas d'erreur mais n'a rien modifié
+    if (!updated || updated.length === 0) {
+      console.error("[completeRepair] RLS block : 0 lignes mises à jour");
+      return {
+        ok: false,
+        message:
+          "Action bloquée par la sécurité de la base de données (RLS). Vérifiez vos droits d'accès."
+      };
     }
 
     // Vérifier si d'autres pannes actives existent sur ce véhicule
