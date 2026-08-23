@@ -34,9 +34,15 @@ import { loginWithNext, ROUTES } from "@/lib/routes";
 import { formatCDF } from "@/lib/utils/currency";
 import type { VehicleStatus } from "@/lib/supabase/types";
 
-const statusConfig: Record<
-  VehicleStatus,
-  { label: string; badgeClass: string; dotClass: string; icon: typeof CheckCircle2 }
+const fallbackStatusConfig = {
+  label: "Statut inconnu",
+  badgeClass: "badge badge-neutral",
+  dotClass: "bg-neutral-400",
+  icon: CirclePause
+};
+
+const statusConfig: Partial<
+  Record<VehicleStatus | string, { label: string; badgeClass: string; dotClass: string; icon: typeof CheckCircle2 }>
 > = {
   "en service": {
     label: "En service",
@@ -319,8 +325,8 @@ export default async function InvestorFleetPage({ searchParams }: FleetPageProps
                 <tbody>
                   {filtered.map((vehicle) => {
                     const Icon = vehicle.type === "moto" ? Bike : CarTaxiFront;
-                    const sc = statusConfig[vehicle.status];
-                    const StatusIcon = sc.icon;
+                    const sc = statusConfig[vehicle.status] ?? fallbackStatusConfig;
+                    const StatusIcon = sc.icon ?? CirclePause;
                     const realized = revenueByVehicle.get(vehicle.id) ?? 0;
                     const targetMonth = vehicle.target_daily_revenue * daysInMonth;
                     const progressPct =
@@ -416,8 +422,8 @@ export default async function InvestorFleetPage({ searchParams }: FleetPageProps
           <div className="space-y-3 lg:hidden">
             {filtered.map((vehicle) => {
               const Icon = vehicle.type === "moto" ? Bike : CarTaxiFront;
-              const sc = statusConfig[vehicle.status];
-              const StatusIcon = sc.icon;
+              const sc = statusConfig[vehicle.status] ?? fallbackStatusConfig;
+              const StatusIcon = sc.icon ?? CirclePause;
               const realized = revenueByVehicle.get(vehicle.id) ?? 0;
               const targetMonth = vehicle.target_daily_revenue * daysInMonth;
               const progressPct =
