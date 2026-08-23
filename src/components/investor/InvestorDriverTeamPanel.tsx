@@ -51,14 +51,14 @@ function SubmitQuickAssignButton({ driverName }: { driverName: string }) {
     <button
       type="submit"
       disabled={pending}
-      className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-300 transition-all hover:bg-emerald-500/20 disabled:opacity-50"
+      className="inline-flex min-h-9 max-w-full items-center justify-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-center text-xs font-semibold leading-tight text-emerald-300 transition-all hover:bg-emerald-500/20 disabled:opacity-50"
     >
       {pending ? (
         <Loader2 size={12} className="animate-spin" />
       ) : (
         <UserCheck size={12} />
       )}
-      {pending ? "Assignation…" : `Assigner à ${driverName}`}
+      <span className="whitespace-normal">{pending ? "Assignation…" : `Assigner à ${driverName}`}</span>
     </button>
   );
 }
@@ -81,8 +81,8 @@ function AvailableVehicleCard({
   const [state, formAction] = useFormState(assignFoundDriverToVehicle, initialQuickState);
 
   return (
-    <div className="rounded-lg border border-neutral-700 bg-neutral-800/40 p-3 space-y-2">
-      <div className="flex items-center justify-between gap-2">
+    <div className="space-y-2 rounded-lg border border-neutral-700 bg-neutral-800/40 p-3">
+      <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
         <div className="flex items-center gap-2 min-w-0">
           <div className="rounded-md bg-emerald-500/10 p-1.5 shrink-0">
             <CarTaxiFront size={14} className="text-emerald-400" />
@@ -100,7 +100,7 @@ function AvailableVehicleCard({
           Il est intentionnellement rendu hors de tout <form> parent.
           Les inputs cachés véhiculent l'UUID du chauffeur et l'ID du véhicule.
         */}
-        <form action={formAction} className="shrink-0">
+        <form action={formAction} className="sm:shrink-0">
           {/* UUID unique du chauffeur identifié — NE PAS mettre le nom ici */}
           <input type="hidden" name="driver_id" value={driverId} />
           {/* UUID du véhicule disponible */}

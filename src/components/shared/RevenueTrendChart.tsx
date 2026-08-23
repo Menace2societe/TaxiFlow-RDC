@@ -9,6 +9,7 @@ import {
   XAxis,
   YAxis
 } from "recharts";
+import { Activity } from "lucide-react";
 import { formatCDF } from "@/lib/utils/currency";
 import type { TrendPoint } from "@/lib/dashboard/data";
 
@@ -67,15 +68,9 @@ export function RevenueTrendChart({
 
   if (!hasData) {
     return (
-      <div
-        style={{ height }}
-        className="flex flex-col items-center justify-center gap-2 text-center"
-      >
-        <div className="h-10 w-10 rounded-full bg-neutral-800 flex items-center justify-center">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            strokeWidth="1.5" strokeLinecap="round" className="text-neutral-600">
-            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-          </svg>
+      <div style={{ height }} className="flex flex-col items-center justify-center gap-2 text-center">
+        <div className="flex h-10 w-10 items-center justify-center rounded-full border border-neutral-800 bg-neutral-900 text-neutral-500">
+          <Activity size={18} aria-hidden />
         </div>
         <p className="text-xs text-neutral-500">Aucun versement approuvé sur cette période</p>
       </div>
@@ -86,7 +81,7 @@ export function RevenueTrendChart({
 
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <AreaChart data={chartData} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
+      <AreaChart data={chartData} margin={{ left: 0, right: 8, top: 10, bottom: 0 }}>
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
             <stop offset="5%" stopColor={color} stopOpacity={0.25} />
@@ -97,7 +92,7 @@ export function RevenueTrendChart({
         <CartesianGrid
           strokeDasharray="3 3"
           vertical={false}
-          stroke="rgba(255,255,255,0.05)"
+          stroke="rgba(148,163,184,0.12)"
         />
 
         <XAxis
@@ -105,7 +100,7 @@ export function RevenueTrendChart({
           tickLine={false}
           axisLine={false}
           fontSize={10}
-          tick={{ fill: "#6b7280" }}
+          tick={{ fill: "#94a3b8" }}
           interval="preserveStartEnd"
         />
 
@@ -113,12 +108,12 @@ export function RevenueTrendChart({
           tickLine={false}
           axisLine={false}
           fontSize={10}
-          tick={{ fill: "#6b7280" }}
+          tick={{ fill: "#94a3b8" }}
           tickFormatter={(v) => `${Math.round(Number(v) / 1000)}k`}
           width={36}
         />
 
-        <Tooltip content={<CustomTooltip />} />
+        <Tooltip content={<CustomTooltip />} cursor={{ stroke: color, strokeOpacity: 0.18, strokeWidth: 2 }} />
 
         <Area
           type="monotone"

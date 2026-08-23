@@ -5,17 +5,17 @@ type BadgeProps = React.HTMLAttributes<HTMLSpanElement> & {
 };
 
 const variants = {
-  success: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
-  warning: "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
-  danger: "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300",
-  neutral: "bg-stone-100 text-stone-700 dark:bg-stone-900 dark:text-stone-300",
-  info: "bg-cyan-50 text-cyan-700 dark:bg-cyan-950 dark:text-cyan-300"
+  success: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
+  warning: "border-amber-500/30 bg-amber-500/10 text-amber-300",
+  danger: "border-red-500/30 bg-red-500/10 text-red-300",
+  neutral: "border-neutral-700 bg-neutral-800/70 text-neutral-300",
+  info: "border-cyan-500/30 bg-cyan-500/10 text-cyan-300"
 };
 
 export function Badge({ className, variant = "neutral", ...props }: BadgeProps) {
   return (
     <span
-      className={cn("inline-flex w-fit items-center gap-2 rounded-md px-3 py-1.5 text-xs font-semibold", variants[variant], className)}
+      className={cn("inline-flex max-w-full items-center justify-center gap-1.5 rounded-md border px-3 py-1.5 text-center text-xs font-semibold leading-tight", variants[variant], className)}
       {...props}
     />
   );

@@ -11,7 +11,7 @@ function SubmitPanne({ hasVehicle }: { hasVehicle: boolean }) {
   return (
     <button
       type="submit"
-      className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-amber-300 bg-amber-50 text-base font-semibold text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
+      className="btn-warning min-h-12 w-full text-base"
       disabled={pending || !hasVehicle}
     >
       {pending ? <Loader2 className="animate-spin" size={20} /> : <AlertTriangle size={20} />}
@@ -22,7 +22,7 @@ function SubmitPanne({ hasVehicle }: { hasVehicle: boolean }) {
 
 export function DriverBreakdownQuickForm({ hasVehicle }: { hasVehicle: boolean }) {
   return (
-    <form action={reportBreakdown} className="grid gap-3 rounded-xl border border-amber-200 bg-amber-50/40 p-4 dark:border-amber-900 dark:bg-amber-950/30">
+    <form action={reportBreakdown} className="grid gap-3 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
       <label className="block text-sm font-medium text-stone-800 dark:text-stone-200">
         Type de panne
         <select className="field mt-1 min-h-12 text-base" name="type" required disabled={!hasVehicle}>

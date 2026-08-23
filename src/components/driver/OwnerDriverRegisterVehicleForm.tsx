@@ -24,7 +24,9 @@ function SubmitButton() {
       ) : (
         <PlusCircle size={16} />
       )}
-      {pending ? "Enregistrement en cours…" : "Enregistrer et m'assigner ce véhicule"}
+      <span className="whitespace-normal leading-tight">
+        {pending ? "Enregistrement en cours…" : "Enregistrer et m'assigner ce véhicule"}
+      </span>
     </button>
   );
 }
@@ -51,7 +53,7 @@ export function OwnerDriverRegisterVehicleForm() {
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 border border-emerald-500/25">
           <CarTaxiFront size={20} className="text-emerald-400" />
         </div>
-        <div>
+        <div className="min-w-0">
           <p className="text-sm font-semibold text-white">Enregistrer votre véhicule</p>
           <p className="mt-0.5 text-xs text-neutral-500">
             En tant que chauffeur-patron, vous serez automatiquement assigné comme chauffeur de ce
@@ -81,7 +83,7 @@ export function OwnerDriverRegisterVehicleForm() {
 
       <form ref={formRef} action={formAction} className="grid gap-3">
         {/* Marque + Modèle */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <label
               htmlFor="owner-driver-make"
@@ -138,7 +140,7 @@ export function OwnerDriverRegisterVehicleForm() {
         </div>
 
         {/* Type de véhicule + Objectif */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <label
               htmlFor="owner-driver-type"

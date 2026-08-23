@@ -9,9 +9,10 @@ function SubmitDelete() {
   return (
     <button
       type="submit"
-      className="inline-flex min-h-9 items-center justify-center gap-1 rounded-md border border-red-200 px-2 text-xs font-medium text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950"
+      className="btn-danger min-h-10 px-3 text-xs"
       disabled={pending}
       aria-label="Supprimer le vehicule"
+      title="Supprimer le vehicule"
     >
       {pending ? <Loader2 className="animate-spin" size={16} /> : <Trash2 size={16} />}
     </button>

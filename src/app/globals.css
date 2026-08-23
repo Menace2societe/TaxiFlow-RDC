@@ -12,9 +12,12 @@
 
 body {
   margin: 0;
-  background: #0a0f0d;
+  background:
+    radial-gradient(circle at top left, rgba(16, 185, 129, 0.08), transparent 30rem),
+    linear-gradient(135deg, #07110e 0%, #0b1115 48%, #090b10 100%);
   color: #f0ede8;
   font-family: "Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  text-rendering: optimizeLegibility;
 }
 
 a {
@@ -30,7 +33,7 @@ textarea {
 
 /* ─── FIELD : champ de formulaire universel ─────────────────────────────────── */
 .field {
-  @apply relative z-10 w-full min-h-[48px] cursor-text rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-base text-white outline-none transition-all placeholder:text-neutral-500 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/25 hover:border-neutral-600 disabled:cursor-not-allowed disabled:opacity-40;
+  @apply relative z-10 w-full min-h-[48px] cursor-text rounded-lg border border-neutral-700/80 bg-neutral-950/70 px-3.5 py-2.5 text-base leading-snug text-white outline-none shadow-inner shadow-black/10 transition-all placeholder:text-neutral-500 focus:border-emerald-500 focus:bg-neutral-950 focus:ring-2 focus:ring-emerald-500/25 hover:border-neutral-600 disabled:cursor-not-allowed disabled:opacity-40;
 }
 
 select.field {
@@ -43,24 +46,28 @@ select.field {
 
 /* ─── BUTTONS ──────────────────────────────────────────────────────────────── */
 .btn-primary {
-  @apply relative z-10 inline-flex min-h-[48px] items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 text-sm font-semibold text-white transition-all hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+  @apply relative z-10 inline-flex min-h-[48px] max-w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-center text-sm font-semibold leading-snug text-white shadow-lg shadow-emerald-950/20 transition-all duration-200 hover:bg-emerald-500 hover:shadow-emerald-900/25 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
 }
 
 .btn-secondary {
-  @apply relative z-10 inline-flex min-h-[48px] items-center justify-center gap-2 rounded-lg border border-neutral-700 bg-neutral-800 px-5 text-sm font-semibold text-neutral-100 transition-all hover:bg-neutral-700 hover:border-neutral-600 focus:outline-none focus:ring-2 focus:ring-neutral-500/30;
+  @apply relative z-10 inline-flex min-h-[48px] max-w-full items-center justify-center gap-2 rounded-lg border border-neutral-700/90 bg-neutral-900/90 px-5 py-2.5 text-center text-sm font-semibold leading-snug text-neutral-100 shadow-sm shadow-black/10 transition-all duration-200 hover:border-neutral-600 hover:bg-neutral-800 focus:outline-none focus:ring-2 focus:ring-neutral-500/30 disabled:cursor-not-allowed disabled:opacity-50;
 }
 
 .btn-warning {
-  @apply relative z-10 inline-flex min-h-[48px] items-center justify-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-5 text-sm font-semibold text-amber-200 transition-all hover:bg-amber-500/20 focus:outline-none focus:ring-2 focus:ring-amber-500/30 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40;
+  @apply relative z-10 inline-flex min-h-[48px] max-w-full items-center justify-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-5 py-2.5 text-center text-sm font-semibold leading-snug text-amber-200 transition-all duration-200 hover:bg-amber-500/20 focus:outline-none focus:ring-2 focus:ring-amber-500/30 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40;
+}
+
+.btn-danger {
+  @apply relative z-10 inline-flex min-h-[44px] max-w-full items-center justify-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-center text-sm font-semibold leading-snug text-red-200 transition-all duration-200 hover:bg-red-500/20 focus:outline-none focus:ring-2 focus:ring-red-500/30 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40;
 }
 
 /* ─── CARDS ────────────────────────────────────────────────────────────────── */
 .card {
-  @apply rounded-xl border border-neutral-800 bg-neutral-900/60 backdrop-blur-sm;
+  @apply rounded-xl border border-neutral-800/80 bg-neutral-900/70 shadow-xl shadow-black/10 backdrop-blur-sm transition-colors;
 }
 
 .card-header {
-  @apply border-b border-neutral-800 px-5 py-4;
+  @apply border-b border-neutral-800/80 px-5 py-4;
 }
 
 /* ─── SECTION LABEL ─────────────────────────────────────────────────────────── */
@@ -87,7 +94,7 @@ select.field {
 
 /* ─── TABLE ────────────────────────────────────────────────────────────────── */
 .data-table {
-  @apply w-full text-left text-sm;
+  @apply w-full table-auto text-left text-sm;
 }
 
 .data-table thead tr {
@@ -95,7 +102,7 @@ select.field {
 }
 
 .data-table thead th {
-  @apply px-5 py-3 font-medium;
+  @apply px-5 py-3 font-semibold;
 }
 
 .data-table tbody tr {
@@ -107,12 +114,12 @@ select.field {
 }
 
 .data-table tbody td {
-  @apply px-5 py-3.5;
+  @apply px-5 py-4 align-middle;
 }
 
 /* ─── STATUS BADGE ──────────────────────────────────────────────────────────── */
 .badge {
-  @apply inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-semibold;
+  @apply inline-flex max-w-full items-center justify-center gap-1.5 rounded-md border px-2.5 py-1.5 text-center text-xs font-semibold leading-tight;
 }
 
 .badge-green {

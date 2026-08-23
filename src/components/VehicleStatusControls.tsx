@@ -60,7 +60,7 @@ export function VehicleStatusControls({
   compact?: boolean;
 }) {
   return (
-    <div className={`grid gap-2 ${compact ? "grid-cols-3" : "grid-cols-1 sm:grid-cols-3"}`}>
+    <div className={`grid gap-2 ${compact ? "grid-cols-1 min-[420px]:grid-cols-3" : "grid-cols-1 sm:grid-cols-3"}`}>
       {statusActions.map((action) => {
         const Icon = action.icon;
         const active = currentStatus === action.dbStatus;
@@ -78,12 +78,12 @@ export function VehicleStatusControls({
                 "group relative w-full overflow-hidden rounded-xl border font-semibold",
                 "transition-all duration-200 focus:outline-none focus:ring-2",
                 action.ringClass,
-                compact ? "min-h-9 px-2 text-xs" : "min-h-12 px-3 text-sm",
+                compact ? "min-h-10 px-2 py-2 text-[11px]" : "min-h-12 px-3 py-2.5 text-sm",
                 active ? action.activeClass : action.baseClass
               ].join(" ")}
             >
               <span
-                className={`inline-flex w-full items-center justify-center gap-2 ${
+                className={`inline-flex w-full items-center justify-center gap-1.5 ${
                   compact ? "" : "flex-col sm:flex-row"
                 }`}
               >
@@ -99,7 +99,7 @@ export function VehicleStatusControls({
                   />
                 )}
                 <Icon size={compact ? 13 : 15} aria-hidden className="shrink-0" />
-                <span className="capitalize">{action.label}</span>
+                <span className="whitespace-normal break-words text-center capitalize leading-tight">{action.label}</span>
               </span>
               {/* Sous-label visible en mode non-compact inactif */}
               {!compact && !active && (

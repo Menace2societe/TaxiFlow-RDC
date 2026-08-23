@@ -24,16 +24,14 @@ const statusTransitions: Record<BreakdownStatus, Transition | null> = {
     label: "Demarrer la reparation",
     pendingLabel: "Demarrage...",
     icon: Wrench,
-    btnClass:
-      "inline-flex items-center gap-1.5 rounded-lg border border-amber-500/50 bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-60"
+    btnClass: "btn-warning min-h-9 px-3 text-xs"
   },
   in_progress: {
     next: "resolved",
     label: "Terminer la reparation",
     pendingLabel: "Finalisation...",
     icon: CheckCircle2,
-    btnClass:
-      "inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/50 bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+    btnClass: "btn-primary min-h-9 px-3 text-xs"
   },
   resolved: null
 };
@@ -47,7 +45,7 @@ function SubmitButton({ transition }: { transition: Transition }) {
   return (
     <button type="submit" disabled={pending} className={transition.btnClass}>
       {pending ? <Loader2 size={12} className="animate-spin" /> : <Icon size={12} />}
-      {pending ? transition.pendingLabel : transition.label}
+      <span className="whitespace-normal leading-tight">{pending ? transition.pendingLabel : transition.label}</span>
     </button>
   );
 }
@@ -110,8 +108,10 @@ export function BreakdownStatusForm({
 
       {state.message && (
         <p
-          className={`text-[11px] font-medium ${
-            state.ok ? "text-emerald-400" : "text-red-400"
+          className={`rounded-md border px-2.5 py-1.5 text-[11px] font-medium ${
+            state.ok
+              ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+              : "border-red-500/20 bg-red-500/10 text-red-300"
           }`}
         >
           {state.message}

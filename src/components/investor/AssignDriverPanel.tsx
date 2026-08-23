@@ -15,12 +15,12 @@ function SubmitAssignButton() {
     <button
       type="submit"
       disabled={pending}
-      className="btn-primary min-h-9 w-full text-xs"
+      className="btn-primary min-h-10 w-full px-3 text-xs"
     >
       {pending
         ? <Loader2 size={14} className="animate-spin" />
         : <UserCheck size={14} />}
-      {pending ? "Assignation..." : "Confirmer l'assignation"}
+      <span className="whitespace-normal leading-tight">{pending ? "Assignation..." : "Confirmer l'assignation"}</span>
     </button>
   );
 }
@@ -64,7 +64,7 @@ export function AssignDriverPanel({
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-xs text-neutral-500">Chauffeur actuel</p>
-          <p className="text-sm font-semibold text-white truncate">
+          <p className="break-words text-sm font-semibold leading-snug text-white">
             {currentDriverName ?? "Non assigné"}
           </p>
         </div>
