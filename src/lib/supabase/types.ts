@@ -96,8 +96,13 @@ export type Database = {
           driver_id: string | null;
           entry_date: string;
           amount: number;
+          declared_amount: number;
           currency: EntryCurrency;
           mileage_km: number;
+          start_km: number;
+          end_km: number;
+          distance_covered: number;
+          is_suspicious: boolean;
           revenue_cdf: number;
           fuel_cdf: number;
           maintenance_cdf: number;
@@ -111,8 +116,11 @@ export type Database = {
           driver_id?: string | null;
           entry_date: string;
           amount: number;
+          declared_amount?: number;
           currency: EntryCurrency;
           mileage_km: number;
+          start_km?: number;
+          end_km?: number;
           revenue_cdf: number;
           fuel_cdf?: number;
           maintenance_cdf?: number;
@@ -124,8 +132,11 @@ export type Database = {
           driver_id?: string | null;
           entry_date?: string;
           amount?: number;
+          declared_amount?: number;
           currency?: EntryCurrency;
           mileage_km?: number;
+          start_km?: number;
+          end_km?: number;
           revenue_cdf?: number;
           fuel_cdf?: number;
           maintenance_cdf?: number;

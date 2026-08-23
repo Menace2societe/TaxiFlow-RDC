@@ -337,6 +337,47 @@ export async function updateBreakdownStatus(
   }
 }
 
+// ─── Normalisation des statuts (transition legacy → canonique) ───────────────
+// Pendant la période de migration, certaines lignes peuvent encore avoir
+// des valeurs françaises. Cette fonction les reconnaît et les mappe vers
+// les valeurs canoniques de l'enum breakdown_status.
+
+const STATUS_MAP: Record<string, "open" | "in_progress" | "resolved"> = {
+  // ── Valeurs canoniques ──────────────────────────────────────────────────────
+  open:             "open",
+  in_progress:      "in_progress",
+  resolved:         "resolved",
+  // ── Français legacy (casse gérée par .toLowerCase() dans normalizeBreakdownStatus) ──
+  "signalée":       "open",
+  signalee:         "open",
+  signale:          "open",
+  ouverte:          "open",       // ← ajout
+  pending:          "open",
+  nouveau:          "open",
+  nouvelle:         "open",
+  "en réparation":  "in_progress",
+  en_reparation:    "in_progress",
+  "en cours":       "in_progress",
+  "in progress":    "in_progress",
+  started:          "in_progress",
+  "réparé":         "resolved",
+  repare:           "resolved",
+  "terminé":        "resolved",
+  termine:          "resolved",
+  completed:        "resolved",
+  done:             "resolved",
+  "résolu":         "resolved",
+  resolu:           "resolved",
+  "clôturé":        "resolved",   // ← ajout
+  cloture:          "resolved",   // ← ajout
+  "clotûré":        "resolved",   // ← ajout (variante typo fréquente)
+};
+
+function normalizeBreakdownStatus(raw: string): "open" | "in_progress" | "resolved" | null {
+  const key = raw.toLowerCase().trim();
+  return STATUS_MAP[key] ?? null;
+}
+
 // ─── Types internes pour les jointures ────────────────────────────────────────
 
 /**
@@ -406,8 +447,22 @@ export async function startRepair(breakdownId: string): Promise<BreakdownActionS
       };
     }
 
-    if (breakdown.status !== "open") {
-      return { ok: false, message: "Cette panne n'est pas en statut « Signalée »." };
+    const normalizedStatus = normalizeBreakdownStatus(breakdown.status);
+
+    // Idempotence : déjà en cours de réparation → succès immédiat
+    if (normalizedStatus === "in_progress") {
+      return { ok: true, message: "La réparation est déjà en cours." };
+    }
+    // Idempotence : déjà résolue → succès immédiat
+    if (normalizedStatus === "resolved") {
+      return { ok: true, message: "Cette panne est déjà résolue." };
+    }
+    // Statut non reconnu ou différent de 'open'
+    if (normalizedStatus !== "open") {
+      return {
+        ok: false,
+        message: `Statut inattendu : \u00ab\u00a0${breakdown.status}\u00a0\u00bb. Valeurs attendues : open, in_progress, resolved.`
+      };
     }
 
     // Mise à jour du statut de la panne — .select() force le retour des lignes modifiées
@@ -494,8 +549,18 @@ export async function completeRepair(breakdownId: string): Promise<BreakdownActi
       };
     }
 
-    if (breakdown.status !== "in_progress") {
-      return { ok: false, message: "Cette panne n'est pas en cours de réparation." };
+    const normalizedStatus = normalizeBreakdownStatus(breakdown.status);
+
+    // Idempotence : déjà résolue → succès immédiat
+    if (normalizedStatus === "resolved") {
+      return { ok: true, message: "Cette panne est déjà résolue et le véhicule remis en service." };
+    }
+    // Statut non reconnu ou pas encore 'in_progress'
+    if (normalizedStatus !== "in_progress") {
+      return {
+        ok: false,
+        message: `Statut inattendu : \u00ab\u00a0${breakdown.status}\u00a0\u00bb. La panne doit être \u00ab\u00a0En réparation\u00a0\u00bb pour être clôturée.`
+      };
     }
 
     // Résoudre la panne — .select() pour détecter un blocage RLS silencieux

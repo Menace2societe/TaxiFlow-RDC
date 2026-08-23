@@ -59,8 +59,12 @@ export function DailyEntryForm({ vehicles }: { vehicles: DashboardVehicle[] }) {
         </div>
       </fieldset>
       <label className="block text-sm font-medium text-stone-700 dark:text-stone-200">
-        Kilometrage
-        <input className="field mt-1" name="mileage_km" type="number" min="1" step="1" inputMode="decimal" required />
+        Kilometrage de debut
+        <input className="field mt-1" name="start_km" type="number" min="0" step="0.1" inputMode="decimal" required />
+      </label>
+      <label className="block text-sm font-medium text-stone-700 dark:text-stone-200">
+        Kilometrage de fin
+        <input className="field mt-1" name="end_km" type="number" min="0" step="0.1" inputMode="decimal" required />
       </label>
       <label className="block text-sm font-medium text-stone-700 dark:text-stone-200">
         Note

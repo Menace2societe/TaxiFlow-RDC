@@ -18,9 +18,9 @@ import {
   Sparkles
 } from "lucide-react";
 import { reportBreakdown } from "@/actions/breakdowns";
-import { recordDriverPayment } from "@/actions/payments";
 import { VehicleStatusControls } from "@/components/VehicleStatusControls";
 import { ContractInfoBanner } from "@/components/driver/ContractInfoBanner";
+import { DriverVersementForm } from "@/components/driver/DriverVersementForm";
 import { MaintenanceActionButtons } from "@/components/shared/MaintenanceActionButtons";
 import { RevenueTrendChart } from "@/components/shared/RevenueTrendChart";
 import {
@@ -404,36 +404,7 @@ export default async function DriverDashboardPage({ searchParams }: DriverDashbo
               </div>
               <h2 className="text-base font-semibold text-white">Déclarer un versement</h2>
             </div>
-            <form action={recordDriverPayment} className="grid gap-3">
-              <input type="hidden" name="return_path" value={ROUTES.DRIVER_DASHBOARD} />
-              <input type="hidden" name="driver_id" value={driverId} />
-              <div>
-                <label htmlFor="payment-amount" className="mb-1.5 block text-xs font-medium text-neutral-400">
-                  Montant en CDF
-                </label>
-                <input
-                  id="payment-amount"
-                  className="field relative z-20 cursor-text"
-                  name="amount"
-                  type="number"
-                  min="1"
-                  step="1"
-                  inputMode="decimal"
-                  placeholder="Ex : 15 000"
-                  required
-                />
-              </div>
-              <button
-                className="btn-primary w-full"
-                type="submit"
-              >
-                <Banknote size={17} aria-hidden />
-                Envoyer le versement
-              </button>
-              {!displayVehicle && (
-                <p className="text-center text-xs text-neutral-500">Aucun véhicule assigné</p>
-              )}
-            </form>
+            <DriverVersementForm hasVehicle={Boolean(displayVehicle)} />
           </div>
 
           {/* Signaler une panne */}

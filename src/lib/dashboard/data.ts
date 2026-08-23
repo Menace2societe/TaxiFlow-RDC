@@ -20,8 +20,13 @@ export type DashboardEntry = {
   driver_id: string | null;
   entry_date: string;
   amount: number;
+  declared_amount: number;
   currency: EntryCurrency;
   mileage_km: number;
+  start_km: number;
+  end_km: number;
+  distance_covered: number;
+  is_suspicious: boolean;
   revenue_cdf: number;
   fuel_cdf: number;
   maintenance_cdf: number;
@@ -149,7 +154,7 @@ export async function getOwnerEntries(ownerId: string): Promise<DashboardEntry[]
   const { data, error } = await supabase
     .from("daily_entries")
     .select(
-      "id,vehicle_id,driver_id,entry_date,amount,currency,mileage_km,revenue_cdf,fuel_cdf,maintenance_cdf,notes"
+      "id,vehicle_id,driver_id,entry_date,amount,declared_amount,currency,mileage_km,start_km,end_km,distance_covered,is_suspicious,revenue_cdf,fuel_cdf,maintenance_cdf,notes"
     )
     .eq("owner_id", ownerId)
     .order("entry_date", { ascending: false })
@@ -166,8 +171,13 @@ export async function getOwnerEntries(ownerId: string): Promise<DashboardEntry[]
     driver_id: (row as { driver_id?: string | null }).driver_id ?? null,
     entry_date: row.entry_date,
     amount: Number(row.amount ?? 0),
+    declared_amount: Number((row as { declared_amount?: number }).declared_amount ?? row.amount ?? 0),
     currency: row.currency as EntryCurrency,
     mileage_km: Number(row.mileage_km ?? 0),
+    start_km: Number((row as { start_km?: number }).start_km ?? 0),
+    end_km: Number((row as { end_km?: number }).end_km ?? row.mileage_km ?? 0),
+    distance_covered: Number((row as { distance_covered?: number }).distance_covered ?? 0),
+    is_suspicious: Boolean((row as { is_suspicious?: boolean }).is_suspicious ?? false),
     revenue_cdf: Number(row.revenue_cdf ?? 0),
     fuel_cdf: Number((row as { fuel_cdf?: number }).fuel_cdf ?? 0),
     maintenance_cdf: Number((row as { maintenance_cdf?: number }).maintenance_cdf ?? 0),
@@ -184,7 +194,7 @@ export async function getOwnerEntriesForDateRange(
   const { data, error } = await supabase
     .from("daily_entries")
     .select(
-      "id,vehicle_id,driver_id,entry_date,amount,currency,mileage_km,revenue_cdf,fuel_cdf,maintenance_cdf,notes"
+      "id,vehicle_id,driver_id,entry_date,amount,declared_amount,currency,mileage_km,start_km,end_km,distance_covered,is_suspicious,revenue_cdf,fuel_cdf,maintenance_cdf,notes"
     )
     .eq("owner_id", ownerId)
     .gte("entry_date", startDate)
@@ -201,8 +211,13 @@ export async function getOwnerEntriesForDateRange(
     driver_id: (row as { driver_id?: string | null }).driver_id ?? null,
     entry_date: row.entry_date,
     amount: Number(row.amount ?? 0),
+    declared_amount: Number((row as { declared_amount?: number }).declared_amount ?? row.amount ?? 0),
     currency: row.currency as EntryCurrency,
     mileage_km: Number(row.mileage_km ?? 0),
+    start_km: Number((row as { start_km?: number }).start_km ?? 0),
+    end_km: Number((row as { end_km?: number }).end_km ?? row.mileage_km ?? 0),
+    distance_covered: Number((row as { distance_covered?: number }).distance_covered ?? 0),
+    is_suspicious: Boolean((row as { is_suspicious?: boolean }).is_suspicious ?? false),
     revenue_cdf: Number(row.revenue_cdf ?? 0),
     fuel_cdf: Number((row as { fuel_cdf?: number }).fuel_cdf ?? 0),
     maintenance_cdf: Number((row as { maintenance_cdf?: number }).maintenance_cdf ?? 0),
@@ -368,7 +383,7 @@ export async function getDriverRecentEntries(
     const { data, error } = await supabase
       .from("daily_entries")
       .select(
-        "id,vehicle_id,driver_id,entry_date,amount,currency,mileage_km,revenue_cdf,fuel_cdf,maintenance_cdf,notes"
+        "id,vehicle_id,driver_id,entry_date,amount,declared_amount,currency,mileage_km,start_km,end_km,distance_covered,is_suspicious,revenue_cdf,fuel_cdf,maintenance_cdf,notes"
       )
       .eq("driver_id", driverId)
       .order("entry_date", { ascending: false })
@@ -385,8 +400,13 @@ export async function getDriverRecentEntries(
       driver_id: (row as { driver_id?: string | null }).driver_id ?? null,
       entry_date: row.entry_date,
       amount: Number(row.amount ?? 0),
+      declared_amount: Number((row as { declared_amount?: number }).declared_amount ?? row.amount ?? 0),
       currency: row.currency as EntryCurrency,
       mileage_km: Number(row.mileage_km ?? 0),
+      start_km: Number((row as { start_km?: number }).start_km ?? 0),
+      end_km: Number((row as { end_km?: number }).end_km ?? row.mileage_km ?? 0),
+      distance_covered: Number((row as { distance_covered?: number }).distance_covered ?? 0),
+      is_suspicious: Boolean((row as { is_suspicious?: boolean }).is_suspicious ?? false),
       revenue_cdf: Number(row.revenue_cdf ?? 0),
       fuel_cdf: Number((row as { fuel_cdf?: number }).fuel_cdf ?? 0),
       maintenance_cdf: Number((row as { maintenance_cdf?: number }).maintenance_cdf ?? 0),

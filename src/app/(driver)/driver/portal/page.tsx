@@ -16,8 +16,8 @@ import {
   Sparkles
 } from "lucide-react";
 import { reportBreakdown } from "@/actions/breakdowns";
-import { recordDriverPayment } from "@/actions/payments";
 import { VehicleStatusControls } from "@/components/VehicleStatusControls";
+import { DriverVersementForm } from "@/components/driver/DriverVersementForm";
 import { OwnerDriverRegisterVehicleForm } from "@/components/driver/OwnerDriverRegisterVehicleForm";
 import { OwnerPaymentActions } from "@/components/driver/OwnerPaymentActions";
 import { MaintenanceActionButtons } from "@/components/shared/MaintenanceActionButtons";
@@ -312,47 +312,11 @@ export default async function DriverPortalPage({ searchParams }: PortalPageProps
           </div>
           <div>
             <h2 className="text-base font-semibold text-white">Déclarer un versement</h2>
-            <p className="text-xs text-neutral-500">Montant en Francs Congolais (CDF)</p>
+            <p className="text-xs text-neutral-500">Avec contrôle kilométrique et synchronisation hors-ligne</p>
           </div>
         </div>
         <div className="p-5">
-          <form action={recordDriverPayment} className="grid gap-3">
-            <input type="hidden" name="return_path" value={ROUTES.DRIVER_PORTAL} />
-            <div>
-              <label
-                htmlFor="portal-amount"
-                className="mb-1.5 block text-xs font-medium text-neutral-400"
-              >
-                Montant en CDF
-              </label>
-              <input
-                id="portal-amount"
-                className="field"
-                name="amount"
-                type="number"
-                min="1"
-                step="1"
-                inputMode="decimal"
-                placeholder="Ex : 15 000"
-                disabled={!hasVehicle}
-                required
-              />
-            </div>
-            <button
-              id="portal-submit-payment"
-              className="btn-primary w-full"
-              type="submit"
-              disabled={!hasVehicle}
-            >
-              <Banknote size={17} aria-hidden />
-              Enregistrer le versement
-            </button>
-            {!hasVehicle && (
-              <p className="text-center text-xs text-neutral-500">
-                Véhicule requis pour déclarer un versement
-              </p>
-            )}
-          </form>
+          <DriverVersementForm hasVehicle={hasVehicle} />
         </div>
       </section>
 
