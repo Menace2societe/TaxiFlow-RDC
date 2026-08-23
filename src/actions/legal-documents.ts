@@ -62,7 +62,6 @@ export async function uploadLegalDocument(formData: FormData) {
 
   const isSelfUpload = parsed.data.driver_id === user.id;
 
-  // Types autorisés pour le self-upload (Chauffeur-Patron)
   const allowedSelfTypes = new Set<DocumentType>([
     ...ownerDriverDocumentTypeOptions.map((option) => option.value),
     "permis"
@@ -72,11 +71,9 @@ export async function uploadLegalDocument(formData: FormData) {
     redirect(`${returnPath}?error=${encodeURIComponent("Un chauffeur-patron peut televerser uniquement Carte Rose, Assurance ou Permis.")}`);
   }
 
-  // Résolution du véhicule
   let resolvedVehicleId: string | null = null;
 
   if (parsed.data.vehicle_id) {
-    // Un véhicule spécifique est demandé : vérifier la propriété
     const ownerIdToCheck = isSelfUpload ? user.id : user.id;
     const { data: vehicle, error: vehicleError } = await supabase
       .from("vehicles")
@@ -86,7 +83,6 @@ export async function uploadLegalDocument(formData: FormData) {
       .maybeSingle();
 
     if (vehicleError || !vehicle) {
-      // Tenter via driver_id si pas owner (cas investisseur)
       if (!isSelfUpload) {
         const { data: driverVehicle, error: dvErr } = await supabase
           .from("vehicles")
@@ -100,14 +96,12 @@ export async function uploadLegalDocument(formData: FormData) {
         }
         resolvedVehicleId = driverVehicle?.id ?? null;
       } else {
-        // Chauffeur-Patron : le véhicule doit lui appartenir
         redirect(`${returnPath}?error=${encodeURIComponent("Ce vehicule ne vous appartient pas.")}`);
       }
     } else {
       resolvedVehicleId = vehicle.id;
     }
   } else if (!isSelfUpload) {
-    // Investisseur sans vehicle_id spécifié : trouver le véhicule assigné à ce chauffeur
     const { data: vehicle } = await supabase
       .from("vehicles")
       .select("id")
@@ -121,14 +115,14 @@ export async function uploadLegalDocument(formData: FormData) {
       redirect(`${returnPath}?error=${encodeURIComponent("Ce chauffeur n'est pas assigne a un vehicule de votre flotte.")}`);
     }
   }
-  // Sinon : self-upload sans vehicle_id = autorisé (document sans véhicule)
 
   const storageName = safeStorageName(file.name) || "document";
   const vehicleSegment = resolvedVehicleId ?? "no-vehicle";
   const storagePath = `${user.id}/${parsed.data.driver_id}/${vehicleSegment}/${Date.now()}-${storageName}`;
 
+  // CORRECTION ICI : Utilisation du vrai nom de bucket "documents"
   const { error: uploadError } = await supabase.storage
-    .from("legal-documents")
+    .from("documents")
     .upload(storagePath, file, {
       cacheControl: "3600",
       upsert: false,
@@ -139,8 +133,9 @@ export async function uploadLegalDocument(formData: FormData) {
     redirect(`${returnPath}?error=${encodeURIComponent(uploadError.message)}`);
   }
 
+  // CORRECTION ICI : Utilisation du vrai nom de bucket "documents"
   const { data: publicUrlData } = supabase.storage
-    .from("legal-documents")
+    .from("documents")
     .getPublicUrl(storagePath);
 
   const { error: insertError } = await supabase.from("legal_documents").insert({
