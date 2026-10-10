@@ -6,17 +6,21 @@ import {
   BarChart3,
   CarTaxiFront,
   ClipboardList,
+  FileSignature,
   FileText,
   LayoutDashboard,
   LogOut,
   ReceiptText,
   Settings,
+  ShieldAlert,
   ShieldCheck,
   UserCog,
   UserRound,
+  Wallet,
   Wrench
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { clearOfflineCaches } from "@/components/pwa/ServiceWorkerRegister";
 import { cn } from "@/lib/utils/cn";
 import { ROUTES } from "@/lib/routes";
 import type { UserRole } from "@/lib/supabase/types";
@@ -33,6 +37,9 @@ const navItems = {
     { href: ROUTES.INVESTOR_DASHBOARD, label: "Etat de la Flotte", icon: CarTaxiFront },
     { href: ROUTES.INVESTOR_FLEET, label: "Flotte Investie", icon: CarTaxiFront },
     { href: ROUTES.INVESTOR_REVENUE, label: "Revenus", icon: BarChart3 },
+    { href: ROUTES.INVESTOR_CONTROL, label: "Controle & alertes", icon: ShieldAlert },
+    { href: ROUTES.INVESTOR_EXPENSES, label: "Depenses & benefice", icon: Wallet },
+    { href: ROUTES.INVESTOR_CONTRACTS, label: "Contrats chauffeurs", icon: FileSignature },
     { href: ROUTES.INVESTOR_DOCUMENTS, label: "Documents Legaux", icon: FileText },
     { href: ROUTES.INVESTOR_SETTINGS, label: "Parametres", icon: Settings }
   ],
@@ -84,7 +91,7 @@ export function Sidebar({ role, name }: SidebarProps) {
           );
         })}
       </nav>
-      <form action={ROUTES.AUTH_SIGNOUT} method="post" className="border-t border-white/10 p-3">
+      <form action={ROUTES.AUTH_SIGNOUT} method="post" onSubmit={clearOfflineCaches} className="border-t border-white/10 p-3">
         <button className="flex h-10 w-full items-center gap-3 rounded-md px-3 text-sm font-medium text-stone-300 hover:bg-white/10 hover:text-white" type="submit">
           <LogOut size={18} aria-hidden />
           Deconnexion

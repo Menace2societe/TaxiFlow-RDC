@@ -1,8 +1,10 @@
 "use client";
 
 import { FormEvent, useEffect, useState, useTransition } from "react";
-import { CheckCircle2, Loader2, PlusCircle, WifiOff } from "lucide-react";
+import { Camera, CheckCircle2, Loader2, PlusCircle, WifiOff } from "lucide-react";
 import { submitDriverDailyEntry } from "@/actions/entries";
+import { compressImageToDataUrl, dataUrlToBlob } from "@/lib/images/compress";
+import { createClient } from "@/lib/supabase/client";
 import { todayInAppTimezone } from "@/lib/time/kinshasa";
 
 const offlineQueueKey = "taxiflow_driver_daily_entries_queue";
@@ -16,6 +18,10 @@ type OfflineEntry = {
   start_km: string;
   end_km: string;
   notes: string;
+  /** Chauffeur qui a saisi : un autre compte sur le même téléphone ne l'envoie pas. */
+  user_id?: string;
+  /** Photo du compteur compressée (data URL), envoyée à la synchronisation. */
+  photo?: string;
 };
 
 type Notice = {
@@ -35,6 +41,25 @@ function readQueue(): OfflineEntry[] {
 
 function writeQueue(entries: OfflineEntry[]) {
   window.localStorage.setItem(offlineQueueKey, JSON.stringify(entries));
+}
+
+/** Envoie la photo dans le bucket privé et retourne son chemin. */
+async function uploadOdometerPhoto(entry: OfflineEntry): Promise<string | null> {
+  if (!entry.photo || !entry.user_id) return null;
+  const supabase = createClient();
+  const path = `${entry.user_id}/${entry.entry_date}-${entry.id}.jpg`;
+  const { error } = await supabase.storage
+    .from("odometer-photos")
+    .upload(path, await dataUrlToBlob(entry.photo), { contentType: "image/jpeg", upsert: true });
+  if (error) throw new Error(error.message);
+  return path;
+}
+
+async function submitEntry(entry: OfflineEntry) {
+  const photoPath = await uploadOdometerPhoto(entry);
+  const data = formDataFromEntry(entry);
+  if (photoPath) data.set("odometer_photo_path", photoPath);
+  return submitDriverDailyEntry(data);
 }
 
 function formDataFromEntry(entry: OfflineEntry) {
@@ -81,10 +106,18 @@ export function DriverVersementForm({ hasVehicle, usdRate }: Props) {
       startTransition(async () => {
         const remaining: OfflineEntry[] = [];
         let synced = 0;
+        const {
+          data: { user }
+        } = await createClient().auth.getUser();
 
         for (const entry of queue) {
+          // Saisie d'un autre chauffeur sur ce téléphone : on la garde pour lui.
+          if (!user || (entry.user_id && entry.user_id !== user.id)) {
+            remaining.push(entry);
+            continue;
+          }
           try {
-            const result = await submitDriverDailyEntry(formDataFromEntry(entry));
+            const result = await submitEntry({ ...entry, user_id: user.id });
             if (result.ok || result.message.includes("existe deja")) {
               synced += 1;
             } else {
@@ -127,10 +160,11 @@ export function DriverVersementForm({ hasVehicle, usdRate }: Props) {
     });
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
     const formData = new FormData(form);
+    const photoFile = formData.get("odometer_photo");
     const amount = String(formData.get("amount") ?? "");
     const startKm = Number(formData.get("start_km"));
     const endKm = Number(formData.get("end_km"));
@@ -154,6 +188,21 @@ export function DriverVersementForm({ hasVehicle, usdRate }: Props) {
       notes: String(formData.get("notes") ?? "")
     };
 
+    if (photoFile instanceof File && photoFile.size > 0) {
+      try {
+        entry.photo = await compressImageToDataUrl(photoFile);
+      } catch {
+        setNotice({ tone: "error", message: "Photo illisible. Reprenez la photo du compteur." });
+        return;
+      }
+    }
+
+    // getSession lit la session locale : fonctionne aussi sans réseau.
+    const {
+      data: { session }
+    } = await createClient().auth.getSession();
+    entry.user_id = session?.user.id;
+
     if (!navigator.onLine) {
       queueEntry(entry);
       form.reset();
@@ -162,7 +211,7 @@ export function DriverVersementForm({ hasVehicle, usdRate }: Props) {
 
     startTransition(async () => {
       try {
-        const result = await submitDriverDailyEntry(formDataFromEntry(entry));
+        const result = await submitEntry(entry);
         setNotice({
           tone: result.ok ? "success" : "error",
           message: result.message
@@ -240,6 +289,22 @@ export function DriverVersementForm({ hasVehicle, usdRate }: Props) {
       <label className="block text-sm font-medium text-stone-700 dark:text-stone-200">
         Kilometrage de fin
         <input className="field mt-1 min-h-12 text-base" name="end_km" type="number" min="0" step="0.1" inputMode="decimal" required />
+      </label>
+      <label className="block text-sm font-medium text-stone-700 dark:text-stone-200">
+        <span className="flex items-center gap-1.5">
+          <Camera size={14} aria-hidden />
+          Photo du compteur (fin de journée)
+        </span>
+        <input
+          className="field mt-1 min-h-12 text-base file:mr-3 file:rounded-md file:border-0 file:bg-emerald-600 file:px-3 file:py-1.5 file:text-white"
+          name="odometer_photo"
+          type="file"
+          accept="image/*"
+          capture="environment"
+        />
+        <span className="mt-1 block text-xs font-normal text-stone-500 dark:text-stone-400">
+          Recommandée : sans photo, le versement est signalé à votre investisseur.
+        </span>
       </label>
       <label className="block text-sm font-medium text-stone-700 dark:text-stone-200">
         Note (optionnel)

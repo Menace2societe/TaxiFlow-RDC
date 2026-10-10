@@ -12,7 +12,7 @@ export type UserRole = "driver" | "investor" | "admin";
 export type EntryCurrency = "CDF" | "USD";
 export type BreakdownStatus = "open" | "in_progress" | "resolved";
 export type PaymentStatus = "pending" | "approved" | "validated" | "rejected";
-export type PaymentSource = "automated" | "manual_backup";
+export type PaymentSource = "automated" | "manual_backup" | "mobile_money";
 export type RevenueSessionType = "driver_revenue" | "investor_revenue";
 export type DocumentType =
   | "contrat_employe"
@@ -23,6 +23,9 @@ export type DocumentType =
   | "controle_technique"
   | "autorisation_transport";
 export type ContractType = "employe" | "location_vente";
+export type EntryReviewStatus = "justified" | "fraud";
+export type ExpenseCategory = "carburant" | "entretien" | "reparation" | "assurance" | "taxe" | "autre";
+export type MobileMoneyStatus = "initiated" | "accepted" | "completed" | "failed" | "rejected";
 export type ContractStatus = "active" | "completed" | "terminated" | "draft";
 
 export type Database = {
@@ -106,6 +109,11 @@ export type Database = {
           fuel_cdf: number;
           maintenance_cdf: number;
           notes: string | null;
+          odometer_photo_path: string | null;
+          review_status: EntryReviewStatus | null;
+          review_note: string | null;
+          reviewed_at: string | null;
+          reviewed_by: string | null;
           created_at: string;
         };
         Insert: {
@@ -124,6 +132,7 @@ export type Database = {
           fuel_cdf?: number;
           maintenance_cdf?: number;
           notes?: string | null;
+          odometer_photo_path?: string | null;
           created_at?: string;
         };
         Update: {
@@ -140,6 +149,11 @@ export type Database = {
           fuel_cdf?: number;
           maintenance_cdf?: number;
           notes?: string | null;
+          odometer_photo_path?: string | null;
+          review_status?: EntryReviewStatus | null;
+          review_note?: string | null;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
         };
         Relationships: [];
       };
@@ -236,6 +250,7 @@ export type Database = {
           document_name: string;
           file_url: string;
           storage_path: string;
+          expires_at: string | null;
           created_at: string;
         };
         Insert: {
@@ -247,6 +262,7 @@ export type Database = {
           document_name: string;
           file_url: string;
           storage_path: string;
+          expires_at?: string | null;
           created_at?: string;
         };
         Update: {
@@ -257,6 +273,7 @@ export type Database = {
           document_name?: string;
           file_url?: string;
           storage_path?: string;
+          expires_at?: string | null;
         };
         Relationships: [];
       };
@@ -272,6 +289,8 @@ export type Database = {
           possession_paid_cdf: number | null;
           started_at: string | null;
           ends_at: string | null;
+          daily_amount_cdf: number | null;
+          notes: string | null;
           created_at: string;
         };
         Insert: {
@@ -285,6 +304,8 @@ export type Database = {
           possession_paid_cdf?: number | null;
           started_at?: string | null;
           ends_at?: string | null;
+          daily_amount_cdf?: number | null;
+          notes?: string | null;
           created_at?: string;
         };
         Update: {
@@ -297,6 +318,104 @@ export type Database = {
           possession_paid_cdf?: number | null;
           started_at?: string | null;
           ends_at?: string | null;
+          daily_amount_cdf?: number | null;
+          notes?: string | null;
+        };
+        Relationships: [];
+      };
+      mobile_money_transactions: {
+        Row: {
+          id: string;
+          driver_id: string;
+          vehicle_id: string;
+          investor_id: string;
+          amount: number;
+          currency: EntryCurrency;
+          provider: string;
+          phone: string;
+          status: MobileMoneyStatus;
+          failure_reason: string | null;
+          provider_transaction_id: string | null;
+          payment_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id: string;
+          driver_id: string;
+          vehicle_id: string;
+          investor_id: string;
+          amount: number;
+          currency: EntryCurrency;
+          provider: string;
+          phone: string;
+          status?: MobileMoneyStatus;
+          failure_reason?: string | null;
+          provider_transaction_id?: string | null;
+          payment_id?: string | null;
+        };
+        Update: {
+          status?: MobileMoneyStatus;
+          failure_reason?: string | null;
+          provider_transaction_id?: string | null;
+          payment_id?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      vehicle_expenses: {
+        Row: {
+          id: string;
+          owner_id: string;
+          vehicle_id: string;
+          expense_date: string;
+          category: ExpenseCategory;
+          amount_cdf: number;
+          note: string | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          owner_id: string;
+          vehicle_id: string;
+          expense_date: string;
+          category: ExpenseCategory;
+          amount_cdf: number;
+          note?: string | null;
+          created_by?: string | null;
+        };
+        Update: {
+          expense_date?: string;
+          category?: ExpenseCategory;
+          amount_cdf?: number;
+          note?: string | null;
+        };
+        Relationships: [];
+      };
+      notification_log: {
+        Row: {
+          id: string;
+          owner_id: string;
+          channel: "whatsapp";
+          dedupe_key: string;
+          message: string;
+          status: "sent" | "failed" | "skipped";
+          error: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          owner_id: string;
+          channel: "whatsapp";
+          dedupe_key: string;
+          message: string;
+          status: "sent" | "failed" | "skipped";
+          error?: string | null;
+        };
+        Update: {
+          status?: "sent" | "failed" | "skipped";
+          error?: string | null;
         };
         Relationships: [];
       };

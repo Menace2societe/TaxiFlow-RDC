@@ -227,6 +227,96 @@ describe("vehicle assignment", () => {
   });
 });
 
+describe("field operations", () => {
+  let entryId: string;
+
+  beforeAll(async () => {
+    entryId = (
+      await db.query<{ id: string }>(
+        `insert into public.daily_entries (owner_id, vehicle_id, driver_id, entry_date, start_km, end_km, revenue_cdf)
+         values ($1, $2, $3, '2026-10-05', 2000, 2090, 3000) returning id`,
+        [investor, vehicle, driver]
+      )
+    ).rows[0].id;
+  });
+
+  it("mobile money transactions are read-only for users", async () => {
+    await expect(
+      asUser(db, driver, () =>
+        db.query(
+          `insert into public.mobile_money_transactions (id, driver_id, vehicle_id, investor_id, amount, currency, provider, phone, status)
+           values (gen_random_uuid(), $1, $2, $3, 1000, 'CDF', 'AIRTEL_COD', '243970000000', 'completed')`,
+          [driver, vehicle, investor]
+        )
+      )
+    ).rejects.toThrow(/row-level security/);
+  });
+
+  it("mobile money payments are a valid payment source", async () => {
+    await expect(
+      db.query(
+        "insert into public.payments (amount, driver_id, vehicle_id, investor_id, status, source) values (1000, $1, $2, $3, 'validated', 'mobile_money')",
+        [driver, vehicle, investor]
+      )
+    ).resolves.toBeDefined();
+  });
+
+  it("only the owner reviews a suspicious entry", async () => {
+    await asUser(db, driver, () =>
+      db.query("update public.daily_entries set review_status = 'justified' where id = $1", [entryId])
+    );
+    const afterDriver = await db.query<{ review_status: string | null }>(
+      "select review_status from public.daily_entries where id = $1",
+      [entryId]
+    );
+    expect(afterDriver.rows[0].review_status).toBeNull();
+
+    await asUser(db, investor, () =>
+      db.query("update public.daily_entries set review_status = 'fraud' where id = $1", [entryId])
+    );
+    const afterOwner = await db.query<{ review_status: string }>("select review_status from public.daily_entries where id = $1", [entryId]);
+    expect(afterOwner.rows[0].review_status).toBe("fraud");
+  });
+
+  it("an investor cannot log expenses on someone else's vehicle", async () => {
+    await expect(
+      asUser(db, otherInvestor, () =>
+        db.query(
+          "insert into public.vehicle_expenses (owner_id, vehicle_id, expense_date, category, amount_cdf) values ($1, $2, '2026-10-05', 'carburant', 10000)",
+          [otherInvestor, vehicle]
+        )
+      )
+    ).rejects.toThrow(/row-level security/);
+
+    await expect(
+      asUser(db, investor, () =>
+        db.query(
+          "insert into public.vehicle_expenses (owner_id, vehicle_id, expense_date, category, amount_cdf) values ($1, $2, '2026-10-05', 'carburant', 10000)",
+          [investor, vehicle]
+        )
+      )
+    ).resolves.toBeDefined();
+  });
+
+  it("odometer photos: driver uploads in their folder, owner of the entry can read", async () => {
+    const path = `${driver}/2026-10-05-x.jpg`;
+    await asUser(db, driver, () => db.query("insert into storage.objects (bucket_id, name) values ('odometer-photos', $1)", [path]));
+    await db.query("update public.daily_entries set odometer_photo_path = $1 where id = $2", [path, entryId]);
+
+    const canRead = (userId: string) =>
+      asUser(db, userId, async () => (await db.query("select 1 from storage.objects where name = $1", [path])).rows.length === 1);
+    expect(await canRead(driver)).toBe(true);
+    expect(await canRead(investor)).toBe(true);
+    expect(await canRead(otherInvestor)).toBe(false);
+
+    await expect(
+      asUser(db, strangerDriver, () =>
+        db.query("insert into storage.objects (bucket_id, name) values ('odometer-photos', $1)", [`${driver}/fake.jpg`])
+      )
+    ).rejects.toThrow(/row-level security/);
+  });
+});
+
 describe("legal documents storage", () => {
   const path = () => `${investor}/${driver}/${vehicle}/1-assurance.pdf`;
 

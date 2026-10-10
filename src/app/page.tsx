@@ -27,7 +27,6 @@ export default async function HomePage() {
 
   if (profile) {
     const targetPath = getRoleHome(profile.role);
-    console.log(`[HOME] Authenticated role detected: ${profile.role}. Redirect target: ${targetPath}.`);
     redirect(targetPath);
   }
 

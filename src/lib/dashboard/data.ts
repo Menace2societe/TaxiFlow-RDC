@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { paidSince } from "@/lib/contracts/progress";
 import { recentDates, shortDayLabel } from "@/lib/time/kinshasa";
 import type { BreakdownStatus, EntryCurrency, PaymentStatus, VehicleStatus } from "@/lib/supabase/types";
 
@@ -704,7 +705,7 @@ export async function getDriverActiveContract(driverId: string): Promise<DriverA
     const supabase = await createClient();
     const { data, error } = await supabase
       .from("driver_contracts")
-      .select("id,contract_type,status,possession_total_cdf,possession_paid_cdf,vehicle_id")
+      .select("id,contract_type,status,possession_total_cdf,possession_paid_cdf,vehicle_id,started_at,owner_id")
       .eq("driver_id", driverId)
       .eq("status", "active")
       .order("created_at", { ascending: false })
@@ -718,12 +719,28 @@ export async function getDriverActiveContract(driverId: string): Promise<DriverA
 
     if (!data) return null;
 
+    // Montant remboursé = versements validés depuis le début du contrat (jamais une valeur saisie à la main).
+    let paid = data.possession_paid_cdf ?? null;
+    if (data.contract_type === "location_vente") {
+      let paymentsQuery = supabase
+        .from("payments")
+        .select("amount,payment_date,status")
+        .eq("driver_id", driverId)
+        .eq("investor_id", data.owner_id);
+      if (data.vehicle_id) paymentsQuery = paymentsQuery.eq("vehicle_id", data.vehicle_id);
+      const { data: payments } = await paymentsQuery;
+      paid = paidSince(
+        (payments ?? []).map((payment) => ({ ...payment, amount: Number(payment.amount) })),
+        data.started_at
+      );
+    }
+
     return {
       id: data.id,
       contract_type: data.contract_type as "employe" | "location_vente",
       status: data.status,
       possession_total_cdf: data.possession_total_cdf ?? null,
-      possession_paid_cdf: data.possession_paid_cdf ?? null,
+      possession_paid_cdf: paid,
       vehicle_id: data.vehicle_id ?? null
     };
   } catch (err) {

@@ -6,6 +6,8 @@ import { getCurrentUserId, getDriverProfiles, getOwnerVehicles } from "@/lib/das
 import { getInvestorLegalDocuments } from "@/lib/legal-documents/data";
 import { documentTypeOptions, documentTypeLabelByValue } from "@/lib/legal-documents/constants";
 import { loginWithNext, ROUTES } from "@/lib/routes";
+import { expiryLabel, expiryState } from "@/lib/documents/expiry";
+import { todayInAppTimezone } from "@/lib/time/kinshasa";
 
 type InvestorDocumentsPageProps = {
   searchParams?: Promise<{ error?: string; uploaded?: string }>;
@@ -21,6 +23,7 @@ function formatDate(value: string) {
 
 export default async function InvestorDocumentsPage({ searchParams }: InvestorDocumentsPageProps) {
   const ownerId = await getCurrentUserId();
+  const today = todayInAppTimezone();
 
   if (!ownerId) {
     redirect(loginWithNext(ROUTES.INVESTOR_DOCUMENTS));
@@ -106,6 +109,13 @@ export default async function InvestorDocumentsPage({ searchParams }: InvestorDo
                 </option>
               ))}
             </select>
+          </label>
+
+          {/* Date d'expiration */}
+          <label className="grid gap-1.5 text-sm font-medium text-neutral-300">
+            Date d&apos;expiration (assurance, contrôle technique, permis…)
+            <input name="expires_at" type="date" className="field relative z-20" />
+            <span className="text-xs font-normal text-neutral-500">Vous serez alerté 30 jours et 7 jours avant.</span>
           </label>
 
           {/* Nom du document */}
@@ -203,7 +213,8 @@ export default async function InvestorDocumentsPage({ searchParams }: InvestorDo
                 <th>Type</th>
                 <th>Chauffeur</th>
                 <th>Véhicule</th>
-                <th>Date</th>
+                <th>Ajouté le</th>
+                <th>Expiration</th>
                 <th>Action</th>
               </tr>
             </thead>
@@ -225,6 +236,7 @@ export default async function InvestorDocumentsPage({ searchParams }: InvestorDo
                       : <span className="text-neutral-600">—</span>}
                   </td>
                   <td className="text-neutral-400">{formatDate(document.created_at)}</td>
+                  <td className={expiryTone(document.expires_at, today)}>{expiryLabel(document.expires_at, today)}</td>
                   <td>
                     {document.file_url ? (
                     <Link
@@ -244,7 +256,7 @@ export default async function InvestorDocumentsPage({ searchParams }: InvestorDo
               ))}
               {documents.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-10 text-center text-neutral-500">
+                  <td colSpan={7} className="py-10 text-center text-neutral-500">
                     Aucun document légal téléversé.
                   </td>
                 </tr>
@@ -255,4 +267,11 @@ export default async function InvestorDocumentsPage({ searchParams }: InvestorDo
       </section>
     </div>
   );
+}
+
+function expiryTone(expiresAt: string | null, today: string) {
+  const state = expiryState(expiresAt, today);
+  if (state === "expired") return "text-xs font-semibold text-red-300";
+  if (state === "soon") return "text-xs font-semibold text-amber-200";
+  return "text-xs text-neutral-500";
 }

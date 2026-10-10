@@ -21,7 +21,11 @@ const uploadSchema = z.object({
     "controle_technique",
     "autorisation_transport"
   ]),
-  document_name: z.string().min(2).max(160).transform((value) => value.trim())
+  document_name: z.string().min(2).max(160).transform((value) => value.trim()),
+  expires_at: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable()
 });
 
 function safeStorageName(name: string) {
@@ -49,7 +53,8 @@ export async function uploadLegalDocument(formData: FormData) {
     driver_id: formData.get("driver_id"),
     vehicle_id: vehicleIdRaw === "" ? null : vehicleIdRaw,
     document_type: formData.get("document_type"),
-    document_name: formData.get("document_name")
+    document_name: formData.get("document_name"),
+    expires_at: String(formData.get("expires_at") ?? "").trim() || null
   });
 
   if (!parsed.success) {
@@ -140,6 +145,7 @@ export async function uploadLegalDocument(formData: FormData) {
     vehicle_id: resolvedVehicleId,
     document_type: parsed.data.document_type,
     document_name: parsed.data.document_name,
+    expires_at: parsed.data.expires_at,
     // Plus d'URL publique : un lien signé est généré à chaque affichage.
     file_url: "",
     storage_path: storagePath

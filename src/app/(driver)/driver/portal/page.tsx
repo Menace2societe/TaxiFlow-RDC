@@ -13,7 +13,8 @@ import {
   Wrench,
   Activity,
   BadgeCheck,
-  Sparkles
+  Sparkles,
+  Smartphone
 } from "lucide-react";
 import { reportBreakdown } from "@/actions/breakdowns";
 import { VehicleStatusControls } from "@/components/VehicleStatusControls";
@@ -32,7 +33,9 @@ import {
 } from "@/lib/dashboard/data";
 import { loginWithNext, ROUTES } from "@/lib/routes";
 import type { BreakdownStatus, PaymentStatus } from "@/lib/supabase/types";
+import { MobileMoneyPayForm } from "@/components/driver/MobileMoneyPayForm";
 import { getUsdToCdfRate } from "@/lib/fx/rate";
+import { isPawapayConfigured } from "@/lib/mobile-money/pawapay";
 import { formatCDF } from "@/lib/utils/currency";
 
 type PortalPageProps = {
@@ -321,6 +324,24 @@ export default async function DriverPortalPage({ searchParams }: PortalPageProps
           <DriverVersementForm hasVehicle={hasVehicle} usdRate={usdRate.rate} />
         </div>
       </section>
+
+      {/* ─── Payer par Mobile Money ────────────────────────────────────────────── */}
+      {hasVehicle && !isOwnerDriver ? (
+        <section className="card overflow-hidden">
+          <div className="card-header flex items-center gap-3">
+            <div className="rounded-lg bg-emerald-500/10 p-2">
+              <Smartphone className="text-emerald-400" size={18} aria-hidden />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold text-white">Payer par Mobile Money</h2>
+              <p className="text-xs text-neutral-500">M-Pesa, Airtel Money, Orange Money : versement validé dès réception</p>
+            </div>
+          </div>
+          <div className="p-5">
+            <MobileMoneyPayForm defaultPhone={driverProfile?.phone ?? null} enabled={isPawapayConfigured()} />
+          </div>
+        </section>
+      ) : null}
 
       {/* ─── Signaler une panne ────────────────────────────────────────────────── */}
       <section className="overflow-hidden rounded-xl border border-amber-500/20 bg-amber-500/5">
