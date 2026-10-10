@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { LogIn, Mail, Lock, ArrowRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { driverLoginEmail, normalizeAccessCode, normalizeDrcPhone } from "@/lib/auth/driver-access";
 import { ROUTES, isSafeInternalPath } from "@/lib/routes";
 
 // ─── Metadata ────────────────────────────────────────────────────────────────
@@ -15,23 +16,34 @@ export const metadata = {
 async function loginAction(formData: FormData) {
   "use server";
 
-  const email = String(formData.get("email") ?? "").trim();
+  const identifier = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
   const next = String(formData.get("next") ?? "").trim();
 
-  if (!email || !password) {
+  if (!identifier || !password) {
     redirect(`${ROUTES.LOGIN}?error=${encodeURIComponent("Veuillez remplir tous les champs.")}`);
   }
 
   const supabase = await createClient();
 
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  // Chauffeur créé par son investisseur : numéro de téléphone + code d'accès.
+  const phone = identifier.includes("@") ? null : normalizeDrcPhone(identifier);
+  const email = phone ? driverLoginEmail(phone) : identifier;
+
+  let { error } = await supabase.auth.signInWithPassword({ email, password });
+
+  // Le code d'accès peut être tapé en minuscules ou avec le tiret affiché.
+  if (error && phone && normalizeAccessCode(password) !== password) {
+    ({ error } = await supabase.auth.signInWithPassword({ email, password: normalizeAccessCode(password) }));
+  }
 
   if (error) {
     redirect(
       `${ROUTES.LOGIN}?error=${encodeURIComponent(
         error.message === "Invalid login credentials"
-          ? "Email ou mot de passe incorrect."
+          ? phone
+            ? "Numéro ou code d'accès incorrect. Demandez un nouveau code à votre investisseur."
+            : "Email ou mot de passe incorrect."
           : error.message
       )}`
     );
@@ -101,17 +113,20 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             className="flex items-center gap-1.5 text-sm font-medium text-stone-700 dark:text-stone-300"
           >
             <Mail size={13} aria-hidden className="text-stone-400" />
-            Adresse email
+            Email ou téléphone
           </label>
           <input
             id="login-email"
             className="field"
             name="email"
-            type="email"
-            autoComplete="email"
-            placeholder="vous@exemple.com"
+            type="text"
+            autoComplete="username"
+            placeholder="vous@exemple.com ou 081 234 5678"
             required
           />
+          <p className="text-xs text-stone-500 dark:text-stone-400">
+            Chauffeur inscrit par votre investisseur : votre numéro et le code reçu.
+          </p>
         </div>
 
         {/* Password */}
@@ -122,7 +137,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               className="flex items-center gap-1.5 text-sm font-medium text-stone-700 dark:text-stone-300"
             >
               <Lock size={13} aria-hidden className="text-stone-400" />
-              Mot de passe
+              Mot de passe ou code
             </label>
           </div>
           <input

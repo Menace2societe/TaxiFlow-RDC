@@ -32,6 +32,7 @@ import {
 } from "@/lib/dashboard/data";
 import { loginWithNext, ROUTES } from "@/lib/routes";
 import type { BreakdownStatus, PaymentStatus } from "@/lib/supabase/types";
+import { getUsdToCdfRate } from "@/lib/fx/rate";
 import { formatCDF } from "@/lib/utils/currency";
 
 type PortalPageProps = {
@@ -84,6 +85,7 @@ const breakdownStatusPortalConfig: Record<
 };
 
 export default async function DriverPortalPage({ searchParams }: PortalPageProps) {
+  const usdRate = await getUsdToCdfRate();
   const params = await searchParams;
   const userId = await getCurrentUserId();
   if (!userId) {
@@ -316,7 +318,7 @@ export default async function DriverPortalPage({ searchParams }: PortalPageProps
           </div>
         </div>
         <div className="p-5">
-          <DriverVersementForm hasVehicle={hasVehicle} />
+          <DriverVersementForm hasVehicle={hasVehicle} usdRate={usdRate.rate} />
         </div>
       </section>
 

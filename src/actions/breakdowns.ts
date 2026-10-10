@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { loginWithNext, ROUTES } from "@/lib/routes";
+import { loginWithNext, ROUTES, safeReturnPath } from "@/lib/routes";
 import type { BreakdownStatus } from "@/lib/supabase/types";
 
 const reportSchema = z.object({
@@ -58,7 +58,7 @@ function revalidateBreakdownViews() {
 }
 
 export async function reportBreakdown(formData: FormData) {
-  const returnPath = String(formData.get("return_path") ?? ROUTES.DRIVER_PORTAL);
+  const returnPath = safeReturnPath(formData.get("return_path"), ROUTES.DRIVER_PORTAL);
 
   try {
     const supabase = await createClient();

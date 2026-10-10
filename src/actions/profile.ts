@@ -1,33 +1,42 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { loginWithNext, ROUTES } from "@/lib/routes";
 
-export async function updateOwnerDriverFlag(formData: FormData) {
+// Le rôle et le statut chauffeur-patron sont fixés à l'inscription :
+// aucune action ne permet de les modifier (voir trigger profiles_protect_privileges).
+
+export type ChangePasswordState = {
+  ok: boolean;
+  message: string;
+};
+
+export async function changeMyPassword(
+  _prev: ChangePasswordState,
+  formData: FormData
+): Promise<ChangePasswordState> {
+  const password = String(formData.get("password") ?? "");
+  const confirm = String(formData.get("confirm") ?? "");
+
+  if (password.length < 8) {
+    return { ok: false, message: "Le nouveau code doit faire au moins 8 caractères." };
+  }
+  if (password !== confirm) {
+    return { ok: false, message: "Les deux saisies ne correspondent pas." };
+  }
+
   const supabase = await createClient();
   const {
     data: { user }
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect(loginWithNext(ROUTES.DRIVER_PROFILE));
+    return { ok: false, message: "Session expirée. Reconnectez-vous." };
   }
 
-  const isOwnerDriver = formData.get("is_owner_driver") === "on";
-  const { error } = await supabase
-    .from("profiles")
-    .update({ is_owner_driver: isOwnerDriver })
-    .eq("id", user.id)
-    .eq("role", "driver");
-
+  const { error } = await supabase.auth.updateUser({ password });
   if (error) {
-    redirect(`${ROUTES.DRIVER_PROFILE}?error=${encodeURIComponent(error.message)}`);
+    return { ok: false, message: error.message };
   }
 
-  revalidatePath(ROUTES.DRIVER_PROFILE);
-  revalidatePath(ROUTES.DRIVER_DOCUMENTS);
-  revalidatePath(ROUTES.DRIVER_DASHBOARD);
-  redirect(`${ROUTES.DRIVER_PROFILE}?saved=1`);
+  return { ok: true, message: "Code modifié. Utilisez-le à votre prochaine connexion." };
 }

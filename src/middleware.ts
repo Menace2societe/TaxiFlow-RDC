@@ -54,22 +54,18 @@ export async function middleware(request: NextRequest) {
   }
 
   // 3. Récupération du rôle
-  let { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-
-  if (!profile && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    const supabaseAdmin = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { cookies: { getAll: () => [], setAll: () => {} } }
-    );
-    const { data: adminProfile } = await supabaseAdmin.from("profiles").select("role").eq("id", user.id).single();
-    if (adminProfile) profile = adminProfile;
-  }
-
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
   const role = profile?.role as UserRole | undefined;
 
-  // Si aucun rôle trouvé, on laisse filer pour éviter le blocage
+  // Compte sans profil valide : aucune page protégée.
   if (!role || !roleHome[role]) {
+    if (isProtected) {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = ROUTES.LOGIN;
+      redirectUrl.search = "";
+      redirectUrl.searchParams.set("error", "Aucun rôle associé à ce compte. Contactez votre investisseur.");
+      return NextResponse.redirect(redirectUrl);
+    }
     return supabaseResponse;
   }
 

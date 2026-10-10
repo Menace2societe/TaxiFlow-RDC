@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import {
   CarTaxiFront,
   CheckCircle2,
+  KeyRound,
   Loader2,
   Phone,
   Search,
@@ -17,7 +18,9 @@ import { useFormState, useFormStatus } from "react-dom";
 import {
   linkDriverToInvestor,
   assignFoundDriverToVehicle,
+  resetDriverAccessCode,
   type LinkDriverActionState,
+  type ResetAccessCodeState,
   type AvailableVehicle,
   type QuickAssignActionState
 } from "@/actions/investor-fleet";
@@ -60,6 +63,42 @@ function SubmitQuickAssignButton({ driverName }: { driverName: string }) {
       )}
       <span className="whitespace-normal">{pending ? "Assignation…" : `Assigner à ${driverName}`}</span>
     </button>
+  );
+}
+
+// ─── Nouveau code d'accès (chauffeurs inscrits par téléphone) ────────────────
+
+const initialResetState: ResetAccessCodeState = { ok: false, message: "" };
+
+function SubmitResetButton() {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-neutral-700 px-2.5 py-1.5 text-[11px] font-semibold text-neutral-300 transition-colors hover:border-emerald-500/40 hover:text-emerald-300 disabled:opacity-50"
+    >
+      {pending ? <Loader2 size={11} className="animate-spin" /> : <KeyRound size={11} />}
+      {pending ? "Génération…" : "Nouveau code d'accès"}
+    </button>
+  );
+}
+
+function ResetAccessCodeForm({ driverId }: { driverId: string }) {
+  const [state, formAction] = useFormState(resetDriverAccessCode, initialResetState);
+  return (
+    <form action={formAction} className="space-y-1.5">
+      <input type="hidden" name="driver_id" value={driverId} />
+      <SubmitResetButton />
+      {state.message && (
+        <p
+          role="status"
+          className={`max-w-xs text-[11px] ${state.ok ? "font-semibold text-emerald-300" : "text-red-300"}`}
+        >
+          {state.message}
+        </p>
+      )}
+    </form>
   );
 }
 
@@ -278,6 +317,8 @@ export function InvestorDriverTeamPanel({ vehicles }: Props) {
                   <UserCheck size={10} />
                   Lié
                 </span>
+
+                <ResetAccessCodeForm driverId={driver.id} />
               </div>
             ))}
           </div>
@@ -290,7 +331,7 @@ export function InvestorDriverTeamPanel({ vehicles }: Props) {
           <div>
             <p className="text-sm font-medium text-neutral-300">Aucun chauffeur dans l&apos;équipe</p>
             <p className="mt-1 text-xs text-neutral-500">
-              Invitez un chauffeur par son téléphone ou son UUID ci-dessous.
+              Invitez un chauffeur par son numéro de téléphone ci-dessous.
             </p>
           </div>
         </div>
@@ -317,14 +358,14 @@ export function InvestorDriverTeamPanel({ vehicles }: Props) {
                 htmlFor="link-driver-identifier"
                 className="mb-1.5 block text-xs font-medium text-neutral-400"
               >
-                Téléphone (+243…) ou UUID
+                Téléphone du chauffeur
               </label>
               <input
                 id="link-driver-identifier"
                 name="identifier"
                 type="text"
                 className="field text-sm"
-                placeholder="+243 81 234 5678 ou UUID"
+                placeholder="+243 81 234 5678 ou 081 234 5678"
                 inputMode="tel"
                 required
               />
@@ -386,10 +427,6 @@ export function InvestorDriverTeamPanel({ vehicles }: Props) {
                 <div>
                   <p className="text-sm font-semibold text-white">
                     {foundDriver.full_name ?? "N/A"}
-                  </p>
-                  {/* Affichage de l'UUID pour confirmation côté debug */}
-                  <p className="text-[10px] text-neutral-600 font-mono truncate max-w-[220px]">
-                    ID : {foundDriver.id}
                   </p>
                   {foundDriver.phone && (
                     <p className="text-xs text-neutral-500">{foundDriver.phone}</p>

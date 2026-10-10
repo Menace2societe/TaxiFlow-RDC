@@ -18,7 +18,7 @@ import type { UserRole } from "@/lib/supabase/types";
 export const metadata = {
   title: "Accès avancé — TaxiFlow RDC",
   description:
-    "Inscription avancée pour les gestionnaires et administrateurs de flotte TaxiFlow RDC.",
+    "Inscription avancée des chauffeurs et investisseurs TaxiFlow RDC.",
 };
 
 // ─── Server Action ────────────────────────────────────────────────────────────
@@ -29,7 +29,9 @@ async function signupAction(formData: FormData) {
   const password = String(formData.get("password") ?? "");
   const fullName = String(formData.get("full_name") ?? "").trim();
   const phone = String(formData.get("phone") ?? "").trim();
-  const role = String(formData.get("role") ?? "driver") as UserRole;
+  const requestedRole = String(formData.get("role") ?? "driver");
+  // L'inscription publique ne crée jamais d'admin (le trigger handle_new_user le garantit aussi).
+  const role: UserRole = requestedRole === "investor" ? "investor" : "driver";
 
   if (!email || !password || !fullName) {
     redirect(
@@ -39,7 +41,7 @@ async function signupAction(formData: FormData) {
 
   const supabase = await createClient();
 
-  const { data, error } = await supabase.auth.signUp({
+  const { error } = await supabase.auth.signUp({
     email,
     password,
     options: {
@@ -49,21 +51,6 @@ async function signupAction(formData: FormData) {
 
   if (error) {
     redirect(`${ROUTES.SIGNUP}?error=${encodeURIComponent(error.message)}`);
-  }
-
-  if (data.user) {
-    // Upsert typé proprement — phone est désormais dans le schéma canonique.
-    // Les erreurs sont loguées mais non bloquantes : le trigger handle_new_user
-    // a déjà créé le profil de base lors de l'insertion dans auth.users.
-    const { error: profileError } = await supabase.from("profiles").upsert({
-      id: data.user.id,
-      full_name: fullName || null,
-      phone: phone || null,
-      role,
-    });
-    if (profileError) {
-      console.warn("[signupAction] Upsert profil non bloquant :", profileError.message);
-    }
   }
 
   redirect(
@@ -101,19 +88,6 @@ const benefits = [
       "Gestion multi-chauffeurs centralisée",
     ],
   },
-  {
-    role: "admin" as const,
-    icon: ShieldCheck,
-    title: "Gestionnaires",
-    color: "from-violet-500 to-purple-700",
-    accent: "text-violet-600 dark:text-violet-400",
-    perks: [
-      "Vue globale sur toute la flotte",
-      "Gestion des utilisateurs & rôles",
-      "Rapports d'exploitation avancés",
-      "Paramétrage et supervision totale",
-    ],
-  },
 ];
 
 // ─── Page Props ───────────────────────────────────────────────────────────────
@@ -143,7 +117,7 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
       </div>
 
       {/* ── Benefits cards ── */}
-      <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
         {benefits.map(({ role, icon: Icon, title, color, accent, perks }) => (
           <div
             key={role}
@@ -297,7 +271,6 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
             >
               <option value="driver">Chauffeur</option>
               <option value="investor">Investisseur</option>
-              <option value="admin">Administrateur</option>
             </select>
           </div>
 

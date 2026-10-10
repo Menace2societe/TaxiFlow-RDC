@@ -1,3 +1,35 @@
+-- Tables de base : sur une base neuve elles n'existent pas encore.
+-- (Sur les bases déjà déployées, ces create ... if not exists ne font rien.)
+create table if not exists public.profiles (
+  id         uuid        primary key references auth.users (id) on delete cascade,
+  full_name  text,
+  role       text        not null default 'driver',
+  phone      text,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.vehicles (
+  id           uuid        primary key default gen_random_uuid(),
+  owner_id     uuid        not null references auth.users (id) on delete cascade,
+  plate_number text        not null,
+  type         text        not null default 'taxi',
+  status       text        not null default 'inactive',
+  created_at   timestamptz not null default now()
+);
+
+create table if not exists public.daily_entries (
+  id              uuid          primary key default gen_random_uuid(),
+  owner_id        uuid          not null references auth.users (id) on delete cascade,
+  vehicle_id      uuid          not null references public.vehicles (id) on delete cascade,
+  driver_id       uuid,
+  entry_date      date          not null,
+  revenue_cdf     numeric(14,2) not null default 0,
+  fuel_cdf        numeric(14,2) not null default 0,
+  maintenance_cdf numeric(14,2) not null default 0,
+  notes           text,
+  created_at      timestamptz   not null default now()
+);
+
 alter table public.daily_entries
   add column if not exists amount numeric not null default 0,
   add column if not exists currency text not null default 'CDF',

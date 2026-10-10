@@ -215,6 +215,7 @@ export default async function DriverDocumentsPage({ searchParams }: DriverDocume
                   </span>
                 </div>
               </div>
+              {document.file_url ? (
               <Link
                 href={document.file_url}
                 target="_blank"
@@ -224,6 +225,9 @@ export default async function DriverDocumentsPage({ searchParams }: DriverDocume
                 <Download size={16} aria-hidden />
                 Ouvrir
               </Link>
+              ) : (
+                <span className="text-xs text-neutral-500">Fichier indisponible</span>
+              )}
             </div>
           ))}
 

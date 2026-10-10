@@ -26,6 +26,7 @@ import { RevenueChart } from "@/components/RevenueChart";
 import { VehicleMixChart } from "@/components/VehicleMixChart";
 import { WeeklyVehicleRevenueChart } from "@/components/WeeklyVehicleRevenueChart";
 import { MaintenanceActionButtons } from "@/components/shared/MaintenanceActionButtons";
+import { SuspiciousEntriesPanel } from "@/components/shared/SuspiciousEntriesPanel";
 import { Badge } from "@/components/ui/badge";
 import type { DashboardEntry, DashboardVehicle } from "@/lib/dashboard/data";
 
@@ -228,7 +229,7 @@ function VehicleModal({
     <ModalShell title="Ajouter un vehicule" onClose={onClose}>
       <form onSubmit={onSubmit} className="mt-5 grid gap-4">
         <label className="grid gap-1 text-sm font-medium text-stone-200">
-          Plaque d'immatriculation
+          Plaque d&apos;immatriculation
           <input className="field" name="plate_number" required minLength={3} value={plateNumber} onChange={(event) => setPlateNumber(event.target.value)} placeholder="KN 4215 AB" />
         </label>
         <label className="grid gap-1 text-sm font-medium text-stone-200">
@@ -545,6 +546,8 @@ export default function InvestorDashboardPage() {
             <StatTile label="Vehicules actifs" value={`${stats?.activeVehicles ?? 0}/${stats?.totalVehicles ?? 0}`} helper={`Meilleur chauffeur: ${topDriver}`} icon={CarTaxiFront} />
             <StatTile label="Pannes ouvertes" value={`${stats?.openBreakdowns ?? 0}`} helper="Dossiers non resolus a suivre" icon={AlertCircle} />
           </section>
+
+          <SuspiciousEntriesPanel entries={entries} vehicles={vehicles} />
 
           <section className="grid gap-4 xl:grid-cols-[1.4fr_0.8fr]">
             <div className="rounded-lg border border-white/10 bg-white/[0.04] p-5">

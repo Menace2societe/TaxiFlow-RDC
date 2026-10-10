@@ -4,12 +4,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { loginWithNext, ROUTES } from "@/lib/routes";
+import { distanceCovered, isSuspiciousEntry } from "@/lib/entries/metrics";
+import { getUsdToCdfRate, usdToCdf } from "@/lib/fx/rate";
+import { todayInAppTimezone } from "@/lib/time/kinshasa";
 import { toNumber } from "@/lib/utils/currency";
 import type { EntryCurrency } from "@/lib/supabase/types";
-
-const usdToCdfRate = 2800;
-const suspiciousDistanceKm = 50;
-const suspiciousMinDeclaredAmountCdf = 5000;
 
 export type EntryActionResult = {
   ok: boolean;
@@ -23,9 +22,6 @@ function getEntryMetrics(formData: FormData) {
   const startKm = toNumber(formData.get("start_km"));
   const endKm = toNumber(formData.get("end_km") ?? formData.get("mileage_km"));
   const mileage = endKm > 0 ? endKm : toNumber(formData.get("mileage_km"));
-  const distanceCovered = Math.max(endKm - startKm, 0);
-  const isSuspicious =
-    distanceCovered > suspiciousDistanceKm && declaredAmount <= suspiciousMinDeclaredAmountCdf;
 
   return {
     amount,
@@ -33,9 +29,14 @@ function getEntryMetrics(formData: FormData) {
     startKm,
     endKm,
     mileage,
-    distanceCovered,
-    isSuspicious
+    distanceCovered: distanceCovered(startKm, endKm)
   };
+}
+
+async function toCdf(amount: number, currency: EntryCurrency) {
+  if (currency !== "USD") return amount;
+  const { rate } = await getUsdToCdfRate();
+  return usdToCdf(amount, rate);
 }
 
 function isValidCurrency(currency: string): currency is EntryCurrency {
@@ -53,7 +54,7 @@ export async function createDailyEntry(formData: FormData) {
   }
 
   const vehicleId = String(formData.get("vehicle_id") ?? "");
-  const entryDate = String(formData.get("entry_date") ?? new Date().toISOString().slice(0, 10));
+  const entryDate = String(formData.get("entry_date") || todayInAppTimezone());
   const currencyValue = String(formData.get("currency") ?? "CDF");
   const metrics = getEntryMetrics(formData);
   const notes = String(formData.get("notes") ?? "").trim() || null;
@@ -93,7 +94,7 @@ export async function createDailyEntry(formData: FormData) {
     redirect(`${ROUTES.DASHBOARD_ENTRIES}?error=Une recette existe deja pour ce vehicule a cette date.`);
   }
 
-  const revenueCdf = currencyValue === "USD" ? Math.round(metrics.amount * usdToCdfRate) : metrics.amount;
+  const revenueCdf = await toCdf(metrics.amount, currencyValue);
 
   const { error } = await supabase.from("daily_entries").insert({
     owner_id: user.id,
@@ -142,7 +143,7 @@ export async function submitDriverDailyEntry(formData: FormData): Promise<EntryA
 
   const vehicleRow = vehicle as { id: string; driver_id: string | null; owner_id: string };
 
-  const entryDate = String(formData.get("entry_date") ?? new Date().toISOString().slice(0, 10));
+  const entryDate = String(formData.get("entry_date") || todayInAppTimezone());
   const currencyValue = String(formData.get("currency") ?? "CDF");
   const metrics = getEntryMetrics(formData);
   const notes = String(formData.get("notes") ?? "").trim() || null;
@@ -173,7 +174,7 @@ export async function submitDriverDailyEntry(formData: FormData): Promise<EntryA
     return { ok: false, message: "Une recette existe deja pour cette date." };
   }
 
-  const revenueCdf = currencyValue === "USD" ? Math.round(metrics.amount * usdToCdfRate) : metrics.amount;
+  const revenueCdf = await toCdf(metrics.amount, currencyValue);
 
   const { error } = await supabase.from("daily_entries").insert({
     owner_id: vehicleRow.owner_id,
@@ -201,7 +202,7 @@ export async function submitDriverDailyEntry(formData: FormData): Promise<EntryA
   revalidatePath(ROUTES.DASHBOARD_ROOT);
   return {
     ok: true,
-    message: metrics.isSuspicious
+    message: isSuspiciousEntry(metrics.startKm, metrics.endKm, revenueCdf)
       ? "Versement enregistre. Alerte kilometrique signalee a l'investisseur."
       : "Versement enregistre avec succes."
   };

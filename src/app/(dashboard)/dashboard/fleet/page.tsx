@@ -84,7 +84,7 @@ export default async function FleetPage({ searchParams }: FleetPageProps) {
         })}
         {vehicles.length === 0 ? (
           <div className="rounded-lg border border-dashed border-stone-700 bg-stone-950 p-8 text-center text-sm text-stone-400 md:col-span-2 xl:col-span-3">
-            Aucun taxi ou moto n'est encore enregistre.
+            Aucun taxi ou moto n&apos;est encore enregistre.
           </div>
         ) : null}
       </section>

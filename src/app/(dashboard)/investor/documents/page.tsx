@@ -226,6 +226,7 @@ export default async function InvestorDocumentsPage({ searchParams }: InvestorDo
                   </td>
                   <td className="text-neutral-400">{formatDate(document.created_at)}</td>
                   <td>
+                    {document.file_url ? (
                     <Link
                       href={document.file_url}
                       target="_blank"
@@ -235,6 +236,9 @@ export default async function InvestorDocumentsPage({ searchParams }: InvestorDo
                       <Download size={15} aria-hidden />
                       Ouvrir
                     </Link>
+                    ) : (
+                      <span className="text-xs text-neutral-500">Fichier indisponible</span>
+                    )}
                   </td>
                 </tr>
               ))}

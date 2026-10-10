@@ -1,6 +1,6 @@
 import { Sidebar } from "@/components/Sidebar";
 import { SupabaseRealtimeRefresh } from "@/components/SupabaseRealtimeRefresh";
-import { getCurrentProfile } from "@/lib/auth/roles";
+import { requireRole } from "@/lib/auth/roles";
 
 export const dynamic = "force-dynamic";
 
@@ -9,14 +9,8 @@ export default async function InvestorLayout({
 }: {
   children: React.ReactNode;
 }) {
-  let investorName = "Investisseur";
-
-  try {
-    const profile = await getCurrentProfile();
-    investorName = profile?.full_name?.trim() || "Investisseur";
-  } catch (error) {
-    console.error("[InvestorLayout] Unable to load investor profile", error);
-  }
+  const profile = await requireRole("investor");
+  const investorName = profile.full_name?.trim() || "Investisseur";
 
   return (
     <div

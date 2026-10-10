@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { ownerDriverDocumentTypeOptions } from "@/lib/legal-documents/constants";
-import { loginWithNext, ROUTES } from "@/lib/routes";
+import { LEGAL_DOCUMENTS_BUCKET } from "@/lib/legal-documents/storage";
+import { loginWithNext, ROUTES, safeReturnPath } from "@/lib/routes";
 import type { DocumentType } from "@/lib/supabase/types";
 
 const uploadSchema = z.object({
@@ -33,7 +34,7 @@ function safeStorageName(name: string) {
 }
 
 export async function uploadLegalDocument(formData: FormData) {
-  const returnPath = String(formData.get("return_path") ?? ROUTES.INVESTOR_DOCUMENTS);
+  const returnPath = safeReturnPath(formData.get("return_path"), ROUTES.INVESTOR_DOCUMENTS);
   const supabase = await createClient();
   const {
     data: { user }
@@ -120,9 +121,9 @@ export async function uploadLegalDocument(formData: FormData) {
   const vehicleSegment = resolvedVehicleId ?? "no-vehicle";
   const storagePath = `${user.id}/${parsed.data.driver_id}/${vehicleSegment}/${Date.now()}-${storageName}`;
 
-  // CORRECTION ICI : Utilisation du vrai nom de bucket "documents"
+  // Bucket privé : le fichier n'est lisible que par l'investisseur et le chauffeur concernés.
   const { error: uploadError } = await supabase.storage
-    .from("documents")
+    .from(LEGAL_DOCUMENTS_BUCKET)
     .upload(storagePath, file, {
       cacheControl: "3600",
       upsert: false,
@@ -133,18 +134,14 @@ export async function uploadLegalDocument(formData: FormData) {
     redirect(`${returnPath}?error=${encodeURIComponent(uploadError.message)}`);
   }
 
-  // CORRECTION ICI : Utilisation du vrai nom de bucket "documents"
-  const { data: publicUrlData } = supabase.storage
-    .from("documents")
-    .getPublicUrl(storagePath);
-
   const { error: insertError } = await supabase.from("legal_documents").insert({
     owner_id: user.id,
     driver_id: parsed.data.driver_id,
     vehicle_id: resolvedVehicleId,
     document_type: parsed.data.document_type,
     document_name: parsed.data.document_name,
-    file_url: publicUrlData.publicUrl,
+    // Plus d'URL publique : un lien signé est généré à chaque affichage.
+    file_url: "",
     storage_path: storagePath
   });
 

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { recentDates, shortDayLabel } from "@/lib/time/kinshasa";
 import type { BreakdownStatus, EntryCurrency, PaymentStatus, VehicleStatus } from "@/lib/supabase/types";
 
 export type DashboardVehicle = {
@@ -831,10 +832,8 @@ export async function getInvestorPaymentTrend(
 ): Promise<TrendPoint[]> {
   try {
     const supabase = await createClient();
-    const since = new Date();
-    since.setDate(since.getDate() - (days - 1));
-    since.setHours(0, 0, 0, 0);
-    const sinceStr = since.toISOString().slice(0, 10);
+    const dates = recentDates(days);
+    const sinceStr = dates[0];
 
     const { data, error } = await supabase
       .from("payments")
@@ -858,12 +857,8 @@ export async function getInvestorPaymentTrend(
 
     // Construire le tableau complet (0 pour les jours sans versement)
     const result: TrendPoint[] = [];
-    for (let i = 0; i < days; i++) {
-      const d = new Date();
-      d.setDate(d.getDate() - (days - 1 - i));
-      const dateStr = d.toISOString().slice(0, 10);
-      const label = new Intl.DateTimeFormat("fr-CD", { day: "2-digit", month: "short" }).format(d);
-      result.push({ date: label, amount: byDate.get(dateStr) ?? 0 });
+    for (const dateStr of dates) {
+      result.push({ date: shortDayLabel(dateStr), amount: byDate.get(dateStr) ?? 0 });
     }
 
     return result;
@@ -883,10 +878,8 @@ export async function getDriverPaymentTrend(
 ): Promise<TrendPoint[]> {
   try {
     const supabase = await createClient();
-    const since = new Date();
-    since.setDate(since.getDate() - (days - 1));
-    since.setHours(0, 0, 0, 0);
-    const sinceStr = since.toISOString().slice(0, 10);
+    const dates = recentDates(days);
+    const sinceStr = dates[0];
 
     const { data, error } = await supabase
       .from("payments")
@@ -908,12 +901,8 @@ export async function getDriverPaymentTrend(
     });
 
     const result: TrendPoint[] = [];
-    for (let i = 0; i < days; i++) {
-      const d = new Date();
-      d.setDate(d.getDate() - (days - 1 - i));
-      const dateStr = d.toISOString().slice(0, 10);
-      const label = new Intl.DateTimeFormat("fr-CD", { day: "2-digit", month: "short" }).format(d);
-      result.push({ date: label, amount: byDate.get(dateStr) ?? 0 });
+    for (const dateStr of dates) {
+      result.push({ date: shortDayLabel(dateStr), amount: byDate.get(dateStr) ?? 0 });
     }
 
     return result;

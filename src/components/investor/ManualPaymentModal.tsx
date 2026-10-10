@@ -15,6 +15,7 @@ import {
 import { recordManualPayment } from "@/actions/payments";
 import type { FleetDriver } from "@/lib/dashboard/data";
 import { useRouter } from "next/navigation";
+import { todayInAppTimezone } from "@/lib/time/kinshasa";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -65,7 +66,7 @@ export function ManualPaymentModal({ drivers }: ManualPaymentModalProps) {
   }, [toast]);
 
   function todayStr() {
-    return new Date().toISOString().slice(0, 10);
+    return todayInAppTimezone();
   }
 
   function openModal() {

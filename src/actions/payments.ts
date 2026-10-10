@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { loginWithNext, ROUTES } from "@/lib/routes";
+import { loginWithNext, ROUTES, safeReturnPath } from "@/lib/routes";
+import { todayInAppTimezone } from "@/lib/time/kinshasa";
 
 export type PaymentActionResult = {
   ok: boolean;
@@ -22,63 +23,50 @@ function revalidatePaymentViews() {
   revalidatePath(ROUTES.DRIVER_PORTAL, "layout");
 }
 
-export async function recordPayment(
+/**
+ * Insère le versement d'un chauffeur. Fonction interne (non exportée) : un client
+ * ne peut pas l'appeler directement, et le statut ne vient jamais du navigateur.
+ * Il est validé d'office seulement pour un chauffeur-patron, c'est-à-dire quand
+ * le véhicule appartient au chauffeur lui-même (owner_id = driver_id = user).
+ */
+async function insertDriverPayment(
+  supabase: Awaited<ReturnType<typeof createClient>>,
   amount: number,
   driverId: string,
-  vehicleId: string,
-  investorId: string,
-  /** Passer true si chauffeur-patron : auto-approuve le versement */
-  isOwnerDriver = false
-): Promise<PaymentActionResult> {
-  try {
-    const normalizedAmount = Number(amount);
+  vehicle: { id: string; owner_id: string }
+): Promise<PaymentActionResult & { autoValidated: boolean }> {
+  const isOwnerDriver = vehicle.owner_id === driverId;
+  const now = new Date().toISOString();
 
-    if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
-      return { ok: false, message: "Montant de versement invalide." };
-    }
+  const { error } = await supabase.from("payments").insert({
+    amount,
+    driver_id: driverId,
+    vehicle_id: vehicle.id,
+    investor_id: vehicle.owner_id,
+    status: isOwnerDriver ? "validated" : "pending",
+    source: "automated",
+    session_type: "driver_revenue",
+    payment_date: todayInAppTimezone(),
+    ...(isOwnerDriver ? { validated_at: now, reviewed_by: driverId } : {})
+  });
 
-    if (!driverId || !vehicleId || !investorId) {
-      return { ok: false, message: "Chauffeur, vehicule ou investisseur manquant." };
-    }
-
-    // Règle métier : chauffeur-patron = pas d'investisseur tiers → statut approuvé d'emblée.
-    const status = isOwnerDriver ? "validated" : "pending";
-
-    const supabase = await createClient();
-    const { error } = await supabase.from("payments").insert({
-      amount: normalizedAmount,
-      driver_id: driverId,
-      vehicle_id: vehicleId,
-      investor_id: investorId,
-      status,
-      source: "automated",
-      session_type: "driver_revenue",
-      payment_date: new Date().toISOString().slice(0, 10)
-    });
-
-    if (error) {
-      console.error("[recordPayment] Supabase insert failed:", error.message);
-      return { ok: false, message: error.message };
-    }
-
-    revalidatePaymentViews();
-    return {
-      ok: true,
-      message: isOwnerDriver
-        ? "Versement enregistré et approuvé automatiquement."
-        : "Versement declare et en attente de validation."
-    };
-  } catch (error) {
-    console.error("[recordPayment] Unexpected failure:", error);
-    return {
-      ok: false,
-      message: "Impossible d'enregistrer le versement. Verifiez la connexion Supabase."
-    };
+  if (error) {
+    console.error("[insertDriverPayment] Supabase insert failed:", error.message);
+    return { ok: false, message: error.message, autoValidated: false };
   }
+
+  revalidatePaymentViews();
+  return {
+    ok: true,
+    autoValidated: isOwnerDriver,
+    message: isOwnerDriver
+      ? "Versement enregistré et approuvé automatiquement."
+      : "Versement declare et en attente de validation."
+  };
 }
 
 export async function recordDriverPayment(formData: FormData) {
-  const returnPath = String(formData.get("return_path") ?? ROUTES.DRIVER_DASHBOARD);
+  const returnPath = safeReturnPath(formData.get("return_path"), ROUTES.DRIVER_DASHBOARD);
   const amount = Number(formData.get("amount")) || 0;
 
   try {
@@ -120,15 +108,12 @@ export async function recordDriverPayment(formData: FormData) {
       redirect(`${returnPath}?error=${encodeURIComponent("Montant de versement invalide.")}`);
     }
 
-    // Chauffeur-patron : owner_id === driver_id → versement auto-approuvé
-    const isOwnerDriver = investorId === user.id;
-
-    console.log("[recordDriverPayment] Insertion versement — driver:", user.id, "| vehicle:", vehicle.id, "| investor_id:", investorId, "| isOwnerDriver:", isOwnerDriver, "| montant:", normalizedAmount);
-
-    const result = await recordPayment(normalizedAmount, user.id, vehicle.id, investorId, isOwnerDriver);
+    const result = await insertDriverPayment(supabase, normalizedAmount, user.id, {
+      id: vehicle.id,
+      owner_id: investorId
+    });
 
     if (!result.ok) {
-      console.error("[recordDriverPayment] recordPayment a échoué :", result.message);
       redirect(`${returnPath}?error=${encodeURIComponent(result.message)}`);
     }
 
