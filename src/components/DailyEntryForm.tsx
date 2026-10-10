@@ -4,6 +4,7 @@ import { PlusCircle, Loader2 } from "lucide-react";
 import { useFormStatus } from "react-dom";
 import { createDailyEntry } from "@/actions/entries";
 import type { DashboardVehicle } from "@/lib/dashboard/data";
+import { todayInAppTimezone } from "@/lib/time/kinshasa";
 
 function SubmitButton({ disabled }: { disabled: boolean }) {
   const { pending } = useFormStatus();
@@ -19,7 +20,7 @@ function SubmitButton({ disabled }: { disabled: boolean }) {
   );
 }
 
-export function DailyEntryForm({ vehicles }: { vehicles: DashboardVehicle[] }) {
+export function DailyEntryForm({ vehicles, usdRate }: { vehicles: DashboardVehicle[]; usdRate?: number }) {
   return (
     <form action={createDailyEntry} className="grid gap-4 rounded-lg border border-stone-200 bg-white p-4 shadow-soft dark:border-stone-800 dark:bg-stone-950 md:grid-cols-2 md:p-5">
       <label className="block text-sm font-medium text-stone-700 dark:text-stone-200">
@@ -35,7 +36,7 @@ export function DailyEntryForm({ vehicles }: { vehicles: DashboardVehicle[] }) {
       </label>
       <label className="block text-sm font-medium text-stone-700 dark:text-stone-200">
         Date
-        <input className="field mt-1" name="entry_date" type="date" defaultValue={new Date().toISOString().slice(0, 10)} required />
+        <input className="field mt-1" name="entry_date" type="date" defaultValue={todayInAppTimezone()} required />
       </label>
       <label className="block text-sm font-medium text-stone-700 dark:text-stone-200">
         Montant
@@ -57,6 +58,11 @@ export function DailyEntryForm({ vehicles }: { vehicles: DashboardVehicle[] }) {
             </div>
           </label>
         </div>
+        {usdRate ? (
+          <p className="mt-1.5 text-xs text-stone-500 dark:text-stone-400">
+            Taux du jour : 1 USD = {usdRate.toLocaleString("fr-CD")} CDF
+          </p>
+        ) : null}
       </fieldset>
       <label className="block text-sm font-medium text-stone-700 dark:text-stone-200">
         Kilometrage de debut

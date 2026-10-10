@@ -8,7 +8,8 @@ import {
   ReceiptText,
   TrendingUp,
   CarTaxiFront,
-  Sparkles
+  Sparkles,
+  Download
 } from "lucide-react";
 import { InvestorPaymentActions } from "@/components/investor/InvestorPaymentActions";
 import { ManualPaymentModal } from "@/components/investor/ManualPaymentModal";
@@ -93,7 +94,15 @@ export default async function InvestorRevenuePage() {
               Validez les versements de vos chauffeurs et suivez l&apos;évolution de vos revenus.
             </p>
           </div>
-          <div className="shrink-0">
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <a className="btn-secondary min-h-10 px-3" href={`${ROUTES.INVESTOR_REVENUE}/export?type=payments`} download>
+              <Download size={16} aria-hidden />
+              Versements CSV
+            </a>
+            <a className="btn-secondary min-h-10 px-3" href={`${ROUTES.INVESTOR_REVENUE}/export?type=entries`} download>
+              <Download size={16} aria-hidden />
+              Recettes CSV
+            </a>
             <ManualPaymentModal drivers={fleetDrivers} />
           </div>
         </div>

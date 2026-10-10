@@ -43,6 +43,10 @@ export function isSafeInternalPath(path?: string | null): path is string {
     return false;
   }
   const trimmed = path.trim();
+  // Les navigateurs lisent "/\evil.com" comme "//evil.com" : on refuse tout backslash ou caractère de contrôle.
+  if (/[\\\u0000-\u001f]/.test(trimmed)) {
+    return false;
+  }
   const pathname = (trimmed.split("?")[0] ?? "").split("#")[0] ?? "";
   if (!pathname.startsWith("/") || pathname.startsWith("//")) {
     return false;
@@ -56,4 +60,10 @@ export function isSafeInternalPath(path?: string | null): path is string {
     return false;
   }
   return true;
+}
+
+/** `return_path` venant d'un formulaire : chemin interne uniquement, sinon `fallback`. */
+export function safeReturnPath(raw: FormDataEntryValue | null | undefined, fallback: string): string {
+  const value = typeof raw === "string" ? raw.trim() : "";
+  return isSafeInternalPath(value) ? value.split("?")[0] : fallback;
 }

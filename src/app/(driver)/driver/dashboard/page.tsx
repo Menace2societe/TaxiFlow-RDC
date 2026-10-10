@@ -36,6 +36,7 @@ import {
 } from "@/lib/dashboard/data";
 import { loginWithNext, ROUTES } from "@/lib/routes";
 import type { BreakdownStatus, PaymentStatus, VehicleStatus } from "@/lib/supabase/types";
+import { getUsdToCdfRate } from "@/lib/fx/rate";
 import { formatCDF } from "@/lib/utils/currency";
 
 type DriverDashboardPageProps = {
@@ -83,6 +84,7 @@ function formatDate(value: string) {
 }
 
 export default async function DriverDashboardPage({ searchParams }: DriverDashboardPageProps) {
+  const usdRate = await getUsdToCdfRate();
   const driverId = await getCurrentUserId();
 
   if (!driverId) {
@@ -404,7 +406,7 @@ export default async function DriverDashboardPage({ searchParams }: DriverDashbo
               </div>
               <h2 className="text-base font-semibold text-white">Déclarer un versement</h2>
             </div>
-            <DriverVersementForm hasVehicle={Boolean(displayVehicle)} />
+            <DriverVersementForm hasVehicle={Boolean(displayVehicle)} usdRate={usdRate.rate} />
           </div>
 
           {/* Signaler une panne */}

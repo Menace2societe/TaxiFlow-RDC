@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState, useTransition } from "react";
 import { CheckCircle2, Loader2, PlusCircle, WifiOff } from "lucide-react";
 import { submitDriverDailyEntry } from "@/actions/entries";
+import { todayInAppTimezone } from "@/lib/time/kinshasa";
 
 const offlineQueueKey = "taxiflow_driver_daily_entries_queue";
 
@@ -59,9 +60,11 @@ function SubmitButton({ disabled, pending }: { disabled: boolean; pending: boole
 
 type Props = {
   hasVehicle: boolean;
+  /** Taux USD → CDF du jour, affiché sous le choix de devise. */
+  usdRate?: number;
 };
 
-export function DriverVersementForm({ hasVehicle }: Props) {
+export function DriverVersementForm({ hasVehicle, usdRate }: Props) {
   const [notice, setNotice] = useState<Notice | null>(null);
   const [queuedCount, setQueuedCount] = useState(0);
   const [isPending, startTransition] = useTransition();
@@ -142,7 +145,7 @@ export function DriverVersementForm({ hasVehicle }: Props) {
 
     const entry: OfflineEntry = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      entry_date: String(formData.get("entry_date") ?? new Date().toISOString().slice(0, 10)),
+      entry_date: String(formData.get("entry_date") || todayInAppTimezone()),
       amount,
       declared_amount: amount,
       currency: String(formData.get("currency") ?? "CDF") === "USD" ? "USD" : "CDF",
@@ -202,7 +205,7 @@ export function DriverVersementForm({ hasVehicle }: Props) {
       )}
       <label className="block text-sm font-medium text-stone-700 dark:text-stone-200">
         Date
-        <input className="field mt-1 min-h-12 text-base" name="entry_date" type="date" defaultValue={new Date().toISOString().slice(0, 10)} required />
+        <input className="field mt-1 min-h-12 text-base" name="entry_date" type="date" defaultValue={todayInAppTimezone()} required />
       </label>
       <label className="block text-sm font-medium text-stone-700 dark:text-stone-200">
         Montant
@@ -224,6 +227,11 @@ export function DriverVersementForm({ hasVehicle }: Props) {
             </div>
           </label>
         </div>
+        {usdRate ? (
+          <p className="mt-1.5 text-xs text-stone-500 dark:text-stone-400">
+            Taux du jour : 1 USD = {usdRate.toLocaleString("fr-CD")} CDF
+          </p>
+        ) : null}
       </fieldset>
       <label className="block text-sm font-medium text-stone-700 dark:text-stone-200">
         Kilometrage de debut

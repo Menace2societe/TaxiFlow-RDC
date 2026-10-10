@@ -1,32 +1,37 @@
 "use server";
 
-import { createServerClient } from "@supabase/ssr";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import {
+  driverLoginEmail,
+  formatAccessCode,
+  generateAccessCode,
+  normalizeDrcPhone
+} from "@/lib/auth/driver-access";
+import { createServiceClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { loginWithNext, ROUTES } from "@/lib/routes";
-import type { Database } from "@/lib/supabase/types";
 
 const assignVehicleSchema = z.object({
   vehicle_id: z.string().uuid()
 });
-
-const phoneRegex = /^\+243[0-9]{9}$/;
 
 const driverPhoneAssignmentSchema = z.object({
   vehicle_id: z.string().uuid(),
   full_name: z.string().min(2, "Le nom du chauffeur est obligatoire.").max(120).transform((value) => value.trim()),
   phone: z
     .string()
-    .transform((value) => value.replace(/\s+/g, ""))
-    .refine((value) => phoneRegex.test(value), "Le telephone doit etre au format RDC +243 suivi de 9 chiffres."),
+    .transform((value) => normalizeDrcPhone(value) ?? "")
+    .refine((value) => value !== "", "Le telephone doit etre un numero RDC : +243 suivi de 9 chiffres."),
   confirm_reassign: z.coerce.boolean().default(false)
 });
 
 export type DriverAssignmentActionState = {
   ok: boolean;
   message: string;
+  /** Code d'accès à transmettre au chauffeur (affiché une seule fois). */
+  accessCode?: string;
 };
 
 export type LinkDriverActionState = {
@@ -37,22 +42,67 @@ export type LinkDriverActionState = {
     full_name: string | null;
     phone: string | null;
   };
+  /** Code d'accès à transmettre au chauffeur (affiché une seule fois). */
+  accessCode?: string;
 };
 
-function createServiceClient() {
-  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    return null;
-  }
+type FoundDriver = { id: string; full_name: string | null; phone: string | null; role: string };
+type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
-  return createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY,
-    { cookies: { getAll: () => [], setAll: () => {} } }
-  );
+const missingServiceRoleMessage =
+  "Aucun chauffeur avec ce telephone. Configurez SUPABASE_SERVICE_ROLE_KEY pour inscrire un nouveau chauffeur.";
+
+/** Investisseur, admin ou chauffeur-patron : les seuls autorisés à recruter un chauffeur. */
+async function canManageDrivers(supabase: SupabaseServerClient, userId: string) {
+  const { data } = await supabase
+    .from("profiles")
+    .select("role,is_owner_driver")
+    .eq("id", userId)
+    .maybeSingle();
+  return Boolean(data && (data.role === "investor" || data.role === "admin" || data.is_owner_driver));
 }
 
-function normalizePhone(phone: string | null | undefined) {
-  return (phone ?? "").replace(/\s+/g, "");
+async function findDriverByPhone(supabase: SupabaseServerClient, phone: string): Promise<FoundDriver | null> {
+  const { data, error } = await supabase.rpc("find_driver_by_phone", { p_phone: phone });
+  if (error) {
+    throw new Error(error.message);
+  }
+  return data?.[0] ?? null;
+}
+
+/**
+ * Crée un compte chauffeur connectable sans SMS : identifiant technique dérivé
+ * du numéro + code d'accès. Le chauffeur se connecte avec « numéro + code ».
+ */
+async function createPhoneDriverAccount(
+  phone: string,
+  fullName: string
+): Promise<{ ok: true; driver: FoundDriver; accessCode: string } | { ok: false; message: string }> {
+  const serviceClient = createServiceClient();
+  if (!serviceClient) {
+    return { ok: false, message: missingServiceRoleMessage };
+  }
+
+  const accessCode = generateAccessCode();
+  const { data, error } = await serviceClient.auth.admin.createUser({
+    email: driverLoginEmail(phone),
+    email_confirm: true,
+    phone,
+    phone_confirm: true,
+    password: accessCode,
+    user_metadata: { full_name: fullName, phone, role: "driver" }
+  });
+
+  if (error || !data.user) {
+    return { ok: false, message: error?.message ?? "Creation du compte chauffeur impossible." };
+  }
+
+  // Le trigger handle_new_user crée le profil chauffeur.
+  return {
+    ok: true,
+    driver: { id: data.user.id, full_name: fullName, phone, role: "driver" },
+    accessCode
+  };
 }
 
 function revalidateFleetAssignmentViews() {
@@ -60,35 +110,6 @@ function revalidateFleetAssignmentViews() {
   revalidatePath(ROUTES.INVESTOR_DASHBOARD, "layout");
   revalidatePath(ROUTES.DRIVER_PORTAL, "layout");
   revalidatePath(ROUTES.DRIVER_DASHBOARD, "layout");
-}
-
-async function syncAssignedDriverProfile(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  driverId: string
-) {
-  const { error } = await supabase
-    .from("profiles")
-    .update({ role: "driver" })
-    .eq("id", driverId);
-
-  if (!error) {
-    return;
-  }
-
-  const serviceClient = createServiceClient();
-  if (!serviceClient) {
-    console.warn("[syncAssignedDriverProfile] Profil non synchronise :", error.message);
-    return;
-  }
-
-  const { error: serviceError } = await serviceClient
-    .from("profiles")
-    .update({ role: "driver" })
-    .eq("id", driverId);
-
-  if (serviceError) {
-    console.warn("[syncAssignedDriverProfile] Echec service role :", serviceError.message);
-  }
 }
 
 /**
@@ -111,113 +132,56 @@ export async function linkDriverToInvestor(
       return { ok: false, message: "Session expirée. Reconnectez-vous pour lier un chauffeur." };
     }
 
-    // Vérifier que l'utilisateur est bien investisseur
-    const { data: investorProfile, error: profileError } = await supabase
-      .from("profiles")
-      .select("id,role,is_owner_driver")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    console.log("[DEBUG LIAISON] Profil utilisateur connecté :", investorProfile);
-
-    if (profileError) {
-      console.warn("[DEBUG LIAISON] Erreur lecture profil :", profileError.message);
+    if (!(await canManageDrivers(supabase, user.id))) {
+      return { ok: false, message: "Seuls les investisseurs et chauffeurs-patrons peuvent recruter un chauffeur." };
     }
-
-    // Toute session authentifiee peut rechercher un chauffeur ici. L'assignation
-    // reste securisee plus bas par owner_id sur le vehicule cible.
 
     const rawIdentifier = String(formData.get("identifier") ?? "").trim();
     const fullName = String(formData.get("full_name") ?? "").trim();
 
     if (!rawIdentifier) {
-      return { ok: false, message: "Renseignez le numéro de téléphone ou l'UUID du chauffeur." };
+      return { ok: false, message: "Renseignez le numéro de téléphone du chauffeur." };
     }
 
-    // Normaliser l'identifiant : téléphone (+243...) ou UUID
-    const normalizedPhone = rawIdentifier.startsWith("+")
-      ? rawIdentifier.replace(/\s+/g, "")
-      : rawIdentifier.startsWith("0")
-        ? "+243" + rawIdentifier.slice(1).replace(/\s+/g, "")
-        : rawIdentifier;
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawIdentifier);
+    const normalizedPhone = isUUID ? null : normalizeDrcPhone(rawIdentifier);
 
-    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(normalizedPhone);
-    const isPhone = phoneRegex.test(normalizedPhone);
-
-    if (!isUUID && !isPhone) {
+    if (!isUUID && !normalizedPhone) {
       return {
         ok: false,
-        message: "Format invalide. Utilisez le format +243XXXXXXXXX ou l'UUID du chauffeur."
+        message: "Format invalide. Utilisez un numéro RDC : +243 81 234 5678 ou 081 234 5678."
       };
     }
 
-    // Rechercher le chauffeur par téléphone ou UUID
-    const { data: profiles, error: profilesError } = await supabase
-      .from("profiles")
-      .select("id,full_name,phone,role");
-
-    if (profilesError) {
-      return { ok: false, message: profilesError.message };
-    }
-
-    let driver: { id: string; full_name: string | null; phone: string | null; role: string } | null = null;
+    let driver: FoundDriver | null = null;
+    let accessCode: string | undefined;
 
     if (isUUID) {
-      driver = (profiles ?? []).find((p) => p.id === normalizedPhone) ?? null;
+      // Par UUID, seuls les chauffeurs déjà visibles (déjà dans votre équipe) sont trouvés.
+      const { data } = await supabase
+        .from("profiles")
+        .select("id,full_name,phone,role")
+        .eq("id", rawIdentifier)
+        .maybeSingle();
+      driver = data;
+      if (!driver) {
+        return { ok: false, message: "Aucun chauffeur trouvé. Recherchez-le par son numéro de téléphone." };
+      }
     } else {
-      driver = (profiles ?? []).find((p) => normalizePhone(p.phone) === normalizedPhone) ?? null;
+      driver = await findDriverByPhone(supabase, normalizedPhone!);
     }
 
-    // Si non trouvé, créer via service role
     if (!driver) {
-      if (!isPhone) {
-        return { ok: false, message: "Aucun chauffeur trouvé avec cet identifiant." };
-      }
-
-      const serviceClient = createServiceClient();
-      if (!serviceClient) {
-        return {
-          ok: false,
-          message:
-            "Aucun chauffeur avec ce telephone. Configurez SUPABASE_SERVICE_ROLE_KEY pour inscrire un nouveau chauffeur."
-        };
-      }
-
       if (!fullName || fullName.length < 2) {
-        return { ok: false, message: "Le nom complet est requis pour créer un nouveau chauffeur." };
+        return { ok: false, message: "Nouveau numéro : indiquez le nom complet pour créer le compte chauffeur." };
       }
 
-      const { data: createdUser, error: createError } = await serviceClient.auth.admin.createUser({
-        phone: normalizedPhone,
-        phone_confirm: true,
-        user_metadata: {
-          full_name: fullName,
-          phone: normalizedPhone,
-          role: "driver"
-        }
-      });
-
-      if (createError || !createdUser.user) {
-        return { ok: false, message: createError?.message ?? "Création du compte chauffeur impossible." };
+      const created = await createPhoneDriverAccount(normalizedPhone!, fullName);
+      if (!created.ok) {
+        return { ok: false, message: created.message };
       }
-
-      const { error: upsertError } = await serviceClient.from("profiles").upsert({
-        id: createdUser.user.id,
-        full_name: fullName,
-        phone: normalizedPhone,
-        role: "driver"
-      });
-
-      if (upsertError) {
-        return { ok: false, message: upsertError.message };
-      }
-
-      driver = {
-        id: createdUser.user.id,
-        full_name: fullName,
-        phone: normalizedPhone,
-        role: "driver"
-      };
+      driver = created.driver;
+      accessCode = created.accessCode;
     }
 
     if (driver.role !== "driver") {
@@ -244,8 +208,11 @@ export async function linkDriverToInvestor(
 
     return {
       ok: true,
-      message: `${driver.full_name ?? normalizedPhone} a été trouvé. Assignez-le maintenant à un véhicule de votre flotte.`,
-      driver: { id: driver.id, full_name: driver.full_name, phone: driver.phone }
+      message: accessCode
+        ? `Compte créé pour ${driver.full_name}. Donnez-lui son numéro et ce code pour se connecter : ${formatAccessCode(accessCode)}. Assignez-le maintenant à un véhicule.`
+        : `${driver.full_name ?? rawIdentifier} a été trouvé. Assignez-le maintenant à un véhicule de votre flotte.`,
+      driver: { id: driver.id, full_name: driver.full_name, phone: driver.phone },
+      accessCode
     };
   } catch (err) {
     console.error("[linkDriverToInvestor]", err);
@@ -329,10 +296,6 @@ export async function assignDriverToVehicle(formData: FormData) {
     redirect(`${ROUTES.INVESTOR_FLEET}?error=${encodeURIComponent(error.message)}`);
   }
 
-  if (driverId) {
-    await syncAssignedDriverProfile(supabase, driverId);
-  }
-
   revalidateFleetAssignmentViews();
   redirect(`${ROUTES.INVESTOR_FLEET}?assigned=1`);
 }
@@ -372,56 +335,16 @@ export async function registerOrAssignDriverByPhone(formData: FormData): Promise
       return { ok: false, message: vehicleError?.message ?? "Vehicule introuvable ou acces refuse." };
     }
 
-    const { data: profiles, error: profilesError } = await supabase
-      .from("profiles")
-      .select("id,full_name,phone,role");
-
-    if (profilesError) {
-      return { ok: false, message: profilesError.message };
-    }
-
-    let driver = (profiles ?? []).find((profile) => normalizePhone(profile.phone) === parsed.data.phone) ?? null;
+    let driver = await findDriverByPhone(supabase, parsed.data.phone);
+    let accessCode: string | undefined;
 
     if (!driver) {
-      const serviceClient = createServiceClient();
-      if (!serviceClient) {
-        return {
-          ok: false,
-          message: "Aucun chauffeur avec ce telephone. Configurez SUPABASE_SERVICE_ROLE_KEY pour inscrire un nouveau chauffeur depuis ce portail."
-        };
+      const created = await createPhoneDriverAccount(parsed.data.phone, parsed.data.full_name);
+      if (!created.ok) {
+        return { ok: false, message: created.message };
       }
-
-      const { data: createdUser, error: createUserError } = await serviceClient.auth.admin.createUser({
-        phone: parsed.data.phone,
-        phone_confirm: true,
-        user_metadata: {
-          full_name: parsed.data.full_name,
-          phone: parsed.data.phone,
-          role: "driver"
-        }
-      });
-
-      if (createUserError || !createdUser.user) {
-        return { ok: false, message: createUserError?.message ?? "Creation du compte chauffeur impossible." };
-      }
-
-      const { error: profileError } = await serviceClient.from("profiles").upsert({
-        id: createdUser.user.id,
-        full_name: parsed.data.full_name,
-        phone: parsed.data.phone,
-        role: "driver"
-      });
-
-      if (profileError) {
-        return { ok: false, message: profileError.message };
-      }
-
-      driver = {
-        id: createdUser.user.id,
-        full_name: parsed.data.full_name,
-        phone: parsed.data.phone,
-        role: "driver"
-      };
+      driver = created.driver;
+      accessCode = created.accessCode;
     }
 
     if (driver.role !== "driver") {
@@ -469,10 +392,16 @@ export async function registerOrAssignDriverByPhone(formData: FormData): Promise
       return { ok: false, message: updateError.message };
     }
 
-    await syncAssignedDriverProfile(supabase, driver.id);
     revalidateFleetAssignmentViews();
 
-    return { ok: true, message: `${driver.full_name ?? parsed.data.full_name} est associe a ${ownedVehicle.label}.` };
+    const name = driver.full_name ?? parsed.data.full_name;
+    return {
+      ok: true,
+      message: accessCode
+        ? `${name} est associe a ${ownedVehicle.label}. Code de connexion a lui transmettre : ${formatAccessCode(accessCode)} (avec son numero).`
+        : `${name} est associe a ${ownedVehicle.label}.`,
+      accessCode
+    };
   } catch (error) {
     console.error("[registerOrAssignDriverByPhone]", error);
     return {
@@ -507,11 +436,8 @@ export async function assignFoundDriverToVehicle(
   _prev: QuickAssignActionState,
   formData: FormData
 ): Promise<QuickAssignActionState> {
-  // ─── DEBUG : log immédiat avant tout traitement ───────────────────────────
   const driverIdRaw = String(formData.get("driver_id") ?? "").trim();
   const vehicleIdRaw = String(formData.get("vehicle_id") ?? "").trim();
-  console.log("Assignation de :", driverIdRaw);
-  console.log("[assignFoundDriverToVehicle] driver_id reçu :", JSON.stringify(driverIdRaw), "| vehicle_id reçu :", JSON.stringify(vehicleIdRaw));
 
   try {
     const supabase = await createClient();
@@ -590,12 +516,102 @@ export async function assignFoundDriverToVehicle(
       return { ok: false, message: updateErr.message };
     }
 
-    await syncAssignedDriverProfile(supabase, driverId);
     revalidateFleetAssignmentViews();
 
     return { ok: true, message: `Chauffeur assigné au véhicule « ${vehicle.label} » avec succès !` };
   } catch (err) {
     console.error("[assignFoundDriverToVehicle]", err);
     return { ok: false, message: "Assignation impossible. Vérifiez la connexion Supabase." };
+  }
+}
+
+// ─── Code d'accès des chauffeurs inscrits par téléphone ─────────────────────
+
+export type ResetAccessCodeState = {
+  ok: boolean;
+  message: string;
+  accessCode?: string;
+};
+
+/**
+ * Génère un nouveau code d'accès pour un chauffeur de l'équipe (code oublié,
+ * ou chauffeur créé avant que la connexion par téléphone existe).
+ * Refusé pour les chauffeurs inscrits avec leur propre email.
+ */
+export async function resetDriverAccessCode(
+  _prev: ResetAccessCodeState,
+  formData: FormData
+): Promise<ResetAccessCodeState> {
+  try {
+    const driverId = z.string().uuid().safeParse(formData.get("driver_id"));
+    if (!driverId.success) {
+      return { ok: false, message: "Chauffeur invalide." };
+    }
+
+    const supabase = await createClient();
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { ok: false, message: "Session expirée. Reconnectez-vous." };
+    }
+
+    // Seul l'investisseur qui emploie ce chauffeur peut lui redonner un code.
+    const { data: vehicle } = await supabase
+      .from("vehicles")
+      .select("id")
+      .eq("owner_id", user.id)
+      .eq("driver_id", driverId.data)
+      .limit(1)
+      .maybeSingle();
+
+    if (!vehicle) {
+      return { ok: false, message: "Ce chauffeur n'est affecté à aucun de vos véhicules." };
+    }
+
+    const serviceClient = createServiceClient();
+    if (!serviceClient) {
+      return { ok: false, message: "Configurez SUPABASE_SERVICE_ROLE_KEY pour gérer les codes d'accès." };
+    }
+
+    const { data: authUser, error: authError } = await serviceClient.auth.admin.getUserById(driverId.data);
+    if (authError || !authUser.user) {
+      return { ok: false, message: authError?.message ?? "Compte chauffeur introuvable." };
+    }
+
+    const phone = normalizeDrcPhone(authUser.user.phone || (authUser.user.user_metadata?.phone as string | undefined));
+    if (!phone) {
+      return { ok: false, message: "Ce chauffeur n'a pas de numéro RDC valide." };
+    }
+
+    const loginEmail = driverLoginEmail(phone);
+    const currentEmail = authUser.user.email ?? "";
+    if (currentEmail && currentEmail !== loginEmail) {
+      return {
+        ok: false,
+        message: "Ce chauffeur se connecte avec son propre email : il peut utiliser « mot de passe oublié »."
+      };
+    }
+
+    const accessCode = generateAccessCode();
+    const { error: updateError } = await serviceClient.auth.admin.updateUserById(driverId.data, {
+      email: loginEmail,
+      email_confirm: true,
+      password: accessCode
+    });
+
+    if (updateError) {
+      return { ok: false, message: updateError.message };
+    }
+
+    return {
+      ok: true,
+      message: `Nouveau code : ${formatAccessCode(accessCode)}. Le chauffeur se connecte avec ${phone} et ce code.`,
+      accessCode
+    };
+  } catch (err) {
+    console.error("[resetDriverAccessCode]", err);
+    return { ok: false, message: "Impossible de générer un code. Vérifiez la connexion Supabase." };
   }
 }

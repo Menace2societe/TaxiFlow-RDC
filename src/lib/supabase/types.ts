@@ -46,12 +46,11 @@ export type Database = {
           is_owner_driver?: boolean;
           created_at?: string;
         };
+        /** role et is_owner_driver sont fixés à l'inscription (trigger profiles_protect_privileges). */
         Update: {
           full_name?: string | null;
-          role?: UserRole;
           /** Mise à jour du numéro de téléphone (format RDC attendu). */
           phone?: string | null;
-          is_owner_driver?: boolean;
         };
         Relationships: [];
       };
@@ -312,6 +311,18 @@ export type Database = {
           p_estimated_cost?: number;
         };
         Returns: string;
+      };
+      find_driver_by_phone: {
+        Args: { p_phone: string };
+        Returns: { id: string; full_name: string | null; phone: string | null; role: UserRole }[];
+      };
+      is_admin: {
+        Args: Record<string, never>;
+        Returns: boolean;
+      };
+      set_user_role: {
+        Args: { p_user_id: string; p_role: UserRole };
+        Returns: undefined;
       };
     };
     Enums: {

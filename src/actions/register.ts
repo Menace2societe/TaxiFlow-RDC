@@ -26,7 +26,7 @@ export async function registerPartner(formData: FormData) {
 
     const supabase = await createClient();
 
-    const { data, error } = await supabase.auth.signUp({
+    const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -43,22 +43,8 @@ export async function registerPartner(formData: FormData) {
       redirect(`${ROUTES.REGISTER}?error=${encodeURIComponent(error.message)}`);
     }
 
-    // Upsert du profil avec typage strict (phone est dans le schéma depuis la migration canonique)
-    if (data.user) {
-      const { error: profileError } = await supabase.from("profiles").upsert({
-        id: data.user.id,
-        full_name: fullName || null,
-        phone: phone || null,
-        role,
-        is_owner_driver: isOwnerDriver
-      });
-
-      // On log l'erreur mais on ne bloque pas l'inscription — le trigger
-      // handle_new_user() sur auth.users a déjà créé le profil de base.
-      if (profileError) {
-        console.warn("[registerPartner] Upsert profil non bloquant :", profileError.message);
-      }
-    }
+    // Le profil (rôle, chauffeur-patron) est créé par le trigger handle_new_user
+    // à partir des métadonnées ci-dessus, puis ne peut plus changer.
 
     redirect(
       `${ROUTES.LOGIN}?notice=Compte%20cree.%20Verifiez%20votre%20email%20si%20la%20confirmation%20est%20active.`

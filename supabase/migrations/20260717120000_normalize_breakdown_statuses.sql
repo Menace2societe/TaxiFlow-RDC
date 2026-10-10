@@ -33,19 +33,19 @@ BEGIN
     -- Normalisation des valeurs françaises legacy
     UPDATE public.breakdowns
       SET status = 'open'
-      WHERE LOWER(UNACCENT(status)) IN (
+      WHERE lower(translate(status, 'éèêëàâîïôûùç', 'eeeeaaiiouuc')) IN (
         'signalée', 'signalee', 'signale', 'pending', 'nouveau', 'nouvelle'
       );
 
     UPDATE public.breakdowns
       SET status = 'in_progress'
-      WHERE LOWER(UNACCENT(status)) IN (
+      WHERE lower(translate(status, 'éèêëàâîïôûùç', 'eeeeaaiiouuc')) IN (
         'en réparation', 'en reparation', 'en cours', 'in_progress', 'in progress', 'started'
       );
 
     UPDATE public.breakdowns
       SET status = 'resolved'
-      WHERE LOWER(UNACCENT(status)) IN (
+      WHERE lower(translate(status, 'éèêëàâîïôûùç', 'eeeeaaiiouuc')) IN (
         'réparé', 'repare', 'terminé', 'termine', 'completed', 'done', 'résolu', 'resolu'
       );
 

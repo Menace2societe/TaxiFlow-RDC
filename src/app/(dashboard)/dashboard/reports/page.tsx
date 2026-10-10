@@ -1,6 +1,7 @@
 import { AlertTriangle, Download, Trophy, WalletCards } from "lucide-react";
 import { WeeklyVehicleRevenueChart } from "@/components/WeeklyVehicleRevenueChart";
 import { getCurrentUserId, getOwnerEntries, getOwnerVehicles, summarize, topDriverName, weeklyRevenueByVehicle } from "@/lib/dashboard/data";
+import { ROUTES } from "@/lib/routes";
 import { formatCDF } from "@/lib/utils/currency";
 
 export default async function ReportsPage() {
@@ -19,10 +20,10 @@ export default async function ReportsPage() {
           <p className="text-sm font-medium text-palm dark:text-emerald-300">Analyse financiere</p>
           <h1 className="mt-1 text-3xl font-semibold">Rapports</h1>
         </div>
-        <button className="btn-secondary" type="button">
+        <a className="btn-secondary" href={`${ROUTES.DASHBOARD_REPORTS}/export`} download>
           <Download size={18} aria-hidden />
           Export CSV
-        </button>
+        </a>
       </header>
 
       <section className="grid gap-4 md:grid-cols-3">
