@@ -320,6 +320,10 @@ export type Database = {
         Args: Record<string, never>;
         Returns: boolean;
       };
+      set_user_role: {
+        Args: { p_user_id: string; p_role: UserRole };
+        Returns: undefined;
+      };
     };
     Enums: {
       breakdown_status: BreakdownStatus;

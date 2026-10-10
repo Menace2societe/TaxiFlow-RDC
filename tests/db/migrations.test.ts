@@ -50,11 +50,13 @@ describe("migrations", () => {
     expect(migrationFiles().length).toBeGreaterThan(5);
   });
 
-  it("the hardening migration can be replayed", async () => {
-    const last = migrationFiles().at(-1)!;
-    const sql = readFileSync(join(__dirname, "..", "..", "supabase", "migrations", last), "utf8");
-    await expect(db.exec(sql)).resolves.toBeDefined();
-  });
+  it.each(["20261010120000_security_hardening.sql", "20261010130000_admin_role_management.sql"])(
+    "%s can be replayed",
+    async (file) => {
+      const sql = readFileSync(join(__dirname, "..", "..", "supabase", "migrations", file), "utf8");
+      await expect(db.exec(sql)).resolves.toBeDefined();
+    }
+  );
 
   it("flags entries with many km and a small amount", async () => {
     const result = await db.query<{ distance_covered: string; is_suspicious: boolean }>(
@@ -112,6 +114,48 @@ describe("roles are fixed at signup", () => {
     const id = await createUser(db, { role: "investor" });
     await db.query("update public.profiles set role = 'admin' where id = $1", [id]);
     expect((await role(id)).role).toBe("admin");
+  });
+});
+
+describe("admin role management", () => {
+  let admin: string;
+  let target: string;
+
+  beforeAll(async () => {
+    admin = await createUser(db, { role: "investor", full_name: "Admin" });
+    await db.query("update public.profiles set role = 'admin' where id = $1", [admin]);
+    target = await createUser(db, { role: "investor", full_name: "Futur admin" });
+  });
+
+  const setRole = (caller: string, userId: string, newRole: string) =>
+    asUser(db, caller, () => db.query("select public.set_user_role($1, $2)", [userId, newRole]));
+
+  it("an admin can promote and demote another user", async () => {
+    await setRole(admin, target, "admin");
+    expect((await role(target)).role).toBe("admin");
+    await setRole(admin, target, "investor");
+    expect((await role(target)).role).toBe("investor");
+  });
+
+  it("an admin sees every profile", async () => {
+    const visible = await asUser(db, admin, async () => {
+      const result = await db.query<{ id: string }>("select id from public.profiles");
+      return result.rows.map((row) => row.id);
+    });
+    expect(visible).toEqual(expect.arrayContaining([driver, strangerDriver, investor, otherInvestor]));
+  });
+
+  it("an admin cannot change their own role", async () => {
+    await expect(setRole(admin, admin, "investor")).rejects.toThrow(/cannot_change_own_role/);
+  });
+
+  it("a non-admin cannot use it", async () => {
+    await expect(setRole(investor, investor, "admin")).rejects.toThrow(/not_authorized/);
+    await expect(setRole(driver, target, "admin")).rejects.toThrow(/not_authorized/);
+  });
+
+  it("rejects unknown roles", async () => {
+    await expect(setRole(admin, target, "superuser")).rejects.toThrow(/invalid_role/);
   });
 });
 

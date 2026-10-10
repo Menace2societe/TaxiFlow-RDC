@@ -116,13 +116,17 @@ Créez ensuite un compte sur `/register` (investisseur ou chauffeur).
 
 ### Nommer un administrateur
 
-L'inscription publique ne crée que des chauffeurs et des investisseurs. Pour donner le rôle admin,
-exécutez dans **Supabase → SQL Editor**, le seul endroit autorisé à changer un rôle :
+L'inscription publique ne crée que des chauffeurs et des investisseurs.
+
+**Le premier admin** se nomme une seule fois dans **Supabase → SQL Editor** :
 
 ```sql
 update public.profiles set role = 'admin'
 where id = (select id from auth.users where email = 'vous@exemple.com');
 ```
+
+**Les suivants** se nomment depuis l'application : `/dashboard/users`, choisir le rôle, *Appliquer*.
+Un admin ne peut pas changer son propre rôle, il reste donc toujours au moins un administrateur.
 
 ## Configuration (`.env.local`)
 
@@ -144,7 +148,7 @@ Sur Vercel, ajoutez les mêmes variables dans *Project → Settings → Environm
 | **Chauffeur** | `/driver/portal` | Déclarer ses versements et ses km, signaler une panne, voir son contrat et ses documents, changer son code |
 | **Chauffeur-propriétaire** | `/driver/portal` | Tout ce qui précède + enregistrer son véhicule et ses documents ; versements validés d'office |
 | **Investisseur** | `/investor/dashboard` | Flotte, recrutement des chauffeurs et codes d'accès, validation des versements, recettes, alertes km, maintenance, documents, exports CSV |
-| **Admin** | `/dashboard/overview` | Saisie journalière, flotte, rapports et export CSV, utilisateurs |
+| **Admin** | `/dashboard/overview` | Saisie journalière, flotte, rapports et export CSV, utilisateurs et rôles (nommer / retirer un admin) |
 
 Le rôle et le statut chauffeur-propriétaire sont choisis **à l'inscription** et ne peuvent plus être
 modifiés par l'utilisateur ensuite.
@@ -171,7 +175,7 @@ npm test
 - **Base de données** (`tests/db`) : toutes les migrations sont rejouées sur un Postgres embarqué,
   puis la RLS est testée en se connectant comme chaque type d'utilisateur. Les tests vérifient qu'on ne
   peut pas devenir admin, changer son rôle, s'auto-valider un versement, lire les numéros d'autres
-  chauffeurs ni ouvrir les documents d'un autre investisseur.
+  chauffeurs ni ouvrir les documents d'un autre investisseur ; seul un admin change un rôle, jamais le sien.
 
 La CI GitHub lance typecheck, lint, tests et build à chaque push.
 

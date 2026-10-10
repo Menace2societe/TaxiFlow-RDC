@@ -11,7 +11,8 @@ describe("hardening migration on the production schema", () => {
   it("adds missing daily_entries columns and backfills revenue_cdf", async () => {
     const db = await createDatabase();
     const files = migrationFiles();
-    for (const file of files.slice(0, -1)) {
+    const hardening = "20261010120000_security_hardening.sql";
+    for (const file of files.filter((name) => name < hardening)) {
       await db.exec(readFileSync(join(migrationsDir, file), "utf8"));
     }
 
@@ -25,7 +26,7 @@ describe("hardening migration on the production schema", () => {
         values ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000a1', '2026-10-01', 20, 'USD', 0, 80, 20);
     `);
 
-    await db.exec(readFileSync(join(migrationsDir, files.at(-1)!), "utf8"));
+    await db.exec(readFileSync(join(migrationsDir, hardening), "utf8"));
 
     const result = await db.query<{ revenue_cdf: string; is_suspicious: boolean }>(
       "select revenue_cdf, is_suspicious from public.daily_entries"
