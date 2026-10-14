@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { finalizeSubscriptionPayment } from "@/lib/billing/finalize";
 import { finalizeMobileMoneyTransaction } from "@/lib/mobile-money/finalize";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +21,11 @@ export async function POST(request: Request) {
   }
 
   try {
-    await finalizeMobileMoneyTransaction(depositId.data);
+    // Le même compte pawaPay sert aux versements des chauffeurs et aux abonnements.
+    const driverPayment = await finalizeMobileMoneyTransaction(depositId.data);
+    if (!driverPayment) {
+      await finalizeSubscriptionPayment(depositId.data);
+    }
   } catch (error) {
     // 500 : pawaPay renverra le callback plus tard.
     console.error("[mobile-money/callback]", error);

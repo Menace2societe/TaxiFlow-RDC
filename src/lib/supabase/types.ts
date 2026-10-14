@@ -393,6 +393,51 @@ export type Database = {
         };
         Relationships: [];
       };
+      subscriptions: {
+        Row: {
+          owner_id: string;
+          trial_ends_at: string;
+          paid_until: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      subscription_payments: {
+        Row: {
+          id: string;
+          owner_id: string;
+          months: number;
+          amount: number;
+          currency: EntryCurrency;
+          provider: string;
+          phone: string | null;
+          status: MobileMoneyStatus;
+          failure_reason: string | null;
+          provider_transaction_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id: string;
+          owner_id: string;
+          months: number;
+          amount: number;
+          currency: EntryCurrency;
+          provider: string;
+          phone?: string | null;
+          status?: MobileMoneyStatus;
+        };
+        Update: {
+          status?: MobileMoneyStatus;
+          failure_reason?: string | null;
+          provider_transaction_id?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       notification_log: {
         Row: {
           id: string;
@@ -438,6 +483,18 @@ export type Database = {
       is_admin: {
         Args: Record<string, never>;
         Returns: boolean;
+      };
+      ensure_subscription: {
+        Args: Record<string, never>;
+        Returns: { owner_id: string; trial_ends_at: string; paid_until: string | null; created_at: string; updated_at: string };
+      };
+      extend_subscription: {
+        Args: { p_owner_id: string; p_months: number };
+        Returns: string;
+      };
+      admin_extend_subscription: {
+        Args: { p_owner_id: string; p_months: number; p_amount: number; p_currency: EntryCurrency };
+        Returns: string;
       };
       set_user_role: {
         Args: { p_user_id: string; p_role: UserRole };

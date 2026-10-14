@@ -1,7 +1,10 @@
 import { ShieldCheck, UserCog } from "lucide-react";
+import { CashSubscriptionForm } from "@/components/admin/CashSubscriptionForm";
 import { UserRoleForm } from "@/components/admin/UserRoleForm";
+import { subscriptionState } from "@/lib/billing/plans";
 import { getCurrentProfile } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/server";
+import { todayInAppTimezone } from "@/lib/time/kinshasa";
 import type { UserRole } from "@/lib/supabase/types";
 
 export const dynamic = "force-dynamic";
@@ -38,6 +41,17 @@ export default async function UsersPage() {
     errorMessage = "Impossible de charger les utilisateurs.";
   }
   profiles = data ?? [];
+
+  // L'admin lit tous les abonnements (policy subscriptions_owner_select).
+  const { data: subscriptions } = await supabase.from("subscriptions").select("owner_id,trial_ends_at,paid_until");
+  const today = todayInAppTimezone();
+  const accessByOwner = new Map(
+    (subscriptions ?? []).map((subscription) => {
+      const state = subscriptionState(subscription, today);
+      const label = { trial: "Essai", active: "Payé", expired: "Expiré" }[state.status];
+      return [subscription.owner_id, `${label} · jusqu'au ${state.accessUntil}`];
+    })
+  );
 
   const adminCount = profiles.filter((profile) => profile.role === "admin").length;
 
@@ -80,6 +94,13 @@ export default async function UsersPage() {
                     {profile.is_owner_driver ? " · chauffeur-propriétaire" : ""}
                   </p>
                 </div>
+                <div className="flex flex-col gap-3 md:items-end">
+                {profile.role === "investor" ? (
+                  <CashSubscriptionForm
+                    ownerId={profile.id}
+                    accessLabel={accessByOwner.get(profile.id) ?? "Pas encore d'abonnement (essai à la 1re visite)"}
+                  />
+                ) : null}
                 {isSelf ? (
                   <span className="inline-flex w-fit items-center gap-2 rounded-md bg-palm/10 px-3 py-2 text-sm font-semibold text-palm dark:text-emerald-300">
                     <ShieldCheck size={16} aria-hidden />
@@ -88,6 +109,7 @@ export default async function UsersPage() {
                 ) : (
                   <UserRoleForm userId={profile.id} currentRole={profile.role} userName={name} />
                 )}
+                </div>
               </article>
             );
           })}

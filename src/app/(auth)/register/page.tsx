@@ -219,7 +219,15 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
         </button>
 
         <p className="text-center text-xs text-neutral-500">
-          En créant un compte, vous acceptez les conditions d&apos;utilisation de TaxiFlow RDC.
+          En créant un compte, vous acceptez les{" "}
+          <Link href={ROUTES.TERMS} className="underline">
+            conditions d&apos;utilisation
+          </Link>{" "}
+          et la{" "}
+          <Link href={ROUTES.PRIVACY} className="underline">
+            politique de confidentialité
+          </Link>
+          .
         </p>
       </form>
 

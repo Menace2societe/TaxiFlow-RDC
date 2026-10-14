@@ -6,6 +6,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { loginWithNext, ROUTES } from "@/lib/routes";
 import type { VehicleStatus } from "@/lib/supabase/types";
+import { vehicleLimitMessage } from "@/lib/billing/subscription";
 
 export type VehicleOperationalStatus = "en service" | "maintenance" | "repos";
 
@@ -128,6 +129,11 @@ export async function createVehicle(formData: FormData) {
     redirect(`${ROUTES.INVESTOR_FLEET}?error=${encodeURIComponent(first)}`);
   }
 
+  const limitMessage = await vehicleLimitMessage(supabase, user.id);
+  if (limitMessage) {
+    redirect(`${ROUTES.INVESTOR_FLEET}?error=${encodeURIComponent(limitMessage)}`);
+  }
+
   const { error } = await supabase.from("vehicles").insert({
     owner_id: user.id,
     driver_id: null,
@@ -172,6 +178,11 @@ export async function createVehicleFromInvestorDashboard(formData: FormData): Pr
       const errors = parsed.error.flatten().fieldErrors;
       const first = Object.values(errors)[0]?.[0] ?? "Donnees invalides.";
       return { ok: false, message: first };
+    }
+
+    const limitMessage = await vehicleLimitMessage(supabase, user.id);
+    if (limitMessage) {
+      return { ok: false, message: limitMessage };
     }
 
     const { error } = await supabase.from("vehicles").insert({

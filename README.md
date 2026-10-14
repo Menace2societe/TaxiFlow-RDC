@@ -144,6 +144,42 @@ where id = (select id from auth.users where email = 'vous@exemple.com');
 **Les suivants** se nomment depuis l'application : `/dashboard/users`, choisir le rôle, *Appliquer*.
 Un admin ne peut pas changer son propre rôle, il reste donc toujours au moins un administrateur.
 
+### Compte de démonstration
+
+Pour montrer l'application à un prospect sans exposer de vraies données :
+
+```bash
+node --env-file=.env.local scripts/seed-demo.mjs
+```
+
+Sans option, le script affiche seulement ce qu'il va faire. Avec `--yes`, il crée (ou réinitialise) un
+investisseur fictif, 4 véhicules, 4 chauffeurs et 30 jours d'activité : versements dont un par Mobile Money,
+recette suspecte, 70 km non déclarés, jour sans recette, véhicule en panne, dépenses, location-vente et documents
+qui expirent. Il affiche les identifiants à la fin. Relancez-le après chaque démo pour repartir à zéro.
+
+## Abonnement et tarifs
+
+La grille est définie dans [`src/lib/billing/plans.ts`](src/lib/billing/plans.ts) et reprise partout
+(page d'accueil, page Abonnement, facturation) :
+
+| | Prix |
+|---|---|
+| 1er véhicule | gratuit, sans limite de durée |
+| Moto | 4 USD / mois |
+| Taxi | 9 USD / mois |
+| Remises | -10 % dès 10 véhicules payants, -20 % dès 30 |
+| Paiement annuel | 12 mois pour le prix de 10 |
+
+- **30 jours d'essai** démarrent à la première visite de la page Abonnement.
+- **Paiement** par Mobile Money depuis *Abonnement* (montant recalculé côté serveur selon la flotte), ou en
+  espèces : un admin l'enregistre dans `/dashboard/users`.
+- **À l'expiration**, les données restent consultables mais l'ajout de véhicules payants est bloqué ; un
+  bandeau prévient 5 jours avant.
+
+Argumentaire de vente, message WhatsApp et déroulé de démo : [`docs/ARGUMENTAIRE.md`](docs/ARGUMENTAIRE.md).
+Les pages [`/conditions`](src/app/conditions/page.tsx) et [`/confidentialite`](src/app/confidentialite/page.tsx)
+sont des **brouillons** à faire valider par un juriste.
+
 ## Configuration (`.env.local`)
 
 | Variable | Où la trouver | Rôle |

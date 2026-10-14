@@ -6,6 +6,7 @@ import {
   BarChart3,
   CarTaxiFront,
   ClipboardList,
+  CreditCard,
   FileSignature,
   FileText,
   LayoutDashboard,
@@ -40,6 +41,7 @@ const navItems = {
     { href: ROUTES.INVESTOR_CONTROL, label: "Controle & alertes", icon: ShieldAlert },
     { href: ROUTES.INVESTOR_EXPENSES, label: "Depenses & benefice", icon: Wallet },
     { href: ROUTES.INVESTOR_CONTRACTS, label: "Contrats chauffeurs", icon: FileSignature },
+    { href: ROUTES.INVESTOR_BILLING, label: "Abonnement", icon: CreditCard },
     { href: ROUTES.INVESTOR_DOCUMENTS, label: "Documents Legaux", icon: FileText },
     { href: ROUTES.INVESTOR_SETTINGS, label: "Parametres", icon: Settings }
   ],

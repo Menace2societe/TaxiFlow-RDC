@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
-import { CheckCircle2, Loader2, Smartphone, XCircle } from "lucide-react";
+import { Loader2, Smartphone } from "lucide-react";
 import { refreshMobileMoneyPayment, startMobileMoneyPayment, type MobileMoneyState } from "@/actions/mobile-money";
+import { PaymentStatusNotice } from "@/components/shared/PaymentStatusNotice";
+import { useMobileMoneyTracking } from "@/components/shared/useMobileMoneyTracking";
 import { MOBILE_MONEY_PROVIDERS, guessProvider, providerLabels, type MobileMoneyProvider } from "@/lib/mobile-money/operators";
 
 const initialState: MobileMoneyState = { ok: false, message: "" };
-const POLL_INTERVAL_MS = 5000;
-const POLL_TIMEOUT_MS = 3 * 60 * 1000;
 
 type Props = {
   defaultPhone: string | null;
@@ -27,34 +27,8 @@ function SubmitButton() {
 
 export function MobileMoneyPayForm({ defaultPhone, enabled }: Props) {
   const [startState, formAction] = useFormState(startMobileMoneyPayment, initialState);
-  const [tracked, setTracked] = useState<MobileMoneyState | null>(null);
   const [provider, setProvider] = useState<MobileMoneyProvider>(guessProvider(defaultPhone) ?? "VODACOM_MPESA_COD");
-
-  // Suit la transaction jusqu'à la réponse de l'opérateur (le chauffeur tape son PIN).
-  useEffect(() => {
-    if (startState.status !== "accepted" || !startState.transactionId) return;
-    const transactionId = startState.transactionId;
-    setTracked(startState);
-
-    const startedAt = Date.now();
-    const timer = setInterval(async () => {
-      const next = await refreshMobileMoneyPayment(transactionId);
-      if (next.status !== "accepted" || Date.now() - startedAt > POLL_TIMEOUT_MS) {
-        clearInterval(timer);
-        setTracked(
-          next.status === "accepted"
-            ? { ...next, message: "Pas encore de réponse de l'opérateur. Le versement apparaîtra dès que le paiement sera confirmé." }
-            : next
-        );
-      } else {
-        setTracked(next);
-      }
-    }, POLL_INTERVAL_MS);
-
-    return () => clearInterval(timer);
-  }, [startState]);
-
-  const current = tracked?.transactionId === startState.transactionId && tracked ? tracked : startState;
+  const current = useMobileMoneyTracking(startState, refreshMobileMoneyPayment);
 
   if (!enabled) {
     return (
@@ -117,28 +91,7 @@ export function MobileMoneyPayForm({ defaultPhone, enabled }: Props) {
         </label>
       </div>
 
-      {current.message ? (
-        <p
-          role="status"
-          className={[
-            "flex items-start gap-2 rounded-lg px-3 py-2.5 text-sm",
-            current.status === "completed"
-              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-              : current.status === "accepted"
-                ? "bg-amber-500/10 text-amber-700 dark:text-amber-200"
-                : "bg-red-500/10 text-red-700 dark:text-red-300"
-          ].join(" ")}
-        >
-          {current.status === "completed" ? (
-            <CheckCircle2 size={16} className="mt-0.5 shrink-0" aria-hidden />
-          ) : current.status === "accepted" ? (
-            <Loader2 size={16} className="mt-0.5 shrink-0 animate-spin" aria-hidden />
-          ) : (
-            <XCircle size={16} className="mt-0.5 shrink-0" aria-hidden />
-          )}
-          <span>{current.message}</span>
-        </p>
-      ) : null}
+      <PaymentStatusNotice payment={current} />
 
       <SubmitButton />
     </form>

@@ -72,8 +72,8 @@ export function AuthPageShell({ children }: { children: React.ReactNode }) {
           {/* Bottom stat */}
           <div className="relative flex items-center gap-6 rounded-xl border border-emerald-900/40 bg-emerald-950/30 px-5 py-4">
             <div className="text-center">
-              <p className="text-2xl font-bold text-emerald-400">500+</p>
-              <p className="text-[10px] uppercase tracking-wider text-neutral-500">Véhicules</p>
+              <p className="text-2xl font-bold text-emerald-400">30 j</p>
+              <p className="text-[10px] uppercase tracking-wider text-neutral-500">Essai gratuit</p>
             </div>
             <div className="h-10 w-px bg-neutral-800" />
             <div className="text-center">

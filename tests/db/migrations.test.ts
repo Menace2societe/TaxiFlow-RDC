@@ -317,6 +317,69 @@ describe("field operations", () => {
   });
 });
 
+describe("subscriptions", () => {
+  let subscriber: string;
+  let admin: string;
+
+  beforeAll(async () => {
+    subscriber = await createUser(db, { role: "investor", full_name: "Abonné" });
+    admin = await createUser(db, { role: "investor" });
+    await db.query("update public.profiles set role = 'admin' where id = $1", [admin]);
+  });
+
+  const subscription = async (ownerId: string) =>
+    (
+      await db.query<{ trial_ends_at: string; paid_until: string | null; trial_days: number; paid_days: number | null }>(
+        `select trial_ends_at, paid_until, trial_ends_at - current_date as trial_days, paid_until - current_date as paid_days
+         from public.subscriptions where owner_id = $1`,
+        [ownerId]
+      )
+    ).rows[0];
+
+  it("starts a 30-day free trial once", async () => {
+    await asUser(db, subscriber, () => db.query("select public.ensure_subscription()"));
+    await asUser(db, subscriber, () => db.query("select public.ensure_subscription()"));
+    expect((await subscription(subscriber)).trial_days).toBe(30);
+  });
+
+  it("users cannot extend their own subscription", async () => {
+    await expect(
+      asUser(db, subscriber, () => db.query("select public.extend_subscription($1, 12)", [subscriber]))
+    ).rejects.toThrow(/permission denied/);
+    await expect(
+      asUser(db, subscriber, () => db.query("update public.subscriptions set paid_until = '2099-01-01' where owner_id = $1", [subscriber]))
+    ).resolves.toBeDefined();
+    expect((await subscription(subscriber)).paid_until).toBeNull();
+  });
+
+  it("paying during the trial starts after the trial", async () => {
+    await db.query("select public.extend_subscription($1, 1)", [subscriber]);
+    const after = await subscription(subscriber);
+    expect(after.paid_days).toBeGreaterThanOrEqual(30 + 28);
+    expect(after.paid_days).toBeLessThanOrEqual(30 + 31);
+  });
+
+  it("an admin records a cash payment, others cannot", async () => {
+    await expect(
+      asUser(db, investor, () => db.query("select public.admin_extend_subscription($1, 1, 10, 'USD')", [subscriber]))
+    ).rejects.toThrow(/not_authorized/);
+
+    const before = (await subscription(subscriber)).paid_days!;
+    await asUser(db, admin, () => db.query("select public.admin_extend_subscription($1, 1, 10, 'USD')", [subscriber]));
+    expect((await subscription(subscriber)).paid_days).toBeGreaterThan(before);
+
+    const payments = await asUser(db, subscriber, () =>
+      db.query<{ provider: string; amount: string }>("select provider, amount from public.subscription_payments")
+    );
+    expect(payments.rows).toEqual([{ provider: "CASH", amount: "10.00" }]);
+  });
+
+  it("subscriptions are private", async () => {
+    const visible = await asUser(db, otherInvestor, () => db.query("select 1 from public.subscriptions where owner_id = $1", [subscriber]));
+    expect(visible.rows).toHaveLength(0);
+  });
+});
+
 describe("legal documents storage", () => {
   const path = () => `${investor}/${driver}/${vehicle}/1-assurance.pdf`;
 
