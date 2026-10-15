@@ -1,6 +1,10 @@
 import { Sidebar } from "@/components/Sidebar";
 import { SupabaseRealtimeRefresh } from "@/components/SupabaseRealtimeRefresh";
+import Link from "next/link";
 import { requireRole } from "@/lib/auth/roles";
+import { getOwnerBilling } from "@/lib/billing/subscription";
+import { ROUTES } from "@/lib/routes";
+import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +15,19 @@ export default async function InvestorLayout({
 }) {
   const profile = await requireRole("investor");
   const investorName = profile.full_name?.trim() || "Investisseur";
+  const billing = await getOwnerBilling(await createClient(), profile.id);
+  // Bandeau seulement quand il y a quelque chose à payer : fin d'essai proche ou expiré.
+  const billingNotice =
+    billing && billing.quote.totalUsd > 0
+      ? billing.state.status === "expired"
+        ? { tone: "border-red-500/30 bg-red-500/10 text-red-200", text: "Votre abonnement a expiré. Renouvelez-le pour continuer à ajouter des véhicules." }
+        : billing.state.daysLeft <= 5
+          ? {
+              tone: "border-amber-500/30 bg-amber-500/10 text-amber-100",
+              text: `${billing.state.status === "trial" ? "Votre essai gratuit" : "Votre abonnement"} se termine dans ${billing.state.daysLeft} jour(s).`
+            }
+          : null
+      : null;
 
   return (
     <div
@@ -41,6 +58,14 @@ export default async function InvestorLayout({
         {/* Main content column */}
         <main className="min-w-0 overflow-auto px-4 py-6 md:px-8 md:py-8">
           <SupabaseRealtimeRefresh />
+          {billingNotice ? (
+            <div className={`mx-auto mb-5 flex w-full max-w-6xl flex-wrap items-center justify-between gap-2 rounded-lg border px-4 py-3 text-sm ${billingNotice.tone}`}>
+              <span>{billingNotice.text}</span>
+              <Link href={ROUTES.INVESTOR_BILLING} className="font-semibold underline">
+                Voir l&apos;abonnement
+              </Link>
+            </div>
+          ) : null}
           <div className="mx-auto w-full max-w-6xl">{children}</div>
         </main>
       </div>

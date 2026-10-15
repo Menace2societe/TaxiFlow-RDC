@@ -12,10 +12,12 @@ export type LegalDocumentRow = {
   /** Lien signé temporaire (1 h), vide si le fichier est introuvable. */
   file_url: string;
   storage_path: string;
+  expires_at: string | null;
   created_at: string;
 };
 
-const documentColumns = "id,owner_id,driver_id,vehicle_id,document_type,document_name,file_url,storage_path,created_at";
+const documentColumns =
+  "id,owner_id,driver_id,vehicle_id,document_type,document_name,file_url,storage_path,expires_at,created_at";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 

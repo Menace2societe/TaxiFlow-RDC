@@ -151,9 +151,9 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
       {/* ── Stats strip ── */}
       <div className="mb-8 grid grid-cols-3 divide-x divide-stone-200 rounded-xl border border-stone-200 bg-stone-50 dark:divide-stone-700 dark:border-stone-700/60 dark:bg-stone-800/30">
         {[
-          { icon: Truck, label: "Véhicules suivis", value: "500+" },
-          { icon: UserRound, label: "Chauffeurs actifs", value: "300+" },
-          { icon: TrendingUp, label: "Revenus gérés /mois", value: "$120k+" },
+          { icon: Truck, label: "Véhicule offert", value: "1er" },
+          { icon: UserRound, label: "Opérateurs Mobile Money", value: "3" },
+          { icon: TrendingUp, label: "Essai gratuit", value: "30 j" },
         ].map(({ icon: StatIcon, label, value }) => (
           <div key={label} className="flex flex-col items-center gap-0.5 px-3 py-4">
             <StatIcon size={16} className="mb-1 text-stone-400" aria-hidden />

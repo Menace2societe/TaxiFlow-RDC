@@ -29,8 +29,24 @@ sombre lisible en plein soleil.
   marquée **suspecte** quand la distance dépasse 50 km pour une recette ≤ 5 000 CDF (montant converti
   en CDF : un versement en USD n'est pas pénalisé). Les alertes s'affichent dans un panneau dédié
   côté investisseur et admin.
-- **Mode hors-ligne chauffeur** : sans réseau, le versement est mis en file d'attente sur le téléphone
-  et envoyé automatiquement au retour de la connexion.
+- **Application installable (PWA)** : s'ajoute à l'écran d'accueil comme une vraie app. Les pages
+  déjà ouvertes s'affichent sans réseau, et les versements (photo comprise) sont gardés sur le téléphone
+  puis envoyés au retour de la connexion.
+- **Paiement Mobile Money** : le chauffeur paie son versement par **M-Pesa, Airtel Money ou Orange
+  Money** (via pawaPay). Le versement est validé automatiquement dès que l'argent est reçu.
+- **Photo du compteur** jointe à chaque versement, et écran **Contrôle & alertes** : l'investisseur
+  examine les recettes suspectes photo à l'appui et les marque « justifiée » ou « fraude ».
+- **Courses hors application détectées** : si le compteur avance entre deux journées déclarées, les
+  kilomètres non déclarés sont signalés ; un compteur qui recule aussi. Les jours sans recette d'un
+  véhicule en service sont listés.
+- **Dépenses et bénéfice net** par véhicule et par mois (carburant, entretien, réparations, assurance…).
+- **Contrats chauffeurs** : employé ou **location-vente**, avec l'avancement du rachat calculé à partir
+  des versements validés et une date de fin estimée.
+- **Échéances des documents** : date d'expiration de l'assurance, du contrôle technique, du permis… avec
+  alertes à 30 jours, 7 jours et le jour J.
+- **Alertes WhatsApp** : chaque matin, un message récapitulatif à l'investisseur (documents qui
+  expirent, recettes suspectes, km non déclarés), jamais deux fois la même alerte.
+- **Connexion par SMS ou WhatsApp** : le chauffeur reçoit un code à usage unique sur son numéro +243.
 - **Chauffeurs sans email** : l'investisseur inscrit un chauffeur avec son numéro ; l'app génère un
   **code d'accès** à lui transmettre. Le chauffeur se connecte avec « numéro + code », sans SMS payant,
   puis peut choisir son propre code.
@@ -128,6 +144,42 @@ where id = (select id from auth.users where email = 'vous@exemple.com');
 **Les suivants** se nomment depuis l'application : `/dashboard/users`, choisir le rôle, *Appliquer*.
 Un admin ne peut pas changer son propre rôle, il reste donc toujours au moins un administrateur.
 
+### Compte de démonstration
+
+Pour montrer l'application à un prospect sans exposer de vraies données :
+
+```bash
+node --env-file=.env.local scripts/seed-demo.mjs
+```
+
+Sans option, le script affiche seulement ce qu'il va faire. Avec `--yes`, il crée (ou réinitialise) un
+investisseur fictif, 4 véhicules, 4 chauffeurs et 30 jours d'activité : versements dont un par Mobile Money,
+recette suspecte, 70 km non déclarés, jour sans recette, véhicule en panne, dépenses, location-vente et documents
+qui expirent. Il affiche les identifiants à la fin. Relancez-le après chaque démo pour repartir à zéro.
+
+## Abonnement et tarifs
+
+La grille est définie dans [`src/lib/billing/plans.ts`](src/lib/billing/plans.ts) et reprise partout
+(page d'accueil, page Abonnement, facturation) :
+
+| | Prix |
+|---|---|
+| 1er véhicule | gratuit, sans limite de durée |
+| Moto | 4 USD / mois |
+| Taxi | 9 USD / mois |
+| Remises | -10 % dès 10 véhicules payants, -20 % dès 30 |
+| Paiement annuel | 12 mois pour le prix de 10 |
+
+- **30 jours d'essai** démarrent à la première visite de la page Abonnement.
+- **Paiement** par Mobile Money depuis *Abonnement* (montant recalculé côté serveur selon la flotte), ou en
+  espèces : un admin l'enregistre dans `/dashboard/users`.
+- **À l'expiration**, les données restent consultables mais l'ajout de véhicules payants est bloqué ; un
+  bandeau prévient 5 jours avant.
+
+Argumentaire de vente, message WhatsApp et déroulé de démo : [`docs/ARGUMENTAIRE.md`](docs/ARGUMENTAIRE.md).
+Les pages [`/conditions`](src/app/conditions/page.tsx) et [`/confidentialite`](src/app/confidentialite/page.tsx)
+sont des **brouillons** à faire valider par un juriste.
+
 ## Configuration (`.env.local`)
 
 | Variable | Où la trouver | Rôle |
@@ -138,6 +190,40 @@ Un admin ne peut pas changer son propre rôle, il reste donc toujours au moins u
 | `NEXT_PUBLIC_APP_TIMEZONE` | *(optionnel)* | `Africa/Kinshasa` (défaut, UTC+1) ou `Africa/Lubumbashi` (UTC+2) |
 | `USD_CDF_FALLBACK_RATE` | *(optionnel)* | Taux utilisé si l'API de change ne répond pas (défaut `2800`) |
 | `DRIVER_LOGIN_EMAIL_DOMAIN` | *(optionnel)* | Domaine des identifiants techniques des chauffeurs (défaut `chauffeurs.taxiflow.invalid`, jamais utilisé pour envoyer un email) |
+| `PAWAPAY_API_TOKEN` / `PAWAPAY_ENV` | [Tableau de bord pawaPay](https://dashboard.pawapay.io) | Active le paiement Mobile Money. `sandbox` pour tester, `live` en production |
+| `NEXT_PUBLIC_SMS_LOGIN_ENABLED` | *(optionnel)* | `true` affiche la connexion par SMS / WhatsApp (après configuration dans Supabase) |
+| `WHATSAPP_TOKEN` / `WHATSAPP_PHONE_NUMBER_ID` | Meta → WhatsApp → API Setup | Alertes WhatsApp quotidiennes |
+| `WHATSAPP_TEMPLATE` / `WHATSAPP_TEMPLATE_LANG` | *(optionnel)* | Modèle de message approuvé (défaut `taxiflow_alerte`, `fr`) |
+| `CRON_SECRET` | une longue chaîne aléatoire | Protège la tâche quotidienne d'alertes (Vercel l'envoie automatiquement) |
+| `NEXT_PUBLIC_SITE_URL` | *(optionnel)* | URL du site dans les messages WhatsApp (détectée sur Vercel) |
+
+### Activer les services externes
+
+Chaque service est optionnel : sans configuration, la fonctionnalité reste masquée ou désactivée
+proprement, et le reste de l'application fonctionne.
+
+**Mobile Money (pawaPay)**
+1. Créez un compte marchand sur [pawaPay](https://pawapay.io). Il couvre M-Pesa, Airtel Money et
+   Orange Money en RDC avec un seul contrat.
+2. Copiez le jeton API dans `PAWAPAY_API_TOKEN` (commencez avec `PAWAPAY_ENV=sandbox`).
+3. Dans le tableau de bord pawaPay, réglez l'URL de callback des dépôts sur
+   `https://<votre-domaine>/api/mobile-money/callback`. Le statut est toujours revérifié auprès de
+   pawaPay : un faux callback ne peut pas valider un versement.
+
+**Connexion par SMS / WhatsApp**
+1. Supabase → Authentication → Sign In / Providers → **Phone** : activez-le et choisissez un fournisseur
+   (Twilio couvre la RDC et propose aussi WhatsApp). Pour un fournisseur local, utilisez le
+   [Send SMS hook](https://supabase.com/docs/guides/auth/auth-hooks/send-sms-hook).
+2. Mettez `NEXT_PUBLIC_SMS_LOGIN_ENABLED=true` : le lien apparaît sur la page de connexion.
+   Seuls les numéros déjà inscrits reçoivent un code, cette page ne crée aucun compte.
+
+**Alertes WhatsApp**
+1. Créez une app WhatsApp Business sur [Meta for Developers](https://developers.facebook.com) et
+   récupérez le jeton permanent et l'identifiant du numéro.
+2. Faites approuver un modèle nommé `taxiflow_alerte`, langue français, catégorie *Utility*, avec le
+   corps `Alerte TaxiFlow : {{1}}`.
+3. Renseignez `WHATSAPP_*` et `CRON_SECRET` sur Vercel. La tâche tourne chaque jour à 7 h (heure de
+   Kinshasa) et écrit dans `notification_log`. Le numéro de l'investisseur est celui de son profil.
 
 Sur Vercel, ajoutez les mêmes variables dans *Project → Settings → Environment Variables*.
 
@@ -171,7 +257,8 @@ npm test
 ```
 
 - **Unitaires** (`tests/unit`) : numéros RDC, codes d'accès, CSV, redirections sûres, fuseau horaire,
-  taux de change, règle anti-fraude.
+  taux de change, règle anti-fraude, continuité du compteur, opérateurs Mobile Money, bénéfice net,
+  locations-ventes, échéances des documents, messages WhatsApp.
 - **Base de données** (`tests/db`) : toutes les migrations sont rejouées sur un Postgres embarqué,
   puis la RLS est testée en se connectant comme chaque type d'utilisateur. Les tests vérifient qu'on ne
   peut pas devenir admin, changer son rôle, s'auto-valider un versement, lire les numéros d'autres
@@ -194,13 +281,21 @@ src/
   lib/
     auth/            rôles, requireRole, connexion chauffeur par téléphone
     dashboard/       lectures et agrégations
-    entries/         règle anti-fraude kilométrique
+    contracts/       avancement des locations-ventes
+    control/         données de l'écran Contrôle & alertes
+    documents/       échéances des documents
+    entries/         règle anti-fraude, continuité du compteur
+    finance/         bénéfice net par véhicule
     fx/              taux USD/CDF du jour
+    mobile-money/    opérateurs RDC, client pawaPay, validation des paiements
+    notify/          alertes WhatsApp quotidiennes
     legal-documents/ types, bucket privé, liens signés
     supabase/        clients navigateur / serveur / service role, types
     time/            dates en heure de Kinshasa / Lubumbashi
     csv.ts, exports.ts  export CSV
+  app/api/           callback Mobile Money, tâche quotidienne d'alertes
   middleware.ts      session Supabase + redirection par rôle
+public/              service worker (sw.js) et icônes de l'application
 supabase/migrations/ schéma, RLS, enums, stockage, anti-fraude km
 tests/               unit/ (Vitest) et db/ (migrations + RLS sur PGlite)
 ```
@@ -218,23 +313,25 @@ tests/               unit/ (Vitest) et db/ (migrations + RLS sur PGlite)
 
 **Terrain**
 - [x] Connexion chauffeur par numéro + code d'accès
-- [ ] Code envoyé par **SMS / WhatsApp** au lieu d'être transmis par l'investisseur
-- [ ] **PWA installable** (manifest, service worker) pour ouvrir l'app sans réseau
-- [ ] Contrôle de continuité du compteur (km de départ = km d'arrivée de la veille)
-- [ ] Photo du compteur jointe au versement
+- [x] Connexion par code **SMS / WhatsApp**
+- [x] **PWA installable**, pages visitées disponibles hors-ligne
+- [x] Contrôle de continuité du compteur (km non déclarés, compteur qui recule)
+- [x] Photo du compteur jointe au versement
+- [ ] Boîtier GPS dans le véhicule (position, kilométrage et coupure moteur à distance)
 
 **Argent**
 - [x] Taux USD/CDF du jour
-- [ ] Paiement **Mobile Money** : M-Pesa, Airtel Money, Orange Money
-- [ ] Dépenses : carburant, entretien, et **bénéfice net** par véhicule
-- [ ] Contrats chauffeur : salarié ou **location-vente** avec suivi du remboursement
+- [x] Paiement **Mobile Money** : M-Pesa, Airtel Money, Orange Money
+- [x] Dépenses : carburant, entretien, et **bénéfice net** par véhicule
+- [x] Contrats chauffeur : salarié ou **location-vente** avec suivi du remboursement
 
 **Pilotage**
-- [x] Panneau des **entrées suspectes**
+- [x] Écran de revue des **entrées suspectes** (photo, décision, note)
 - [x] Export **CSV** des recettes et versements
 - [ ] Export PDF
-- [ ] Alertes d'expiration (assurance, contrôle technique, permis)
-- [ ] Notifications WhatsApp / SMS (versement en retard, panne)
+- [x] Alertes d'expiration (assurance, contrôle technique, permis)
+- [x] Notifications WhatsApp quotidiennes
+- [ ] Notification immédiate des pannes
 - [ ] Vue admin globale et journal d'audit
 - [ ] Traduction **lingala** et **swahili**
 

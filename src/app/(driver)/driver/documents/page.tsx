@@ -12,6 +12,8 @@ import { loginWithNext, ROUTES } from "@/lib/routes";
 
 // Le Chauffeur-Patron peut aussi téléverser son Permis
 import type { DocumentType } from "@/lib/supabase/types";
+import { expiryLabel } from "@/lib/documents/expiry";
+import { todayInAppTimezone } from "@/lib/time/kinshasa";
 
 const ownerDriverAllowedTypes: ReadonlyArray<{ value: DocumentType; label: string }> = [
   ...ownerDriverDocumentTypeOptions,
@@ -131,6 +133,13 @@ export default async function DriverDocumentsPage({ searchParams }: DriverDocume
               </select>
             </label>
 
+            {/* Date d'expiration */}
+            <label className="grid gap-1.5 text-sm font-medium text-neutral-300">
+              Date d&apos;expiration (assurance, contrôle technique, permis…)
+              <input name="expires_at" type="date" className="field relative z-20" />
+              <span className="text-xs font-normal text-neutral-500">Vous serez alerté 30 jours et 7 jours avant.</span>
+            </label>
+
             {/* Nom du document */}
             <label className="grid gap-1.5 text-sm font-medium text-neutral-300">
               Nom du document
@@ -212,6 +221,7 @@ export default async function DriverDocumentsPage({ searchParams }: DriverDocume
                   </span>
                   <span className="text-xs text-neutral-600">
                     Ajouté le {formatDate(document.created_at)}
+                    {document.expires_at ? ` · ${expiryLabel(document.expires_at, todayInAppTimezone())}` : ""}
                   </span>
                 </div>
               </div>

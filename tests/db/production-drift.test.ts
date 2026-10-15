@@ -35,3 +35,55 @@ describe("hardening migration on the production schema", () => {
     expect(result.rows[0].is_suspicious).toBe(false);
   });
 });
+
+describe("field operations migration on the production schema", () => {
+  // En production : pas de type payment_source (payments.source est du texte) et
+  // des véhicules encore en « active » / « inactive ».
+  it("accepts mobile_money on a text column and normalizes vehicle statuses", async () => {
+    const db = await createDatabase();
+    const fieldOperations = "20261011120000_field_operations.sql";
+    for (const file of migrationFiles().filter((name) => name < fieldOperations)) {
+      await db.exec(readFileSync(join(migrationsDir, file), "utf8"));
+    }
+
+    await db.exec(`
+      alter table public.payments alter column source drop default;
+      alter table public.payments alter column source type text using source::text;
+      alter table public.payments alter column source set default 'automated';
+      alter table public.payments add constraint payments_source_legacy_check check (source in ('automated', 'manual_backup'));
+      drop type public.payment_source;
+
+      alter table public.vehicles drop constraint vehicles_status_check;
+      alter table public.vehicles add constraint vehicles_status_check check (status in ('active', 'inactive', 'maintenance'));
+      insert into auth.users (id) values ('00000000-0000-0000-0000-000000000001'), ('00000000-0000-0000-0000-000000000002');
+      update public.profiles set role = 'driver' where id = '00000000-0000-0000-0000-000000000002';
+      insert into public.vehicles (id, owner_id, plate_number, status) values
+        ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-000000000001', 'KN-1', 'active'),
+        ('00000000-0000-0000-0000-0000000000a2', '00000000-0000-0000-0000-000000000001', 'KN-2', 'inactive');
+    `);
+
+    await db.exec(readFileSync(join(migrationsDir, fieldOperations), "utf8"));
+    // Rejouable
+    await db.exec(readFileSync(join(migrationsDir, fieldOperations), "utf8"));
+
+    const statuses = await db.query<{ plate_number: string; status: string }>(
+      "select plate_number, status from public.vehicles order by plate_number"
+    );
+    expect(statuses.rows).toEqual([
+      { plate_number: "KN-1", status: "en service" },
+      { plate_number: "KN-2", status: "repos" }
+    ]);
+
+    await expect(
+      db.query(
+        `insert into public.payments (amount, driver_id, vehicle_id, investor_id, status, source)
+         values (1000, '00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-0000000000a1',
+                 '00000000-0000-0000-0000-000000000001', 'validated', 'mobile_money')`
+      )
+    ).resolves.toBeDefined();
+
+    await expect(
+      db.query("update public.vehicles set status = 'active' where plate_number = 'KN-1'")
+    ).rejects.toThrow(/vehicles_status_check/);
+  });
+});

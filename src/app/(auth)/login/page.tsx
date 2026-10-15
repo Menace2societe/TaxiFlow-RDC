@@ -162,6 +162,15 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         </button>
       </form>
 
+      {process.env.NEXT_PUBLIC_SMS_LOGIN_ENABLED === "true" ? (
+        <Link
+          href={`${ROUTES.LOGIN}/sms`}
+          className="btn-secondary mt-3 flex min-h-11 w-full justify-center"
+        >
+          Chauffeur : recevoir un code par SMS ou WhatsApp
+        </Link>
+      ) : null}
+
       {/* ── Divider ── */}
       <div className="relative my-6">
         <div className="absolute inset-0 flex items-center">

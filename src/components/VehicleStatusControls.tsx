@@ -4,6 +4,8 @@ import type { VehicleStatus } from "@/lib/supabase/types";
 
 const statusActions: Array<{
   label: VehicleOperationalStatus;
+  /** Libellé affiché, avec majuscule. */
+  displayLabel: string;
   dbStatus: VehicleStatus;
   icon: typeof CheckCircle2;
   baseClass: string;
@@ -14,6 +16,7 @@ const statusActions: Array<{
 }> = [
   {
     label: "en service",
+    displayLabel: "En service",
     dbStatus: "en service",
     icon: CheckCircle2,
     baseClass:
@@ -26,6 +29,7 @@ const statusActions: Array<{
   },
   {
     label: "maintenance",
+    displayLabel: "Maintenance",
     dbStatus: "maintenance",
     icon: Wrench,
     baseClass:
@@ -38,6 +42,7 @@ const statusActions: Array<{
   },
   {
     label: "repos",
+    displayLabel: "Repos",
     dbStatus: "repos",
     icon: CirclePause,
     baseClass:
@@ -60,7 +65,7 @@ export function VehicleStatusControls({
   compact?: boolean;
 }) {
   return (
-    <div className={`grid gap-2 ${compact ? "grid-cols-1 min-[420px]:grid-cols-3" : "grid-cols-1 sm:grid-cols-3"}`}>
+    <div className={`grid gap-1.5 ${compact ? "grid-cols-3" : "grid-cols-1 sm:grid-cols-3"}`}>
       {statusActions.map((action) => {
         const Icon = action.icon;
         const active = currentStatus === action.dbStatus;
@@ -78,13 +83,14 @@ export function VehicleStatusControls({
                 "group relative w-full overflow-hidden rounded-xl border font-semibold",
                 "transition-all duration-200 focus:outline-none focus:ring-2",
                 action.ringClass,
-                compact ? "min-h-10 px-2 py-2 text-[11px]" : "min-h-12 px-3 py-2.5 text-sm",
+                compact ? "min-h-12 px-1.5 py-2 text-[11px]" : "min-h-12 px-3 py-2.5 text-sm",
                 active ? action.activeClass : action.baseClass
               ].join(" ")}
             >
               <span
-                className={`inline-flex w-full items-center justify-center gap-1.5 ${
-                  compact ? "" : "flex-col sm:flex-row"
+                className={`inline-flex w-full items-center justify-center ${
+                  // Compact : icône au-dessus du texte, pour que « Maintenance » tienne sur une ligne.
+                  compact ? "flex-col gap-1" : "flex-col gap-1.5 sm:flex-row"
                 }`}
               >
                 {/* Indicateur actif */}
@@ -93,13 +99,13 @@ export function VehicleStatusControls({
                     className={[
                       "h-2 w-2 shrink-0 rounded-full",
                       action.dotClass,
-                      compact ? "" : "absolute left-2.5 top-1/2 -translate-y-1/2",
+                      compact ? "absolute right-1.5 top-1.5" : "absolute left-2.5 top-1/2 -translate-y-1/2",
                       action.dbStatus === "en service" ? "pulse-ring-active" : ""
                     ].join(" ")}
                   />
                 )}
                 <Icon size={compact ? 13 : 15} aria-hidden className="shrink-0" />
-                <span className="whitespace-normal break-words text-center capitalize leading-tight">{action.label}</span>
+                <span className="whitespace-nowrap text-center leading-tight">{action.displayLabel}</span>
               </span>
               {/* Sous-label visible en mode non-compact inactif */}
               {!compact && !active && (

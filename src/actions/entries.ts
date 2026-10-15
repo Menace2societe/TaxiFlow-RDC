@@ -143,6 +143,10 @@ export async function submitDriverDailyEntry(formData: FormData): Promise<EntryA
 
   const vehicleRow = vehicle as { id: string; driver_id: string | null; owner_id: string };
 
+  // La photo doit être dans le dossier du chauffeur (la policy storage l'impose déjà à l'envoi).
+  const photoPathRaw = String(formData.get("odometer_photo_path") ?? "");
+  const odometerPhotoPath = photoPathRaw.startsWith(`${user.id}/`) && !photoPathRaw.includes("..") ? photoPathRaw : null;
+
   const entryDate = String(formData.get("entry_date") || todayInAppTimezone());
   const currencyValue = String(formData.get("currency") ?? "CDF");
   const metrics = getEntryMetrics(formData);
@@ -180,6 +184,7 @@ export async function submitDriverDailyEntry(formData: FormData): Promise<EntryA
     owner_id: vehicleRow.owner_id,
     vehicle_id: vehicleRow.id,
     driver_id: user.id,
+    odometer_photo_path: odometerPhotoPath,
     entry_date: entryDate,
     amount: metrics.amount,
     declared_amount: metrics.declaredAmount,

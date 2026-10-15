@@ -1,22 +1,28 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BarChart3,
   CarTaxiFront,
   ClipboardList,
+  CreditCard,
+  FileSignature,
   FileText,
   LayoutDashboard,
   LogOut,
   ReceiptText,
   Settings,
+  ShieldAlert,
   ShieldCheck,
   UserCog,
   UserRound,
+  Wallet,
   Wrench
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { clearOfflineCaches } from "@/components/pwa/ServiceWorkerRegister";
 import { cn } from "@/lib/utils/cn";
 import { ROUTES } from "@/lib/routes";
 import type { UserRole } from "@/lib/supabase/types";
@@ -33,6 +39,10 @@ const navItems = {
     { href: ROUTES.INVESTOR_DASHBOARD, label: "Etat de la Flotte", icon: CarTaxiFront },
     { href: ROUTES.INVESTOR_FLEET, label: "Flotte Investie", icon: CarTaxiFront },
     { href: ROUTES.INVESTOR_REVENUE, label: "Revenus", icon: BarChart3 },
+    { href: ROUTES.INVESTOR_CONTROL, label: "Controle & alertes", icon: ShieldAlert },
+    { href: ROUTES.INVESTOR_EXPENSES, label: "Depenses & benefice", icon: Wallet },
+    { href: ROUTES.INVESTOR_CONTRACTS, label: "Contrats chauffeurs", icon: FileSignature },
+    { href: ROUTES.INVESTOR_BILLING, label: "Abonnement", icon: CreditCard },
     { href: ROUTES.INVESTOR_DOCUMENTS, label: "Documents Legaux", icon: FileText },
     { href: ROUTES.INVESTOR_SETTINGS, label: "Parametres", icon: Settings }
   ],
@@ -57,7 +67,8 @@ export function Sidebar({ role, name }: SidebarProps) {
   return (
     <aside className="flex h-full w-full flex-col border-r border-white/10 bg-stone-950 text-stone-100">
       <div className="border-b border-white/10 px-5 py-4">
-        <Link href={ROUTES.HOME} className="text-lg font-bold text-white">
+        <Link href={ROUTES.HOME} className="inline-flex items-center gap-2 text-lg font-bold text-white">
+          <Image src="/icons/icon.svg" alt="" width={28} height={28} unoptimized className="rounded-lg" />
           TaxiFlow RDC
         </Link>
         <p className="mt-1 text-xs capitalize text-stone-400">
@@ -84,7 +95,7 @@ export function Sidebar({ role, name }: SidebarProps) {
           );
         })}
       </nav>
-      <form action={ROUTES.AUTH_SIGNOUT} method="post" className="border-t border-white/10 p-3">
+      <form action={ROUTES.AUTH_SIGNOUT} method="post" onSubmit={clearOfflineCaches} className="border-t border-white/10 p-3">
         <button className="flex h-10 w-full items-center gap-3 rounded-md px-3 text-sm font-medium text-stone-300 hover:bg-white/10 hover:text-white" type="submit">
           <LogOut size={18} aria-hidden />
           Deconnexion
