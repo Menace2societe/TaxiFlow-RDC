@@ -311,12 +311,12 @@ export default async function InvestorFleetPage({ searchParams }: FleetPageProps
               <span className="badge badge-neutral">{filtered.length} véhicule(s)</span>
             </div>
             <div className="overflow-x-auto">
-              <table className="data-table min-w-[1080px]">
+              <table className="data-table min-w-[1140px]">
                 <thead>
                   <tr>
                     <th>Véhicule</th>
                     <th>Chauffeur</th>
-                    <th>Statut & Commandes</th>
+                    <th className="min-w-[310px]">Statut & Commandes</th>
                     <th>Recettes mois (CDF)</th>
                     <th>Assignation</th>
                     <th className="w-20">Suppr.</th>
