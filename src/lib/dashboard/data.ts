@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { paidSince } from "@/lib/contracts/progress";
+import { normalizeVehicleStatus } from "@/lib/vehicles/status";
 import { recentDates, shortDayLabel } from "@/lib/time/kinshasa";
 import type { BreakdownStatus, EntryCurrency, PaymentStatus, VehicleStatus } from "@/lib/supabase/types";
 
@@ -142,7 +143,7 @@ export async function getOwnerVehicles(ownerId: string): Promise<DashboardVehicl
       label: v.label,
       plate_number: v.plate_number,
       type: v.type,
-      status: v.status,
+      status: normalizeVehicleStatus(v.status),
       driver_id: v.driver_id,
       target_daily_revenue: Number(v.target_daily_revenue ?? 0),
       driver_name: driver?.full_name ?? null,
@@ -368,7 +369,7 @@ export async function getDriverAssignedVehicle(driverId: string): Promise<Driver
       driver_id: row.driver_id,
       target_daily_revenue: Number(row.target_daily_revenue ?? 0),
       type: row.type,
-      status: row.status
+      status: normalizeVehicleStatus(row.status)
     };
   } catch (err) {
     console.error("[getDriverAssignedVehicle] Exception :", err);

@@ -4,6 +4,8 @@ import type { VehicleStatus } from "@/lib/supabase/types";
 
 const statusActions: Array<{
   label: VehicleOperationalStatus;
+  /** Libellé court pour les colonnes étroites (« Maintenance » y était coupé). */
+  shortLabel: string;
   dbStatus: VehicleStatus;
   icon: typeof CheckCircle2;
   baseClass: string;
@@ -14,6 +16,7 @@ const statusActions: Array<{
 }> = [
   {
     label: "en service",
+    shortLabel: "En service",
     dbStatus: "en service",
     icon: CheckCircle2,
     baseClass:
@@ -26,6 +29,7 @@ const statusActions: Array<{
   },
   {
     label: "maintenance",
+    shortLabel: "Garage",
     dbStatus: "maintenance",
     icon: Wrench,
     baseClass:
@@ -38,6 +42,7 @@ const statusActions: Array<{
   },
   {
     label: "repos",
+    shortLabel: "Repos",
     dbStatus: "repos",
     icon: CirclePause,
     baseClass:
@@ -99,7 +104,9 @@ export function VehicleStatusControls({
                   />
                 )}
                 <Icon size={compact ? 13 : 15} aria-hidden className="shrink-0" />
-                <span className="whitespace-normal break-words text-center capitalize leading-tight">{action.label}</span>
+                <span className="whitespace-normal break-words text-center capitalize leading-tight">
+                  {compact ? action.shortLabel : action.label}
+                </span>
               </span>
               {/* Sous-label visible en mode non-compact inactif */}
               {!compact && !active && (

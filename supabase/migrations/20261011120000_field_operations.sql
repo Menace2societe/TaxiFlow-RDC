@@ -7,23 +7,59 @@
 -- 4. Contrats location-vente : versement journalier attendu
 -- 5. Date d'expiration des documents légaux
 -- 6. Journal des notifications (WhatsApp) pour ne jamais envoyer deux fois
+-- 7. Statuts de véhicules ramenés à en service / maintenance / repos
 --
--- Idempotent, et tolérant aux colonnes manquantes de la base de production.
+-- Idempotent, et tolérant aux écarts de la base de production : payments.source
+-- peut y être du texte (sans le type payment_source), et les véhicules peuvent
+-- encore avoir les anciens statuts active / inactive.
 -- =============================================================================
 
 -- ----------------------------------------------------------------------------
 -- 1. Mobile Money
 -- ----------------------------------------------------------------------------
 
+-- payments.source accepte « mobile_money », que la colonne soit un enum ou du texte.
+alter table public.payments
+  add column if not exists source text not null default 'automated';
+
 do $$
+declare
+  source_type text;
+  constraint_row record;
 begin
-  if not exists (
-    select 1 from pg_enum e
-    join pg_type t on t.oid = e.enumtypid
-    join pg_namespace n on n.oid = t.typnamespace
-    where n.nspname = 'public' and t.typname = 'payment_source' and e.enumlabel = 'mobile_money'
-  ) then
-    alter type public.payment_source add value 'mobile_money';
+  select c.udt_name into source_type
+  from information_schema.columns c
+  where c.table_schema = 'public' and c.table_name = 'payments' and c.column_name = 'source';
+
+  if source_type = 'payment_source' then
+    if not exists (
+      select 1 from pg_enum e
+      join pg_type t on t.oid = e.enumtypid
+      join pg_namespace n on n.oid = t.typnamespace
+      where n.nspname = 'public' and t.typname = 'payment_source' and e.enumlabel = 'mobile_money'
+    ) then
+      alter type public.payment_source add value 'mobile_money';
+    end if;
+  else
+    -- Colonne texte : on remplace toute contrainte CHECK sur source qui ignore mobile_money.
+    for constraint_row in
+      select conname from pg_constraint
+      where conrelid = 'public.payments'::regclass
+        and contype = 'c'
+        and pg_get_constraintdef(oid) ilike '%source%'
+        and pg_get_constraintdef(oid) not ilike '%mobile_money%'
+    loop
+      execute format('alter table public.payments drop constraint %I', constraint_row.conname);
+    end loop;
+
+    if not exists (
+      select 1 from pg_constraint
+      where conrelid = 'public.payments'::regclass and conname = 'payments_source_check'
+    ) then
+      alter table public.payments
+        add constraint payments_source_check
+        check (source in ('automated', 'manual_backup', 'mobile_money')) not valid;
+    end if;
   end if;
 end $$;
 
@@ -208,5 +244,25 @@ create policy notification_log_owner_select
   for select
   to authenticated
   using (owner_id = auth.uid());
+
+-- ----------------------------------------------------------------------------
+-- 7. Statuts de véhicules (« Statut inconnu » à l'écran sinon)
+-- ----------------------------------------------------------------------------
+
+alter table public.vehicles drop constraint if exists vehicles_status_check;
+
+update public.vehicles
+set status = case
+  when lower(trim(status)) in ('en service', 'en_service', 'active', 'actif', 'service') then 'en service'
+  when lower(trim(status)) in ('maintenance', 'en maintenance', 'en panne', 'panne', 'garage') then 'maintenance'
+  else 'repos'
+end
+where status is null or status not in ('en service', 'maintenance', 'repos');
+
+alter table public.vehicles alter column status set default 'repos';
+
+alter table public.vehicles
+  add constraint vehicles_status_check
+  check (status in ('repos', 'en service', 'maintenance'));
 
 notify pgrst, 'reload schema';
