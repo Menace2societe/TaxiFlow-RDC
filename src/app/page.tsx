@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
@@ -100,7 +101,8 @@ export default async function HomePage() {
 
       <div className="relative mx-auto max-w-6xl px-5 sm:px-8">
         <nav className="flex items-center justify-between py-5">
-          <Link href={ROUTES.HOME} className="text-lg font-bold">
+          <Link href={ROUTES.HOME} className="inline-flex items-center gap-2 text-lg font-bold">
+            <Image src="/icons/icon.svg" alt="" width={28} height={28} unoptimized className="rounded-lg" />
             TaxiFlow RDC
           </Link>
           <div className="flex items-center gap-2 text-sm">

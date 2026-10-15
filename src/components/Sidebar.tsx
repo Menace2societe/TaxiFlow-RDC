@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -66,7 +67,8 @@ export function Sidebar({ role, name }: SidebarProps) {
   return (
     <aside className="flex h-full w-full flex-col border-r border-white/10 bg-stone-950 text-stone-100">
       <div className="border-b border-white/10 px-5 py-4">
-        <Link href={ROUTES.HOME} className="text-lg font-bold text-white">
+        <Link href={ROUTES.HOME} className="inline-flex items-center gap-2 text-lg font-bold text-white">
+          <Image src="/icons/icon.svg" alt="" width={28} height={28} unoptimized className="rounded-lg" />
           TaxiFlow RDC
         </Link>
         <p className="mt-1 text-xs capitalize text-stone-400">
