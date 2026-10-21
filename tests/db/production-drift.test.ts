@@ -87,3 +87,52 @@ describe("field operations migration on the production schema", () => {
     ).rejects.toThrow(/vehicles_status_check/);
   });
 });
+
+describe("driver_id foreign keys on the production schema", () => {
+  // En production, daily_entries.driver_id pointait vers l'ancienne table drivers.
+  it("remaps legacy drivers.id to profiles and accepts profile ids again", async () => {
+    const db = await createDatabase();
+    const fix = "20261021120000_driver_fk_to_profiles.sql";
+    for (const file of migrationFiles().filter((name) => name < fix)) {
+      await db.exec(readFileSync(join(migrationsDir, file), "utf8"));
+    }
+
+    const owner = "00000000-0000-0000-0000-000000000001";
+    const driverUser = "00000000-0000-0000-0000-000000000002";
+    const legacyDriver = "00000000-0000-0000-0000-0000000000d1";
+    const orphanDriver = "00000000-0000-0000-0000-0000000000d2";
+    const vehicle = "00000000-0000-0000-0000-0000000000a1";
+
+    await db.exec(`
+      insert into auth.users (id, raw_user_meta_data) values
+        ('${owner}', '{"role":"investor"}'), ('${driverUser}', '{"role":"driver"}');
+      create table public.drivers (id uuid primary key, name text, user_id uuid);
+      insert into public.drivers values ('${legacyDriver}', 'Dan', '${driverUser}'), ('${orphanDriver}', 'Sans compte', null);
+      alter table public.daily_entries drop constraint if exists daily_entries_driver_id_fkey;
+      alter table public.daily_entries add constraint daily_entries_driver_id_fkey
+        foreign key (driver_id) references public.drivers (id);
+      insert into public.vehicles (id, owner_id, plate_number, status) values ('${vehicle}', '${owner}', 'KN-1', 'repos');
+      insert into public.daily_entries (owner_id, vehicle_id, driver_id, entry_date) values
+        ('${owner}', '${vehicle}', '${legacyDriver}', '2026-04-20'),
+        ('${owner}', '${vehicle}', '${orphanDriver}', '2026-04-21');
+    `);
+
+    await db.exec(readFileSync(join(migrationsDir, fix), "utf8"));
+    await db.exec(readFileSync(join(migrationsDir, fix), "utf8"));
+
+    const rows = await db.query<{ entry_date: string; driver_id: string | null }>(
+      "select entry_date::text, driver_id from public.daily_entries order by entry_date"
+    );
+    expect(rows.rows).toEqual([
+      { entry_date: "2026-04-20", driver_id: driverUser },
+      { entry_date: "2026-04-21", driver_id: null }
+    ]);
+
+    await expect(
+      db.query(
+        `insert into public.daily_entries (owner_id, vehicle_id, driver_id, entry_date) values ($1, $2, $3, '2026-10-21')`,
+        [owner, vehicle, driverUser]
+      )
+    ).resolves.toBeDefined();
+  });
+});
