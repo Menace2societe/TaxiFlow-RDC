@@ -36,7 +36,7 @@ export default async function InvestorLayout({
     >
       {/* Mobile sidebar */}
       <div className="md:hidden">
-        <Sidebar
+        <Sidebar collapsible
           role="investor"
           name={investorName}
         />
