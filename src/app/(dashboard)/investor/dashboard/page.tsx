@@ -102,8 +102,9 @@ function topDriverName(entries: DashboardEntry[], vehicles: DashboardVehicle[]) 
   const vehiclesById = new Map(vehicles.map((vehicle) => [vehicle.id, vehicle]));
   const totals = entries.reduce<Record<string, number>>((acc, entry) => {
     const vehicle = vehiclesById.get(entry.vehicle_id);
-    const name = vehicle?.driver_name ?? "Non assigne";
-    acc[name] = (acc[name] ?? 0) + entry.revenue_cdf;
+    // Recette d'un véhicule supprimé ou sans chauffeur : ne compte pas.
+    if (!vehicle?.driver_name) return acc;
+    acc[vehicle.driver_name] = (acc[vehicle.driver_name] ?? 0) + entry.revenue_cdf;
     return acc;
   }, {});
 

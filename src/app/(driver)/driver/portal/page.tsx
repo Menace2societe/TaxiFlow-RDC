@@ -112,7 +112,7 @@ export default async function DriverPortalPage({ searchParams }: PortalPageProps
     .filter((p) => p.status === "pending")
     .reduce((sum, p) => sum + p.amount, 0);
   const approvedTotal = recentPayments
-    .filter((p) => p.status === "approved")
+    .filter((p) => p.status === "approved" || p.status === "validated")
     .reduce((sum, p) => sum + p.amount, 0);
   const rejectedTotal = recentPayments
     .filter((p) => p.status === "rejected")

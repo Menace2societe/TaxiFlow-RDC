@@ -111,7 +111,7 @@ export default async function DriverDashboardPage({ searchParams }: DriverDashbo
   const pendingPayments = payments.filter((payment) => payment.status === "pending");
   const pendingAmount = pendingPayments.reduce((sum, payment) => sum + payment.amount, 0);
   const approvedAmount = payments
-    .filter((p) => p.status === "approved")
+    .filter((p) => p.status === "approved" || p.status === "validated")
     .reduce((sum, p) => sum + p.amount, 0);
   const openBreakdowns = breakdowns.filter((breakdown) => breakdown.status !== "resolved").length;
   const currentStatus = displayVehicle ? vehicleStatusView[displayVehicle.status] : null;

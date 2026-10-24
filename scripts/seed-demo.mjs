@@ -106,10 +106,22 @@ for (const [index, driver] of drivers.entries()) {
   });
 }
 
-// ── Remise à zéro (les suppressions en cascade effacent recettes, versements, pannes, dépenses) ──
-for (const table of ["legal_documents", "driver_contracts", "mobile_money_transactions", "notification_log"]) {
-  check(await supabase.from(table).delete().eq(table === "mobile_money_transactions" ? "investor_id" : "owner_id", investorId), `Nettoyage ${table}`);
+// ── Remise à zéro ──────────────────────────────────────────────────────────
+// Tout est effacé explicitement : en production, supprimer un véhicule
+// n'efface pas ses recettes (pas de suppression en cascade).
+const cleanup = [
+  ["legal_documents", "owner_id"],
+  ["driver_contracts", "owner_id"],
+  ["mobile_money_transactions", "investor_id"],
+  ["notification_log", "owner_id"],
+  ["daily_entries", "owner_id"],
+  ["payments", "investor_id"],
+  ["vehicle_expenses", "owner_id"]
+];
+for (const [table, column] of cleanup) {
+  check(await supabase.from(table).delete().eq(column, investorId), `Nettoyage ${table}`);
 }
+check(await supabase.from("breakdowns").delete().in("reported_by", Object.values(driverIds)), "Nettoyage pannes");
 check(await supabase.from("vehicles").delete().eq("owner_id", investorId), "Nettoyage véhicules");
 
 // ── Véhicules ──────────────────────────────────────────────────────────────
