@@ -785,10 +785,10 @@ export default function InvestorDashboardPage() {
                               <VehicleStatusText status={vehicle.status} />
                             )}
                           </td>
-                          <td className="whitespace-nowrap py-3 pr-4 text-right font-plate text-[19px] font-bold">
+                          <td className="whitespace-nowrap py-3 pr-4 text-right font-plate text-[17px] font-bold">
                             {formatCdf(vehicle.target_daily_revenue)}
                           </td>
-                          <td className="whitespace-nowrap py-3 text-right font-plate text-[20px] font-bold">
+                          <td className="whitespace-nowrap py-3 text-right font-plate text-[21px] font-bold">
                             {amount ? formatCdf(amount) : "—"}
                           </td>
                         </tr>

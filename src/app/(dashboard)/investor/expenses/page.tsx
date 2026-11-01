@@ -155,9 +155,9 @@ export default async function InvestorExpensesPage({ searchParams }: Props) {
                       </span>
                     ) : null}
                   </td>
-                  <td className="px-4 py-3 text-right font-plate text-[19px] font-bold">{formatCDF(row.revenue)}</td>
-                  <td className="px-4 py-3 text-right font-plate text-[19px] font-bold">{formatCDF(row.expenses)}</td>
-                  <td className="px-4 py-3 text-right font-plate text-[19px] font-bold">
+                  <td className="px-4 py-3 text-right font-plate text-[17px] font-bold">{formatCDF(row.revenue)}</td>
+                  <td className="px-4 py-3 text-right font-plate text-[17px] font-bold">{formatCDF(row.expenses)}</td>
+                  <td className="px-4 py-3 text-right font-plate text-[17px] font-bold">
                     <span className={`inline-flex items-center gap-2 ${row.net < 0 ? "text-plate-bad" : ""}`}>
                       {row.net < 0 ? (
                         <>
@@ -168,7 +168,7 @@ export default async function InvestorExpensesPage({ searchParams }: Props) {
                       {formatCDF(row.net)}
                     </span>
                   </td>
-                  <td className="py-3 pl-4 text-right font-plate text-[19px] font-bold">
+                  <td className="py-3 pl-4 text-right font-plate text-[17px] font-bold">
                     {row.margin === null ? "—" : `${row.margin} %`}
                   </td>
                 </tr>

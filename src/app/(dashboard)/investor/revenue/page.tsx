@@ -222,7 +222,7 @@ export default async function InvestorRevenuePage() {
                       </td>
                       <td
                         className={cn(
-                          "whitespace-nowrap py-3 text-right font-plate text-[20px] font-bold",
+                          "whitespace-nowrap py-3 text-right font-plate text-[21px] font-bold",
                           state === "bad" && "text-plate-bad"
                         )}
                       >

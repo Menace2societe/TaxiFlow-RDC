@@ -316,3 +316,29 @@ select.field {
 .plate-world .btn-warning.repair-start {
   @apply bg-plate-white hover:bg-plate-ground;
 }
+
+/* Page d'accueil : le versement parcourt la route une fois, puis arrive chez le propriétaire.
+   Contenu visible par défaut : la position finale est la position normale. */
+.route-chip {
+  transform: translate(-50%, -50%);
+}
+@media (min-width: 1024px) {
+  .route-chip {
+    left: 50%;
+    animation: route-travel 1400ms cubic-bezier(0.16, 1, 0.3, 1) 400ms backwards;
+  }
+  .route-arrive {
+    animation: route-arrive 500ms cubic-bezier(0.16, 1, 0.3, 1) 1500ms backwards;
+  }
+}
+@keyframes route-travel {
+  from { left: 6%; }
+  to   { left: 50%; }
+}
+@keyframes route-arrive {
+  from { background: theme("colors.plate.vignette"); }
+  to   { background: transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .route-chip, .route-arrive { animation: none; }
+}

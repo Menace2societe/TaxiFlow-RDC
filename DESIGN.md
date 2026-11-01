@@ -21,6 +21,16 @@ typography:
     fontWeight: 700
     lineHeight: 1
     letterSpacing: "0.03em"
+  price:
+    fontFamily: "Barlow Condensed, Arial Narrow, sans-serif"
+    fontSize: "64px"
+    fontWeight: 700
+    lineHeight: 1
+  page-title:
+    fontFamily: "Barlow Condensed, Arial Narrow, sans-serif"
+    fontSize: "30px"
+    fontWeight: 700
+    lineHeight: 1.1
   headline:
     fontFamily: "Barlow Condensed, Arial Narrow, sans-serif"
     fontSize: "34px"
@@ -42,6 +52,17 @@ typography:
     fontWeight: 700
     lineHeight: 1.25
     fontFeature: "\"tnum\" 1"
+  figure-lg:
+    fontFamily: "Barlow Condensed, Arial Narrow, sans-serif"
+    fontSize: "22px"
+    fontWeight: 700
+    lineHeight: 1.25
+    fontFeature: "\"tnum\" 1"
+  lead:
+    fontFamily: "Barlow, system-ui, sans-serif"
+    fontSize: "18px"
+    fontWeight: 400
+    lineHeight: 1.625
   body:
     fontFamily: "Barlow, system-ui, sans-serif"
     fontSize: "16px"
@@ -178,7 +199,7 @@ Density is low and vertical. One column, one hand, big targets (52-56px controls
 
 The direction explicitly refuses the dark fintech dashboard with glowing KPI cards and icon tiles, and it must not feel folkloric: the plate is a real, everyday object, not a flag or a pattern.
 
-**Scope.** This world is applied to the driver space (`/driver/*`) and the investor space (`/investor/*`), each wrapped in the `plate-world` class by its layout. Drivers get a bottom tab bar on phones; investors, with nine sections, get a top bar with a "Menu" toggle on phones; both get the same 230px rail from 768px. In the investor space every vehicle is identified by its plate (`PlateChip` in dense rows, `LicensePlate size="sm"` elsewhere), and the single yellow panel per screen holds what needs the investor's action now. The admin space (`/dashboard`) still runs the incumbent dark look (near-black gradient, Inter, emerald buttons, blurred neutral cards, uppercase tracked labels, legacy `ink/palm/copper/river/road` colors and `shadow-soft`). That look is legacy, not the system: new surfaces and the future admin redesign extend the plate world. Tailwind's `dark:` variant never applies inside `.plate-world`, so components shared with the admin carry both looks during the transition.
+**Scope.** This world is applied to the public landing page (`/`), the driver space (`/driver/*`) and the investor space (`/investor/*`), each wrapped in the `plate-world` class by its layout. Drivers get a bottom tab bar on phones; investors, with nine sections, get a top bar with a "Menu" toggle on phones; both get the same 230px rail from 768px. In the investor space every vehicle is identified by its plate (`PlateChip` in dense rows, `LicensePlate size="sm"` elsewhere), and the single yellow panel per screen holds what needs the investor's action now. The admin space (`/dashboard`) still runs the incumbent dark look (near-black gradient, Inter, emerald buttons, blurred neutral cards, uppercase tracked labels, legacy `ink/palm/copper/river/road` colors and `shadow-soft`). That look is legacy, not the system: new surfaces and the future admin redesign extend the plate world. Tailwind's `dark:` variant never applies inside `.plate-world`, so components shared with the admin carry both looks during the transition.
 
 **Key Characteristics:**
 - The plate is the hero and the identity; no logo, no "Portail chauffeur" title.
@@ -226,6 +247,8 @@ All three clear 6:1 on white, so they also work as text color in notices and bad
 
 **Display Font:** Barlow Condensed 600/700 (with Arial Narrow, sans-serif), loaded via `next/font` as `--font-plate`
 **Body Font:** Barlow 400/500/600/700 (with system-ui, sans-serif), loaded via `next/font` as `--font-street`
+
+**Investor and landing steps.** **Page title** (700, 30px) is the visible h1 of investor pages. **Figure large** (700, 22px) sets amounts in figures rows. **Lead** (400, 18px, 1.625) is the landing page's introductory paragraph. **Price** (700, 64px) is the one large price in the landing's yellow example panel. Landing headlines are fluid (`clamp`, up to 4.25rem for the h1, 3rem for section titles).
 
 **Character:** Barlow Condensed is the plate stencil: narrow, upright, numeric-first, built for amounts and the plate number. Barlow is its everyday sibling, a plain grotesque sized up for outdoor reading. Tabular figures are on for the whole world so amounts line up.
 

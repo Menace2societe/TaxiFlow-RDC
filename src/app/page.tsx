@@ -1,18 +1,9 @@
-import Image from "next/image";
+import type { Viewport } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import {
-  BellRing,
-  Bike,
-  Camera,
-  CarTaxiFront,
-  Check,
-  FileSignature,
-  Gauge,
-  Smartphone,
-  TrendingUp,
-  WifiOff
-} from "lucide-react";
+import { Camera, ChevronDown, Send } from "lucide-react";
+import { plateFont, streetFont } from "@/app/plate-fonts";
+import { LicensePlate, PlateChip, StateMark } from "@/components/driver/plate";
 import { getCurrentProfile, getRoleHome } from "@/lib/auth/roles";
 import { FREE_VEHICLES, PRICE_PER_VEHICLE_USD, TRIAL_DAYS, VOLUME_DISCOUNTS, monthlyQuote } from "@/lib/billing/plans";
 import { ROUTES } from "@/lib/routes";
@@ -23,48 +14,47 @@ export const metadata = {
     "Versements Mobile Money, contrôle kilométrique anti-fraude, bénéfice net par véhicule et location-vente. 1 véhicule gratuit, 30 jours d'essai."
 };
 
-const features = [
-  {
-    icon: Smartphone,
-    title: "Versements par Mobile Money",
-    text: "Le chauffeur paie par M-Pesa, Airtel Money ou Orange Money. Le versement est validé dès que l'argent arrive."
-  },
-  {
-    icon: Gauge,
-    title: "Courses cachées détectées",
-    text: "Le compteur ne ment pas : les kilomètres roulés sans recette et les recettes trop faibles sont signalés."
-  },
-  {
-    icon: Camera,
-    title: "Photo du compteur",
-    text: "Chaque versement arrive avec la photo du compteur. Vous tranchez : justifié ou fraude."
-  },
-  {
-    icon: TrendingUp,
-    title: "Bénéfice net par véhicule",
-    text: "Recettes moins carburant, entretien et réparations : vous savez quel véhicule rapporte vraiment."
-  },
-  {
-    icon: FileSignature,
-    title: "Location-vente suivie",
-    text: "Combien le chauffeur a déjà remboursé, combien il reste, et quand il sera propriétaire."
-  },
-  {
-    icon: BellRing,
-    title: "Alertes WhatsApp",
-    text: "Assurance ou contrôle technique qui expire, recette suspecte : un message chaque matin."
-  },
-  {
-    icon: WifiOff,
-    title: "Marche sans réseau",
-    text: "L'application s'installe sur le téléphone. Sans réseau, le versement est gardé puis envoyé."
-  }
+export const viewport: Viewport = {
+  themeColor: "#f7f7f2"
+};
+
+/** Exemple affiché sur la route : la soirée d'un propriétaire de 4 véhicules. */
+const ownerRows = [
+  { plate: "1307KN01", who: "Héritier · 61 km", amount: 20000 },
+  { plate: "0592LS01", who: "Glody · 70 km", amount: 58500 }
 ];
 
 const steps = [
   { title: "Créez votre compte", text: `Gratuit, en 2 minutes. ${TRIAL_DAYS} jours d'essai sans engagement.` },
-  { title: "Ajoutez vos véhicules et chauffeurs", text: "Un numéro de téléphone suffit : le chauffeur reçoit un code pour se connecter." },
-  { title: "Suivez chaque jour", text: "Versements, kilomètres, alertes et bénéfice, depuis votre téléphone." }
+  { title: "Ajoutez vos véhicules et chauffeurs", text: "Un numéro +243 suffit : le chauffeur reçoit un code pour se connecter, sans email." },
+  { title: "Chaque soir, regardez", text: "Qui a versé, combien, avec quels kilomètres. Vous validez d'un geste." }
+];
+
+const features = [
+  {
+    title: "Versements par Mobile Money",
+    text: "Le chauffeur paie par M-Pesa, Airtel Money ou Orange Money. Le versement est validé dès que l'argent arrive."
+  },
+  {
+    title: "Photo du compteur",
+    text: "Chaque versement arrive avec la photo du compteur du soir. Sans photo, il vous est signalé."
+  },
+  {
+    title: "Bénéfice net par véhicule",
+    text: "Recettes moins carburant, entretien et réparations : vous savez quel véhicule rapporte vraiment."
+  },
+  {
+    title: "Location-vente suivie",
+    text: "Combien le chauffeur a déjà remboursé, combien il reste, et quand le véhicule sera à lui."
+  },
+  {
+    title: "Alertes WhatsApp",
+    text: "Assurance ou contrôle technique qui expire, recette suspecte : un message chaque matin, jamais deux fois le même."
+  },
+  {
+    title: "Marche sans réseau",
+    text: "L'application s'installe sur le téléphone. Sans réseau, le versement est gardé, puis envoyé au retour de la connexion."
+  }
 ];
 
 const faq = [
@@ -89,6 +79,18 @@ const faq = [
 // Exemple affiché : 5 taxis → 1 offert, 4 payants.
 const exampleQuote = monthlyQuote(["taxi", "taxi", "taxi", "taxi", "taxi"]);
 
+function fc(value: number) {
+  return `${value.toLocaleString("fr-CD")} FC`;
+}
+
+function TrialButton({ className = "" }: { className?: string }) {
+  return (
+    <Link href={ROUTES.REGISTER} className={`btn-primary px-7 no-underline ${className}`}>
+      Essayer {TRIAL_DAYS} jours gratuits
+    </Link>
+  );
+}
+
 export default async function HomePage() {
   const profile = await getCurrentProfile();
   if (profile) {
@@ -96,212 +98,313 @@ export default async function HomePage() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#0b1210] text-white">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-[640px] bg-[radial-gradient(circle_at_top_left,rgba(31,122,85,0.32),transparent_45%),linear-gradient(135deg,rgba(14,116,144,0.16),transparent_50%)]" />
-
-      <div className="relative mx-auto max-w-6xl px-5 sm:px-8">
-        <nav className="flex items-center justify-between py-5">
-          <Link href={ROUTES.HOME} className="inline-flex items-center gap-2 text-lg font-bold">
-            <Image src="/icons/icon.svg" alt="" width={28} height={28} unoptimized className="rounded-lg" />
+    <div className={`plate-world ${streetFont.variable} ${plateFont.variable} min-h-screen`}>
+      <header className="border-b-2 border-plate-ink bg-plate-white">
+        <nav className="mx-auto flex h-[72px] max-w-6xl items-center justify-between gap-4 px-5 sm:px-8" aria-label="Navigation principale">
+          <Link href={ROUTES.HOME} className="font-plate text-[26px] font-bold no-underline">
             TaxiFlow RDC
           </Link>
-          <div className="flex items-center gap-2 text-sm">
-            <a href="#tarifs" className="hidden rounded-md px-3 py-2 text-white/75 hover:text-white sm:block">
+          <div className="flex items-center gap-1 text-[16px] font-semibold sm:gap-6">
+            <a href="#comment" className="hidden no-underline hover:underline sm:inline">
+              Comment ça marche
+            </a>
+            <a href="#tarifs" className="hidden no-underline hover:underline sm:inline">
               Tarifs
             </a>
-            <Link href={ROUTES.LOGIN} className="rounded-md border border-white/15 px-3 py-2 font-semibold text-white/85 hover:bg-white/10">
+            <Link href={ROUTES.LOGIN} className="btn-secondary min-h-[44px] px-4 no-underline">
               Connexion
             </Link>
           </div>
         </nav>
+      </header>
 
-        {/* ── Promesse ── */}
-        <section className="grid items-center gap-10 py-14 lg:grid-cols-[1.1fr_0.9fr] lg:py-20">
-          <div>
-            <p className="mb-4 inline-flex rounded-md border border-emerald-300/25 bg-emerald-300/10 px-3 py-1.5 text-sm font-medium text-emerald-100">
-              Pour les propriétaires de taxis et motos-taxis en RDC
-            </p>
-            <h1 className="text-4xl font-semibold leading-tight sm:text-5xl">
-              Sachez enfin ce que rapporte chaque taxi et chaque moto.
-            </h1>
-            <p className="mt-5 max-w-xl text-lg leading-8 text-white/70">
-              Versements par Mobile Money, kilomètres contrôlés, photo du compteur : TaxiFlow vous montre quand un chauffeur
-              cache des courses, et combien chaque véhicule vous rapporte vraiment.
-            </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link href={ROUTES.REGISTER} className="btn-primary min-h-12 px-6 text-base">
-                Essayer {TRIAL_DAYS} jours gratuits
-              </Link>
-              <a href="#tarifs" className="btn-secondary min-h-12 border-white/20 bg-white/10 px-6 text-base text-white hover:bg-white/15 dark:border-white/20 dark:bg-white/10 dark:text-white">
-                Voir les tarifs
-              </a>
+      <main>
+        {/* ─── La route d'un versement ─────────────────────────────────────── */}
+        <section aria-labelledby="hero-title" className="mx-auto max-w-6xl px-5 pb-16 pt-10 sm:px-8 lg:pt-14">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <h1 id="hero-title" className="max-w-[24ch] font-plate text-[clamp(2.6rem,5.2vw,4.25rem)] font-bold leading-[0.98]">
+                Ce que votre chauffeur déclare à 18 h, vous le voyez à 18 h 01.
+              </h1>
+              <p className="mt-4 max-w-[52ch] text-[18px] leading-relaxed">
+                Recette, kilomètres et photo du compteur, chaque soir, pour chaque taxi et chaque moto. TaxiFlow vous montre qui a
+                versé, qui cache des courses, et ce que chaque véhicule vous laisse.
+              </p>
             </div>
-            <p className="mt-3 text-sm text-white/50">{FREE_VEHICLES} véhicule gratuit pour toujours · sans carte bancaire</p>
+            <div className="shrink-0 lg:text-right">
+              <TrialButton className="w-full sm:w-auto" />
+              <p className="mt-2 text-[15px] font-medium">
+                {FREE_VEHICLES} véhicule gratuit pour toujours · sans carte bancaire
+              </p>
+            </div>
           </div>
 
-          {/* Exemple d'écran : ce que voit l'investisseur */}
-          <figure className="rounded-2xl border border-white/10 bg-white/[0.05] p-5 shadow-2xl shadow-black/30">
-            <figcaption className="mb-4 text-xs font-semibold uppercase tracking-wider text-white/45">Exemple d&apos;alerte</figcaption>
-            <div className="space-y-3">
-              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
-                <p className="flex items-center gap-2 font-semibold text-amber-100">
-                  <Gauge size={16} aria-hidden /> 80 km roulés sans recette
+          <figure className="mt-10 lg:mt-12">
+            <div className="grid items-center gap-0 lg:grid-cols-[280px_1fr_440px]">
+              {/* Côté chauffeur */}
+              <div className="mx-auto w-full max-w-[300px] rounded-[30px] border-[3px] border-plate-ink bg-plate-ground p-4 lg:mx-0">
+                <p className="mb-3 text-center text-[13px] font-semibold">Téléphone de Patrick, chauffeur</p>
+                <LicensePlate plateNumber="4821BK01" size="sm" />
+                <dl className="mt-3 grid gap-2.5 text-[14px] font-semibold">
+                  {[
+                    ["Montant", "55 000 FC"],
+                    ["Compteur du matin", "84 210 km"],
+                    ["Compteur du soir", "84 362 km"]
+                  ].map(([label, value]) => (
+                    <div key={label}>
+                      <dt>{label}</dt>
+                      <dd className="mt-1 rounded-lg border-2 border-plate-ink bg-plate-white px-3 py-1.5 font-plate text-[21px] font-bold">
+                        {value}
+                      </dd>
+                    </div>
+                  ))}
+                  <div>
+                    <dt>Photo du compteur</dt>
+                    <dd className="mt-1 flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-plate-ink py-2.5">
+                      <Camera size={16} aria-hidden /> Photo prise
+                    </dd>
+                  </div>
+                </dl>
+                <p className="mt-3 flex items-center justify-center gap-2 rounded-xl bg-plate-band py-3 text-[15px] font-bold text-plate-white">
+                  <Send size={16} aria-hidden /> Envoyer mon versement
                 </p>
-                <p className="mt-1 text-sm text-amber-100/70">Toyota Ist · le compteur a avancé pendant la nuit, aucun versement déclaré.</p>
               </div>
-              <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
-                <p className="flex items-center gap-2 font-semibold">
-                  <Camera size={16} aria-hidden /> Recette suspecte
-                </p>
-                <p className="mt-1 text-sm text-white/60">Moto TVS · 92 km pour 4 000 FC · photo du compteur jointe</p>
-                <div className="mt-3 flex gap-2 text-xs font-semibold">
-                  <span className="rounded-md border border-emerald-500/40 px-2.5 py-1 text-emerald-300">Justifiée</span>
-                  <span className="rounded-md border border-red-500/40 px-2.5 py-1 text-red-300">Fraude</span>
+
+              {/* La route */}
+              <div className="route relative mx-auto h-28 w-[6px] bg-plate-ink lg:mx-0 lg:h-[6px] lg:w-auto" aria-hidden>
+                <span className="absolute left-1/2 top-0 h-6 w-6 -translate-x-1/2 -translate-y-1/2 rounded-full bg-plate-ink lg:left-0 lg:top-1/2" />
+                <span className="absolute bottom-0 left-1/2 h-6 w-6 -translate-x-1/2 translate-y-1/2 rounded-full bg-plate-ink lg:bottom-auto lg:left-auto lg:right-0 lg:top-1/2 lg:-translate-y-1/2 lg:translate-x-1/2" />
+                <span className="route-chip absolute left-1/2 top-1/2 whitespace-nowrap rounded-lg border-2 border-plate-ink bg-plate-white px-3 py-1.5 text-[14px] font-semibold">
+                  Patrick · 152 km
+                  <b className="block font-plate text-[22px] leading-tight">55 000 FC</b>
+                </span>
+              </div>
+
+              {/* Côté propriétaire */}
+              <div className="rounded-2xl border-2 border-plate-ink bg-plate-white p-4 sm:p-5">
+                <p className="mb-3 text-[13px] font-semibold">Votre écran, propriétaire</p>
+                <div className="rounded-xl bg-plate-vignette px-4 py-3.5">
+                  <p className="font-plate text-[34px] font-bold leading-none">3 sur 4 ont déclaré</p>
+                  <p className="mt-1.5 text-[15px]">Dimanche · 133 500 FC sur 151 000 FC attendus</p>
                 </div>
-              </div>
-              <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
-                <p className="flex items-center gap-2 font-semibold text-emerald-100">
-                  <Smartphone size={16} aria-hidden /> Versement reçu par M-Pesa
-                </p>
-                <p className="mt-1 text-sm text-emerald-100/70">Validé automatiquement à la réception.</p>
+                <ul className="mt-2 text-[15px] font-semibold">
+                  <li className="route-arrive flex items-center justify-between gap-3 border-t-2 border-plate-rule py-2.5 first:border-t-0">
+                    <PlateChip plateNumber="4821BK01" />
+                    <span className="flex min-w-0 flex-1 items-center gap-2">
+                      <StateMark state="ok" />
+                      <span className="truncate">Patrick · 152 km</span>
+                    </span>
+                    <span className="font-plate text-[21px] font-bold">{fc(55000)}</span>
+                  </li>
+                  {ownerRows.map((row) => (
+                    <li key={row.plate} className="flex items-center justify-between gap-3 border-t-2 border-plate-rule py-2.5">
+                      <PlateChip plateNumber={row.plate} />
+                      <span className="flex min-w-0 flex-1 items-center gap-2">
+                        <StateMark state="ok" />
+                        <span className="truncate">{row.who}</span>
+                      </span>
+                      <span className="font-plate text-[21px] font-bold">{fc(row.amount)}</span>
+                    </li>
+                  ))}
+                  <li className="flex items-center justify-between gap-3 border-t-2 border-plate-rule py-2.5 text-plate-soft">
+                    <PlateChip plateNumber="7740KN01" />
+                    <span className="flex min-w-0 flex-1 items-center gap-2">
+                      <StateMark state="none" />
+                      Rien encore
+                    </span>
+                    <span className="font-plate text-[21px] font-bold">—</span>
+                  </li>
+                </ul>
               </div>
             </div>
+            <figcaption className="mt-4 text-[14px] font-medium text-plate-soft">
+              Exemple : chauffeurs, plaques et montants inventés pour la démonstration.
+            </figcaption>
           </figure>
         </section>
 
-        {/* ── Fonctionnalités ── */}
-        <section className="py-12" aria-labelledby="features-title">
-          <h2 id="features-title" className="text-3xl font-semibold">
-            Tout ce qu&apos;il faut pour piloter votre flotte
-          </h2>
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {features.map(({ icon: Icon, title, text }) => (
-              <article key={title} className="rounded-xl border border-white/10 bg-white/[0.04] p-5">
-                <span className="inline-flex rounded-lg bg-emerald-400/10 p-2.5 text-emerald-300">
-                  <Icon size={20} aria-hidden />
+        {/* ─── Le compteur ne ment pas ─────────────────────────────────────── */}
+        <section aria-labelledby="fraud-title" className="border-y-2 border-plate-ink bg-plate-white">
+          <div className="mx-auto grid max-w-6xl gap-8 px-5 py-14 sm:px-8 lg:grid-cols-[1fr_520px] lg:items-center">
+            <div>
+              <h2 id="fraud-title" className="font-plate text-[clamp(2rem,4vw,3rem)] font-bold leading-none">
+                Le compteur ne ment pas.
+              </h2>
+              <p className="mt-4 max-w-[52ch] text-[18px] leading-relaxed">
+                Beaucoup de kilomètres pour une petite recette ? Le compteur qui avance pendant la nuit sans versement ? TaxiFlow
+                le signale tout de suite, photo du compteur à l&apos;appui. Vous tranchez : justifié ou fraude.
+              </p>
+            </div>
+            <figure className="rounded-2xl border-2 border-plate-bad p-5">
+              <div className="flex flex-wrap items-center gap-3">
+                <StateMark state="bad" />
+                <PlateChip plateNumber="2214BK01" />
+                <span className="text-[16px] font-semibold">Moto TVS · samedi</span>
+              </div>
+              <p className="mt-3 font-plate text-[34px] font-bold leading-none text-plate-bad">92 km pour 4 000 FC</p>
+              <p className="mt-2 text-[15px]">Plus de 50 km pour une recette de 5 000 FC ou moins. Photo du compteur jointe.</p>
+              <div className="mt-4 grid grid-cols-2 gap-2" aria-hidden>
+                <span className="flex min-h-[48px] items-center justify-center rounded-xl border-2 border-plate-ink text-[15px] font-bold">
+                  Justifiée
                 </span>
-                <h3 className="mt-4 font-semibold">{title}</h3>
-                <p className="mt-2 text-sm leading-6 text-white/60">{text}</p>
-              </article>
-            ))}
+                <span className="flex min-h-[48px] items-center justify-center rounded-xl border-2 border-plate-bad text-[15px] font-bold text-plate-bad">
+                  Fraude
+                </span>
+              </div>
+              <figcaption className="mt-3 text-[14px] font-medium text-plate-soft">Exemple d&apos;alerte</figcaption>
+            </figure>
           </div>
         </section>
 
-        {/* ── Comment ça marche ── */}
-        <section className="py-12" aria-labelledby="steps-title">
-          <h2 id="steps-title" className="text-3xl font-semibold">
-            Prêt en 3 étapes
+        {/* ─── Comment ça marche : trois arrêts sur la route ───────────────── */}
+        <section id="comment" aria-labelledby="steps-title" className="mx-auto max-w-6xl scroll-mt-4 px-5 py-16 sm:px-8">
+          <h2 id="steps-title" className="font-plate text-[clamp(2rem,4vw,3rem)] font-bold leading-none">
+            Prêt ce soir, en trois arrêts
           </h2>
-          <ol className="mt-8 grid gap-4 md:grid-cols-3">
+          <ol className="relative mt-10 grid gap-8 md:grid-cols-3 md:gap-6">
+            <span className="absolute bottom-3 left-[21px] top-3 w-[6px] bg-plate-ink md:bottom-auto md:left-0 md:right-0 md:top-[19px] md:h-[6px] md:w-auto" aria-hidden />
             {steps.map((step, index) => (
-              <li key={step.title} className="rounded-xl border border-white/10 bg-white/[0.04] p-5">
-                <span className="text-sm font-bold text-emerald-300">Étape {index + 1}</span>
-                <h3 className="mt-2 font-semibold">{step.title}</h3>
-                <p className="mt-2 text-sm leading-6 text-white/60">{step.text}</p>
+              <li key={step.title} className="relative pl-16 md:pl-0 md:pt-16">
+                <span className="absolute left-0 top-0 flex h-12 w-12 items-center justify-center rounded-full border-[3px] border-plate-ink bg-plate-white font-plate text-[24px] font-bold">
+                  {index + 1}
+                </span>
+                <h3 className="font-plate text-[24px] font-bold leading-tight">{step.title}</h3>
+                <p className="mt-2 max-w-[40ch] text-[16px] leading-relaxed">{step.text}</p>
               </li>
             ))}
           </ol>
         </section>
 
-        {/* ── Tarifs ── */}
-        <section id="tarifs" className="scroll-mt-6 py-12" aria-labelledby="pricing-title">
-          <h2 id="pricing-title" className="text-3xl font-semibold">
-            Tarifs simples, par véhicule
+        {/* ─── Le reste ─────────────────────────────────────────────────────── */}
+        <section aria-labelledby="features-title" className="mx-auto max-w-6xl px-5 pb-16 sm:px-8">
+          <h2 id="features-title" className="font-plate text-[clamp(2rem,4vw,3rem)] font-bold leading-none">
+            Et tout le reste de votre flotte
           </h2>
-          <p className="mt-2 text-white/60">
-            {TRIAL_DAYS} jours d&apos;essai, puis paiement mensuel par Mobile Money. Sans engagement.
-          </p>
-
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
-            <article className="rounded-2xl border border-emerald-400/40 bg-emerald-400/[0.06] p-6">
-              <p className="font-semibold text-emerald-200">Découverte</p>
-              <p className="mt-3 text-4xl font-semibold">Gratuit</p>
-              <p className="mt-1 text-sm text-white/55">pour {FREE_VEHICLES} véhicule, sans limite de durée</p>
-              <ul className="mt-5 space-y-2 text-sm text-white/75">
-                {["Toutes les fonctionnalités", "Versements, alertes et Mobile Money inclus", "Idéal pour essayer"].map((item) => (
-                  <li key={item} className="flex gap-2">
-                    <Check size={16} className="mt-0.5 shrink-0 text-emerald-300" aria-hidden /> {item}
-                  </li>
-                ))}
-              </ul>
-            </article>
-            {(
-              [
-                { kind: "moto", icon: Bike, title: "Moto-taxi" },
-                { kind: "taxi", icon: CarTaxiFront, title: "Taxi" }
-              ] as const
-            ).map(({ kind, icon: Icon, title }) => (
-              <article key={kind} className="rounded-2xl border border-white/10 bg-white/[0.04] p-6">
-                <p className="flex items-center gap-2 font-semibold text-white/85">
-                  <Icon size={18} aria-hidden /> {title}
-                </p>
-                <p className="mt-3 text-4xl font-semibold">
-                  {PRICE_PER_VEHICLE_USD[kind]} $<span className="text-base font-normal text-white/55"> / mois</span>
-                </p>
-                <p className="mt-1 text-sm text-white/55">par véhicule supplémentaire, payable en CDF</p>
-                <ul className="mt-5 space-y-2 text-sm text-white/75">
-                  {VOLUME_DISCOUNTS.slice()
-                    .reverse()
-                    .map((tier) => (
-                      <li key={tier.minVehicles} className="flex gap-2">
-                        <Check size={16} className="mt-0.5 shrink-0 text-emerald-300" aria-hidden /> -{tier.percent} % dès{" "}
-                        {tier.minVehicles} véhicules
-                      </li>
-                    ))}
-                  <li className="flex gap-2">
-                    <Check size={16} className="mt-0.5 shrink-0 text-emerald-300" aria-hidden /> 12 mois payés 10
-                  </li>
-                </ul>
-              </article>
+          <dl className="mt-8 grid border-t-2 border-plate-ink md:grid-cols-2 md:gap-x-12">
+            {features.map((feature) => (
+              <div key={feature.title} className="border-b-2 border-plate-rule py-5">
+                <dt className="font-plate text-[24px] font-bold leading-tight">{feature.title}</dt>
+                <dd className="mt-1.5 max-w-[52ch] text-[16px] leading-relaxed">{feature.text}</dd>
+              </div>
             ))}
-          </div>
-
-          <p className="mt-5 rounded-xl border border-white/10 bg-white/[0.03] px-5 py-4 text-sm text-white/70">
-            Exemple : avec {exampleQuote.vehicles} taxis, {exampleQuote.freeVehicles} est offert et vous payez{" "}
-            <strong className="text-white">{exampleQuote.totalUsd} $ par mois</strong> pour les {exampleQuote.billableVehicles}{" "}
-            autres.
-          </p>
+          </dl>
         </section>
 
-        {/* ── Questions ── */}
-        <section className="py-12" aria-labelledby="faq-title">
-          <h2 id="faq-title" className="text-3xl font-semibold">
+        {/* ─── Tarifs ───────────────────────────────────────────────────────── */}
+        <section id="tarifs" aria-labelledby="pricing-title" className="scroll-mt-4 border-y-2 border-plate-ink bg-plate-white">
+          <div className="mx-auto grid max-w-6xl gap-10 px-5 py-16 sm:px-8 lg:grid-cols-[1fr_420px]">
+            <div>
+              <h2 id="pricing-title" className="font-plate text-[clamp(2rem,4vw,3rem)] font-bold leading-none">
+                Tarifs simples, par véhicule
+              </h2>
+              <p className="mt-3 text-[17px]">
+                {TRIAL_DAYS} jours d&apos;essai, puis paiement mensuel par Mobile Money, en USD ou en CDF au taux du jour. Sans
+                engagement.
+              </p>
+              <table className="mt-6 w-full text-left text-[17px]">
+                <caption className="sr-only">Prix par véhicule et par mois</caption>
+                <tbody>
+                  <tr className="border-t-2 border-plate-ink">
+                    <th scope="row" className="py-4 font-semibold">
+                      Premier véhicule
+                    </th>
+                    <td className="py-4 text-right">
+                      <b className="font-plate text-[30px]">Gratuit</b>
+                      <span className="block text-[14px]">pour toujours</span>
+                    </td>
+                  </tr>
+                  <tr className="border-t-2 border-plate-rule">
+                    <th scope="row" className="py-4 font-semibold">
+                      Chaque moto-taxi
+                    </th>
+                    <td className="py-4 text-right">
+                      <b className="font-plate text-[30px]">{PRICE_PER_VEHICLE_USD.moto} $</b> par mois
+                    </td>
+                  </tr>
+                  <tr className="border-y-2 border-plate-rule">
+                    <th scope="row" className="py-4 font-semibold">
+                      Chaque taxi
+                    </th>
+                    <td className="py-4 text-right">
+                      <b className="font-plate text-[30px]">{PRICE_PER_VEHICLE_USD.taxi} $</b> par mois
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <ul className="mt-4 space-y-1.5 text-[16px]">
+                {VOLUME_DISCOUNTS.slice()
+                  .reverse()
+                  .map((tier) => (
+                    <li key={tier.minVehicles} className="flex items-center gap-2.5">
+                      <StateMark state="ok" />−{tier.percent} % dès {tier.minVehicles} véhicules payants
+                    </li>
+                  ))}
+                <li className="flex items-center gap-2.5">
+                  <StateMark state="ok" />
+                  12 mois payés 10
+                </li>
+              </ul>
+            </div>
+            <div className="self-start rounded-2xl bg-plate-vignette p-6">
+              <p className="text-[16px] font-semibold">Exemple : {exampleQuote.vehicles} taxis</p>
+              <p className="mt-1 font-plate text-[64px] font-bold leading-none">{exampleQuote.totalUsd} $</p>
+              <p className="mt-1 text-[17px]">
+                par mois : {exampleQuote.freeVehicles} taxi offert, {exampleQuote.billableVehicles} payants.
+              </p>
+              <TrialButton className="mt-5 w-full" />
+            </div>
+          </div>
+        </section>
+
+        {/* ─── Questions ────────────────────────────────────────────────────── */}
+        <section aria-labelledby="faq-title" className="mx-auto max-w-3xl px-5 py-16 sm:px-8">
+          <h2 id="faq-title" className="font-plate text-[clamp(2rem,4vw,3rem)] font-bold leading-none">
             Questions fréquentes
           </h2>
-          <div className="mt-6 divide-y divide-white/10 rounded-xl border border-white/10">
+          <div className="mt-6 border-t-2 border-plate-ink">
             {faq.map((item) => (
-              <details key={item.question} className="group px-5 py-4">
-                <summary className="cursor-pointer list-none font-semibold marker:hidden">
+              <details key={item.question} className="group border-b-2 border-plate-rule">
+                <summary className="flex min-h-[56px] cursor-pointer list-none items-center justify-between gap-4 py-3 text-[18px] font-semibold [&::-webkit-details-marker]:hidden">
                   {item.question}
+                  <ChevronDown size={22} className="shrink-0 transition-transform group-open:rotate-180" aria-hidden />
                 </summary>
-                <p className="mt-2 text-sm leading-6 text-white/65">{item.answer}</p>
+                <p className="pb-4 text-[16px] leading-relaxed">{item.answer}</p>
               </details>
             ))}
           </div>
         </section>
 
-        <section className="py-12 text-center">
-          <h2 className="text-3xl font-semibold">Commencez aujourd&apos;hui</h2>
-          <p className="mt-2 text-white/60">
-            {TRIAL_DAYS} jours gratuits, {FREE_VEHICLES} véhicule gratuit pour toujours.
-          </p>
-          <Link href={ROUTES.REGISTER} className="btn-primary mt-6 inline-flex min-h-12 px-6 text-base">
-            Créer mon compte gratuit
-          </Link>
+        {/* ─── Le bout de la route ──────────────────────────────────────────── */}
+        <section aria-labelledby="end-title" className="mx-auto max-w-6xl px-5 pb-20 sm:px-8">
+          <div className="flex items-center gap-0" aria-hidden>
+            <span className="h-[6px] flex-1 bg-plate-ink" />
+            <span className="h-6 w-6 rounded-full bg-plate-ink" />
+          </div>
+          <div className="mt-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 id="end-title" className="font-plate text-[clamp(2.2rem,5vw,3.6rem)] font-bold leading-none">
+                Ce soir, vous saurez.
+              </h2>
+              <p className="mt-3 text-[17px]">
+                {TRIAL_DAYS} jours gratuits, {FREE_VEHICLES} véhicule gratuit pour toujours.
+              </p>
+            </div>
+            <Link href={ROUTES.REGISTER} className="btn-primary px-7 no-underline">
+              Créer mon compte gratuit
+            </Link>
+          </div>
         </section>
+      </main>
 
-        <footer className="flex flex-col items-center justify-between gap-3 border-t border-white/10 py-8 text-sm text-white/45 sm:flex-row">
+      <footer className="border-t-2 border-plate-ink bg-plate-white">
+        <div className="mx-auto flex max-w-6xl flex-col gap-3 px-5 py-8 text-[15px] sm:flex-row sm:items-center sm:justify-between sm:px-8">
           <p>© {new Date().getFullYear()} TaxiFlow RDC</p>
-          <nav className="flex gap-4">
-            <Link href={ROUTES.TERMS} className="hover:text-white">
-              Conditions d&apos;utilisation
-            </Link>
-            <Link href={ROUTES.PRIVACY} className="hover:text-white">
-              Confidentialité
-            </Link>
+          <nav className="flex gap-6" aria-label="Informations légales">
+            <Link href={ROUTES.TERMS}>Conditions d&apos;utilisation</Link>
+            <Link href={ROUTES.PRIVACY}>Confidentialité</Link>
           </nav>
-        </footer>
-      </div>
-    </main>
+        </div>
+      </footer>
+    </div>
   );
 }
