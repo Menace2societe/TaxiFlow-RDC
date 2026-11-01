@@ -136,3 +136,46 @@ describe("driver_id foreign keys on the production schema", () => {
     ).resolves.toBeDefined();
   });
 });
+
+describe("breakdown → vehicle status sync on the production schema", () => {
+  // En production, un déclencheur hors dépôt écrivait un ancien statut
+  // ('active') à la clôture d'une panne : vehicles_status_check le refusait.
+  it("replaces the legacy trigger so a repair can be closed", async () => {
+    const db = await createDatabase();
+    const files = migrationFiles();
+    const fix = "20261101120000_breakdowns_vehicle_status_sync.sql";
+    for (const file of files.filter((name) => name < fix)) {
+      await db.exec(readFileSync(join(migrationsDir, file), "utf8"));
+    }
+
+    const owner = "00000000-0000-0000-0000-000000000001";
+    const vehicle = "00000000-0000-0000-0000-0000000000a1";
+    await db.exec(`
+      insert into auth.users (id, raw_user_meta_data) values ('${owner}', '{"role":"investor"}');
+      insert into public.vehicles (id, owner_id, plate_number, status) values ('${vehicle}', '${owner}', 'KN-1', 'maintenance');
+      insert into public.breakdowns (vehicle_id, type, status, reported_by) values ('${vehicle}', 'Pneu', 'in_progress', '${owner}');
+      create function public.legacy_breakdown_vehicle() returns trigger language plpgsql as $$
+      begin
+        if new.status = 'resolved' then
+          update public.vehicles set status = 'active' where id = new.vehicle_id;
+        end if;
+        return new;
+      end $$;
+      create trigger legacy_breakdown_vehicle after update on public.breakdowns
+        for each row execute function public.legacy_breakdown_vehicle();
+    `);
+
+    await expect(db.exec("update public.breakdowns set status = 'resolved'")).rejects.toThrow(/vehicles_status_check/);
+
+    await db.exec(readFileSync(join(migrationsDir, fix), "utf8"));
+    await db.exec(readFileSync(join(migrationsDir, fix), "utf8"));
+
+    await db.exec("update public.breakdowns set status = 'resolved'");
+    const resolved = await db.query<{ status: string }>("select status from public.vehicles");
+    expect(resolved.rows[0].status).toBe("en service");
+
+    await db.exec(`insert into public.breakdowns (vehicle_id, type, status, reported_by) values ('${vehicle}', 'Moteur', 'open', '${owner}')`);
+    const reopened = await db.query<{ status: string }>("select status from public.vehicles");
+    expect(reopened.rows[0].status).toBe("maintenance");
+  });
+});
