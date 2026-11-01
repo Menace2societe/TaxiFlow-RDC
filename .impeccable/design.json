@@ -1,0 +1,158 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-01T00:00:00Z",
+  "title": "Design System: TaxiFlow RDC",
+  "extensions": {
+    "colorMeta": {
+      "plate-ground": { "role": "neutral", "displayName": "Reflective Plate Ground", "canonical": "#f7f7f2", "tonalRamp": ["#0b0b0b", "#242423", "#40403e", "#5e5e5c", "#7d7d7b", "#9f9f9b", "#c4c4c0", "#efefec"] },
+      "plate-white": { "role": "neutral", "displayName": "Plate White", "canonical": "#ffffff", "tonalRamp": ["#0b0b0b", "#242424", "#404040", "#5d5d5d", "#7d7d7d", "#9e9e9e", "#c4c4c4", "#eeeeee"] },
+      "plate-ink": { "role": "neutral", "displayName": "Plate Ink", "canonical": "#111111", "tonalRamp": ["#0b0b0b", "#242424", "#404040", "#5d5d5d", "#7d7d7d", "#9e9e9e", "#c4c4c4", "#eeeeee"] },
+      "plate-soft": { "role": "neutral", "displayName": "Road Soft", "canonical": "#3b3b36", "tonalRamp": ["#0b0b0a", "#242420", "#40403b", "#5e5e5a", "#7d7d7a", "#9e9e9c", "#c4c4c2", "#eeeeee"] },
+      "plate-rule": { "role": "neutral", "displayName": "Plate Rule", "canonical": "#d6d6cc", "tonalRamp": ["#0b0b0b", "#242422", "#40403d", "#5e5e59", "#7e7e78", "#9f9f97", "#c5c5bb", "#efefea"] },
+      "plate-band": { "role": "primary", "displayName": "Plate Band Blue", "canonical": "#1f4fb4", "tonalRamp": ["#040b1a", "#051e56", "#123889", "#2856b7", "#537bc9", "#7f9ed9", "#b1c5e9", "#eaeff7"] },
+      "plate-band-dark": { "role": "primary", "displayName": "Deep Band Blue", "canonical": "#173d8c", "tonalRamp": ["#030a1d", "#041e58", "#143986", "#385b9f", "#5f7db4", "#889fc9", "#b6c5df", "#ebeff6"] },
+      "vignette": { "role": "secondary", "displayName": "Vignette Yellow", "canonical": "#f2c230", "tonalRamp": ["#0e0b05", "#2e2203", "#4f3d09", "#725a11", "#98791a", "#c09924", "#edbe2f", "#ffedbb"] },
+      "vignette-deep": { "role": "secondary", "displayName": "Pressed Vignette", "canonical": "#e5b420", "tonalRamp": ["#0e0b05", "#2e2202", "#503d05", "#745a0b", "#9a7812", "#c29819", "#edbd3a", "#ffedbf"] },
+      "state-ok": { "role": "tertiary", "displayName": "Validated Green", "canonical": "#17703d", "tonalRamp": ["#050e07", "#012d14", "#0a4d27", "#176f3d", "#508d63", "#7fab8b", "#b2ccb8", "#eaf0ec"] },
+      "state-wait": { "role": "tertiary", "displayName": "Pending Amber", "canonical": "#8f5000", "tonalRamp": ["#110904", "#381c00", "#5f3300", "#894c00", "#a57040", "#be9573", "#d8bfaa", "#f3ede9"] },
+      "state-bad": { "role": "tertiary", "displayName": "Rejected Red", "canonical": "#b3261e", "tonalRamp": ["#150705", "#470906", "#761610", "#a9231c", "#c55548", "#d98478", "#ebb5ac", "#f7ebe9"] }
+    },
+    "typographyMeta": {
+      "plate-numeral": { "displayName": "Plate Numeral", "purpose": "The license plate number only." },
+      "headline": { "displayName": "Headline", "purpose": "Today vignette status; one per screen." },
+      "title": { "displayName": "Title", "purpose": "Section headings and secondary-page h1." },
+      "title-sm": { "displayName": "Title Small", "purpose": "Sub-sections such as 'Les 7 derniers jours'." },
+      "figure": { "displayName": "Figure", "purpose": "Right-aligned amounts in history rows and summaries." },
+      "body": { "displayName": "Body", "purpose": "Explanatory sentences; key values in bold." },
+      "label": { "displayName": "Label", "purpose": "Form labels, greeting, notices, vehicle status." },
+      "caption": { "displayName": "Caption", "purpose": "State words under week rows, weekly total." },
+      "button": { "displayName": "Button", "purpose": "Primary action text." },
+      "nav": { "displayName": "Nav", "purpose": "Tab bar labels under icons." }
+    },
+    "shadows": [
+      { "name": "plate-frame", "value": "inset 0 0 0 3px #ffffff, inset 0 0 0 5px #111111, 0 2px 6px rgba(17,17,17,0.12)", "purpose": "Double embossed frame of the license plate; the only shadow in the world." }
+    ],
+    "motion": [
+      { "name": "vignette-stick", "value": "420ms cubic-bezier(0.16, 1, 0.3, 1) both; from opacity 0, translateY(-6px) rotate(-1.2deg) scale(0.985)", "purpose": "The today vignette sticks on once at load; disabled under prefers-reduced-motion." },
+      { "name": "focus-outline", "value": "3px solid #1f4fb4, offset 2px", "purpose": "Keyboard focus on every focusable element in the plate world." }
+    ],
+    "breakpoints": [
+      { "name": "md", "value": "768px", "purpose": "Bottom tab bar gives way to the 230px left rail; gutters go from 16px to 32px." }
+    ]
+  },
+  "components": [
+    {
+      "name": "License Plate",
+      "kind": "custom",
+      "refersTo": "license-plate",
+      "description": "The vehicle's plate: the only headline of the driver home screen.",
+      "html": "<div class=\"ds-plate\"><div class=\"ds-plate-band\">CGO</div><p class=\"ds-plate-num\">4821 BK<span class=\"ds-plate-prov\">01</span></p></div>",
+      "css": ".ds-plate { display: flex; height: 96px; overflow: hidden; border: 3px solid #111111; border-radius: 10px; background: #ffffff; box-shadow: inset 0 0 0 3px #ffffff, inset 0 0 0 5px #111111, 0 2px 6px rgba(17,17,17,0.12); } .ds-plate-band { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; width: 48px; padding-bottom: 10px; background: #1f4fb4; color: #ffffff; font: 700 16px/1 'Barlow Condensed', 'Arial Narrow', sans-serif; letter-spacing: 0.025em; } .ds-plate-num { flex: 1; display: flex; align-items: center; justify-content: center; margin: 0; white-space: nowrap; color: #111111; font: 700 clamp(2.5rem, 13vw, 3.75rem)/1 'Barlow Condensed', 'Arial Narrow', sans-serif; letter-spacing: 0.03em; } .ds-plate-prov { align-self: flex-end; margin: 0 0 20px 8px; font-size: 0.5em; }"
+    },
+    {
+      "name": "Today Vignette",
+      "kind": "card",
+      "refersTo": "today-vignette",
+      "description": "Yellow sticker panel with today's versement status and the main action.",
+      "html": "<section class=\"ds-vignette\"><h2 class=\"ds-vignette-title\">Pas encore déclaré</h2><p class=\"ds-vignette-text\">Samedi 1er novembre · versement attendu : <b>60 000 FC</b>. Notez le compteur avant de rendre le véhicule.</p><a class=\"ds-btn-primary\" href=\"#\">Déclarer mon versement</a><a class=\"ds-text-link\" href=\"#\">Payer par Mobile Money</a></section>",
+      "css": ".ds-vignette { display: grid; gap: 8px; padding: 16px 20px 20px; border-radius: 16px; background: #f2c230; color: #111111; font-family: 'Barlow', system-ui, sans-serif; animation: ds-stick 420ms cubic-bezier(0.16, 1, 0.3, 1) both; } .ds-vignette-title { margin: 0; font: 700 34px/1.05 'Barlow Condensed', 'Arial Narrow', sans-serif; } .ds-vignette-text { margin: 0 0 8px; font-size: 16px; line-height: 1.375; } .ds-vignette .ds-btn-primary { display: flex; align-items: center; justify-content: center; min-height: 56px; border-radius: 12px; background: #1f4fb4; color: #ffffff; font: 700 17px/1.375 'Barlow', system-ui, sans-serif; text-decoration: none; } .ds-vignette .ds-btn-primary:hover { background: #173d8c; } .ds-text-link { padding: 8px 0; text-align: center; color: #111111; font-weight: 700; font-size: 16px; text-decoration: underline; text-underline-offset: 4px; } .ds-vignette a:focus-visible { outline: 3px solid #1f4fb4; outline-offset: 2px; } @keyframes ds-stick { from { opacity: 0; transform: translateY(-6px) rotate(-1.2deg) scale(0.985); } to { opacity: 1; transform: none; } } @media (prefers-reduced-motion: reduce) { .ds-vignette { animation: none; } }"
+    },
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one main action per view, in plate band blue.",
+      "html": "<button class=\"ds-btn-primary\">Déclarer mon versement</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 56px; padding: 10px 20px; border: 0; border-radius: 12px; background: #1f4fb4; color: #ffffff; font: 700 17px/1.375 'Barlow', system-ui, sans-serif; cursor: pointer; transition: background 200ms, transform 200ms; } .ds-btn-primary:hover { background: #173d8c; } .ds-btn-primary:focus-visible { outline: 3px solid #1f4fb4; outline-offset: 2px; } .ds-btn-primary:active { transform: scale(0.98); }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "White, 2px ink border; for secondary actions like Annuler.",
+      "html": "<button class=\"ds-btn-secondary\">Annuler</button>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; justify-content: center; min-height: 52px; padding: 10px 20px; border: 2px solid #111111; border-radius: 12px; background: #ffffff; color: #111111; font: 700 16px/1.375 'Barlow', system-ui, sans-serif; cursor: pointer; transition: background 200ms; } .ds-btn-secondary:hover { background: #f7f7f2; } .ds-btn-secondary:focus-visible { outline: 3px solid #1f4fb4; outline-offset: 2px; }"
+    },
+    {
+      "name": "Warning Button",
+      "kind": "button",
+      "refersTo": "button-warning",
+      "description": "Yellow with ink border; reserved for 'Signaler la panne'.",
+      "html": "<button class=\"ds-btn-warning\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z\"/></svg>Signaler la panne</button>",
+      "css": ".ds-btn-warning { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 52px; padding: 10px 20px; border: 2px solid #111111; border-radius: 12px; background: #f2c230; color: #111111; font: 700 16px/1.375 'Barlow', system-ui, sans-serif; cursor: pointer; transition: background 200ms; } .ds-btn-warning:hover { background: #e5b420; } .ds-btn-warning:focus-visible { outline: 3px solid #1f4fb4; outline-offset: 2px; }"
+    },
+    {
+      "name": "Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Labelled text field: white, 2px ink border, blue focus.",
+      "html": "<label class=\"ds-label\">Ce qui s'est passé<input class=\"ds-field\" placeholder=\"Ex. : crevaison roue arrière gauche\"></label>",
+      "css": ".ds-label { display: block; color: #111111; font: 600 15px/1.375 'Barlow', system-ui, sans-serif; } .ds-field { display: block; width: 100%; min-height: 52px; margin-top: 6px; padding: 10px 14px; border: 2px solid rgba(17,17,17,0.7); border-radius: 8px; background: #ffffff; color: #111111; font: 400 17px/1.375 'Barlow', system-ui, sans-serif; caret-color: #1f4fb4; outline: none; transition: border-color 200ms, box-shadow 200ms; } .ds-field::placeholder { color: #3b3b36; } .ds-field:hover { border-color: #111111; } .ds-field:focus { border-color: #1f4fb4; box-shadow: 0 0 0 2px rgba(31,79,180,0.25); }"
+    },
+    {
+      "name": "State Marks",
+      "kind": "chip",
+      "refersTo": "badge",
+      "description": "The four fixed state markers, always paired with their French word.",
+      "html": "<ul class=\"ds-states\"><li><span class=\"ds-mark ds-mark-ok\"></span>Validé</li><li><span class=\"ds-mark ds-mark-wait\"></span>En attente de validation</li><li><span class=\"ds-mark ds-mark-bad\"></span>Rejeté</li><li><span class=\"ds-mark ds-mark-none\"></span>Rien déclaré</li></ul>",
+      "css": ".ds-states { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; color: #111111; font: 600 14px/1.4 'Barlow', system-ui, sans-serif; } .ds-states li { display: flex; align-items: center; gap: 8px; } .ds-mark { display: inline-block; flex-shrink: 0; width: 14px; height: 14px; box-sizing: border-box; } .ds-mark-ok { border-radius: 50%; background: #17703d; } .ds-mark-wait { border-radius: 50%; border: 3px solid #8f5000; } .ds-mark-bad { width: 12px; height: 12px; background: #b3261e; transform: rotate(45deg); } .ds-mark-none { border-radius: 50%; border: 2px dashed #111111; }"
+    },
+    {
+      "name": "Week Row",
+      "kind": "custom",
+      "refersTo": "figure",
+      "description": "One day of history on the shared scale: label, bar, amount, state.",
+      "html": "<ol class=\"ds-week\"><li><div class=\"ds-row\"><span class=\"ds-day\">Jeu. 29</span><span class=\"ds-track\"><span class=\"ds-bar\" style=\"width:94%\"></span></span><span class=\"ds-amt\">56 500</span></div><p class=\"ds-state\"><span class=\"ds-dot\"></span>Validé</p></li><li><div class=\"ds-row\"><span class=\"ds-day\">Sam. 31</span><span class=\"ds-track\"></span><span class=\"ds-amt\">—</span></div><p class=\"ds-state\"><span class=\"ds-ring\"></span>Rien déclaré</p></li></ol>",
+      "css": ".ds-week { margin: 0; padding: 0; list-style: none; border-bottom: 2px solid #d6d6cc; color: #111111; font-family: 'Barlow', system-ui, sans-serif; font-variant-numeric: tabular-nums; } .ds-week li { padding: 10px 0; border-top: 2px solid #d6d6cc; } .ds-row { display: grid; grid-template-columns: 64px 1fr auto; align-items: center; gap: 12px; } .ds-day { font-weight: 700; font-size: 16px; } .ds-track { display: block; height: 12px; border-radius: 4px; background: rgba(214,214,204,0.6); } .ds-bar { display: block; height: 12px; border-radius: 4px; background: #111111; } .ds-amt { min-width: 96px; text-align: right; font: 700 21px/1.25 'Barlow Condensed', 'Arial Narrow', sans-serif; } .ds-state { display: flex; align-items: center; gap: 8px; margin: 2px 0 0; padding-left: 76px; font-weight: 600; font-size: 14px; } .ds-dot { width: 14px; height: 14px; border-radius: 50%; background: #17703d; } .ds-ring { width: 14px; height: 14px; box-sizing: border-box; border-radius: 50%; border: 2px dashed #111111; }"
+    },
+    {
+      "name": "Bottom Tab Bar",
+      "kind": "nav",
+      "refersTo": "tab-bar",
+      "description": "Phone navigation within thumb reach; active tab in band blue with an underline bar.",
+      "html": "<nav class=\"ds-tabs\"><a class=\"ds-tab ds-tab-active\" href=\"#\"><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.6\" stroke-linecap=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41\"/></svg>Aujourd'hui<span class=\"ds-tab-bar\"></span></a><a class=\"ds-tab\" href=\"#\"><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z\"/><path d=\"M16 8h-6M16 12H8M13 16H8\"/></svg>Recettes<span class=\"ds-tab-bar\"></span></a><a class=\"ds-tab\" href=\"#\"><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"8\" r=\"5\"/><path d=\"M20 21a8 8 0 0 0-16 0\"/></svg>Moi<span class=\"ds-tab-bar\"></span></a></nav>",
+      "css": ".ds-tabs { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 2px solid #111111; background: #ffffff; } .ds-tab { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; height: 68px; color: #111111; font: 600 13px/1.2 'Barlow', system-ui, sans-serif; text-decoration: none; } .ds-tab:focus-visible { outline: 3px solid #1f4fb4; outline-offset: 2px; } .ds-tab-bar { width: 32px; height: 4px; border-radius: 9999px; background: transparent; } .ds-tab-active { color: #1f4fb4; } .ds-tab-active .ds-tab-bar { background: #1f4fb4; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Plate and the Vignette",
+    "overview": "The driver's space is built as a Congolese license plate read in full sun. The vehicle is its plate: a white, double-framed plate with a blue \"CGO\" band is the only headline on the home screen, and today's versement sits under it as a yellow vignette, the sticker you would glue to a windscreen. Everything else is printed in ink-black on a reflective off-white ground, in a condensed plate face for numbers and headings and a plain street face for reading. The world is flat, high-contrast and literal: kilometres, amounts and statuses are shown plainly, never inside glowing KPI tiles.\n\nDensity is low and vertical. One column, one hand, big targets (52-56px controls), and history laid out as rows at a single shared scale so days compare at a glance. State is carried by four fixed markers (filled dot, ring, diamond, dashed ring) that mean the same thing on every screen, always paired with a French word (\"Validé\", \"En attente de validation\", \"Rejeté\", \"Rien déclaré\"). The voice is plain Kinshasa French addressed to the driver: \"Mbote, Patrick\", \"Déclarer mon versement\", \"Notez le compteur avant de rendre le véhicule.\"\n\nThe direction explicitly refuses the dark fintech dashboard with glowing KPI cards and icon tiles, and it must not feel folkloric: the plate is a real, everyday object, not a flag or a pattern.\n\nScope: this world is applied to the driver space only (/driver/*). The investor and admin spaces still run the incumbent dark look, which is legacy, not the system; new surfaces and any future redesign of those spaces extend the plate world.",
+    "keyCharacteristics": [
+      "The plate is the hero and the identity; no logo, no \"Portail chauffeur\" title.",
+      "Two inks for reading: plate ink on light grounds, plate white on the blue band and on filled ink buttons.",
+      "Blue means \"the plate, the main action, and where you are\".",
+      "Yellow means \"today\" (and the breakdown report).",
+      "One fixed marker per state, everywhere, always with a word.",
+      "Flat surfaces, 2px borders, rows instead of cards for history.",
+      "Condensed numerals with tabular figures for every amount."
+    ],
+    "rules": [
+      { "name": "The Two Inks Rule", "body": "Readable text is plate ink, or plate white on band blue and filled ink. Road Soft is the only allowed secondary ink; no lighter greys, no colored body text outside notices.", "section": "colors" },
+      { "name": "The Band Rule", "body": "Blue is the plate band, the one main action per view, and \"you are here\" (active nav, focus). It is never a decorative fill, a heading color or a chart color.", "section": "colors" },
+      { "name": "The Sticker Rule", "body": "Yellow belongs to today's versement panel and to reporting a breakdown. A second yellow surface on the same screen is wrong; the \"Démarrer la réparation\" button is deliberately turned white for this reason.", "section": "colors" },
+      { "name": "The Plate Face Rule", "body": "Barlow Condensed is for the plate, headings and numbers. Sentences and labels are always Barlow.", "section": "typography" },
+      { "name": "The No Shouting Rule", "body": "Labels are sentence case at normal tracking; the plate world resets the legacy uppercase, letter-spaced section labels. Nothing below 13px.", "section": "typography" },
+      { "name": "The One Scale Rule", "body": "Days in history are rows sharing one scale: the maximum of the daily target and the largest day. Each row is a 64px day label, a 12px bar on a rule-colored track, and the right-aligned figure, with the state marker and word indented 76px underneath. Never per-day cards, never per-row scaling.", "section": "layout" },
+      { "name": "The Flat Plate Rule", "body": "Only the plate has a frame shadow. Everything else separates with a 2px border or a ground change.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do make the plate the first and largest thing on a vehicle screen, with the CGO band in Plate Band Blue.",
+      "Do write every readable word in plate ink (#111111) or plate white on blue/ink; use Road Soft (#3b3b36) only for sub-lines.",
+      "Do show every payment, vehicle and breakdown state with its fixed marker (dot, ring, diamond, dashed ring) and its French word.",
+      "Do compare days as rows on one shared scale, with condensed tabular figures right-aligned.",
+      "Do keep touch targets at 52px minimum (56px for the primary action) and text at 13px minimum.",
+      "Do separate surfaces with 2px borders and ground changes, not shadows.",
+      "Do keep one primary blue action per view and reserve yellow for today's vignette and breakdown reporting.",
+      "Do extend this world, not the legacy dark look, when building new screens or redesigning the investor and admin spaces."
+    ],
+    "donts": [
+      "Don't build dark fintech dashboards with glowing KPI cards, icon tiles, gradients or blur.",
+      "Don't add a page title or decorative badge above the plate on the home screen; the plate is the headline.",
+      "Don't use blue for headings, charts or decoration, or yellow for anything other than today and the breakdown report.",
+      "Don't use pale grey text, uppercase tracked labels, or text below 13px.",
+      "Don't invent new state colors or shapes, or show a state by color alone.",
+      "Don't give history entries their own cards or their own scales.",
+      "Don't make it folkloric: the plate, a real everyday object, is the world's only local reference; add no decorative motifs around it."
+    ]
+  }
+}

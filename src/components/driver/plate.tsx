@@ -84,3 +84,50 @@ export function VehicleStatusText({ status }: { status: VehicleStatus }) {
     </span>
   );
 }
+
+/** 30 jours de versements validés (points de getDriverPaymentTrend) : une barre par jour, toutes à la même échelle. */
+export function MonthBars({ points, target }: { points: Array<{ date: string; amount: number }>; target: number }) {
+  const scale = Math.max(target, ...points.map((p) => p.amount), 1);
+  const total = points.reduce((sum, p) => sum + p.amount, 0);
+  const paidDays = points.filter((p) => p.amount > 0).length;
+  // Les points arrivent déjà libellés (« 03 oct. »).
+  const dayLabel = (label: string) => label;
+
+  if (!points.length) {
+    return <p className="rounded-xl border-2 border-dashed border-plate-ink px-4 py-5 text-[16px]">Aucun versement validé sur 30 jours.</p>;
+  }
+
+  return (
+    <figure>
+      <div
+        role="img"
+        aria-label={`${paidDays} jours payés sur ${points.length}, ${total.toLocaleString("fr-CD")} FC validés`}
+        className="relative flex h-32 items-end gap-[3px] border-b-2 border-plate-ink"
+      >
+        {target > 0 ? (
+          <span
+            className="absolute inset-x-0 border-t-2 border-dashed border-plate-soft"
+            style={{ bottom: `${(target / scale) * 100}%` }}
+            aria-hidden
+          />
+        ) : null}
+        {points.map((p) => (
+          <span
+            key={p.date}
+            title={`${dayLabel(p.date)} : ${p.amount.toLocaleString("fr-CD")} FC`}
+            className={cn("flex-1 rounded-t-[2px]", p.amount > 0 ? "bg-plate-ink" : "h-1 bg-plate-rule")}
+            style={p.amount > 0 ? { height: `${Math.max(4, (p.amount / scale) * 100)}%` } : undefined}
+          />
+        ))}
+      </div>
+      <figcaption className="mt-1.5 flex justify-between text-[14px] font-medium">
+        <span>{dayLabel(points[0].date)}</span>
+        {target > 0 ? <span>Pointillés : objectif {target.toLocaleString("fr-CD")} FC</span> : null}
+        <span>{dayLabel(points[points.length - 1].date)}</span>
+      </figcaption>
+      <p className="mt-2 text-[16px]">
+        <b>{paidDays} jours payés</b> sur {points.length} · <b>{total.toLocaleString("fr-CD")} FC</b> validés
+      </p>
+    </figure>
+  );
+}

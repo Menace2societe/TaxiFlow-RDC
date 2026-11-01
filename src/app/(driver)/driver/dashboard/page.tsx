@@ -7,6 +7,7 @@ import { ContractInfoBanner } from "@/components/driver/ContractInfoBanner";
 import { DriverVersementForm } from "@/components/driver/DriverVersementForm";
 import {
   LicensePlate,
+  MonthBars,
   StateMark,
   VehicleStatusText,
   dayStateLabels,
@@ -15,7 +16,6 @@ import {
   type DayState
 } from "@/components/driver/plate";
 import { MaintenanceActionButtons } from "@/components/shared/MaintenanceActionButtons";
-import { RevenueTrendChart } from "@/components/shared/RevenueTrendChart";
 import {
   getCurrentUserId,
   getDriverAssignedVehicle,
@@ -98,7 +98,7 @@ export default async function DriverDashboardPage({ searchParams }: DriverDashbo
     .reduce((sum, p) => sum + p.amount, 0);
   const openBreakdowns = breakdowns.filter((breakdown) => breakdown.status !== "resolved").length;
   const dailyTarget = displayVehicle?.target_daily_revenue ?? 0;
-  const progressPct = dailyTarget > 0 ? Math.min(100, Math.round((recentRevenue / dailyTarget) * 100)) : 0;
+  const averagePerDay = entries.length ? Math.round(recentRevenue / entries.length) : 0;
 
   return (
     <div className="pb-6">
@@ -122,7 +122,7 @@ export default async function DriverDashboardPage({ searchParams }: DriverDashbo
       ) : null}
 
       <div className="flex items-baseline justify-between gap-3">
-        <h1 className="font-plate text-[26px] font-bold leading-tight">Mes recettes</h1>
+        <h1 className="sr-only">Mes recettes</h1>
         {isOwnerDriver ? <span className="text-[15px] font-semibold">Chauffeur-propriétaire</span> : null}
       </div>
 
@@ -182,14 +182,13 @@ export default async function DriverDashboardPage({ searchParams }: DriverDashbo
           </div>
           <div className="flex items-center justify-between gap-3 border-t-2 border-plate-rule py-3">
             <dt className="font-semibold">
-              Recettes des 8 derniers relevés
-              {dailyTarget > 0 ? (
-                <span className="block text-[15px] font-normal text-plate-soft">
-                  {progressPct} % de l&apos;objectif du jour ({formatCDF(dailyTarget)})
-                </span>
-              ) : null}
+              Moyenne par jour
+              <span className="block text-[15px] font-normal text-plate-soft">
+                Sur {entries.length} jour{entries.length > 1 ? "s" : ""} déclaré{entries.length > 1 ? "s" : ""}
+                {dailyTarget > 0 ? `, objectif ${formatCDF(dailyTarget)}` : ""}
+              </span>
             </dt>
-            <dd className="font-plate text-[22px] font-bold">{formatCDF(recentRevenue)}</dd>
+            <dd className="font-plate text-[22px] font-bold">{formatCDF(averagePerDay)}</dd>
           </div>
           <div className="flex items-center justify-between gap-3 border-t-2 border-plate-rule py-3">
             <dt className="flex items-center gap-2 font-semibold">
@@ -209,7 +208,7 @@ export default async function DriverDashboardPage({ searchParams }: DriverDashbo
           Versements validés, 30 jours
         </h2>
         <div className="mt-3">
-          <RevenueTrendChart data={paymentTrend} color="#111111" height={200} />
+          <MonthBars points={paymentTrend} target={dailyTarget} />
         </div>
       </section>
 

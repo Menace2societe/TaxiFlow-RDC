@@ -63,8 +63,7 @@ export default async function DriverMaintenancePage() {
 
   return (
     <div className="pb-6">
-      <h1 className="font-plate text-[26px] font-bold leading-tight">Pannes</h1>
-      <p className="mt-1 text-[16px]">Les pannes de votre véhicule et où en est la réparation.</p>
+      <h1 className="sr-only">Pannes</h1>
 
       {/* ─── Véhicule ─── */}
       {vehicle ? (

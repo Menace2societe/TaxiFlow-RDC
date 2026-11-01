@@ -243,7 +243,7 @@ select.field {
 }
 
 .plate-world .btn-primary {
-  @apply min-h-[56px] rounded-xl bg-plate-band text-[17px] font-bold text-plate-white shadow-[0_2px_0_theme(colors.plate.band-dark)] hover:bg-plate-band-dark hover:shadow-[0_2px_0_theme(colors.plate.band-dark)] focus:ring-plate-band/40;
+  @apply min-h-[56px] rounded-xl bg-plate-band text-[17px] font-bold text-plate-white shadow-none hover:bg-plate-band-dark hover:shadow-none active:bg-plate-band-dark focus:ring-plate-band/40;
 }
 
 .plate-world .btn-secondary {

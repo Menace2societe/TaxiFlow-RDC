@@ -32,5 +32,10 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 - Monochrome: blue reserved for plate band and primary action.
 - Saville: the plate is the only headline; no "Portail chauffeur" title, no decorative badge.
 
+## Adaptations
+- Tab bar has 5 tabs (Aujourd'hui, Recettes, Pannes, Papiers, Moi) instead of the contract's 4: they map one-to-one to the existing driver routes (portal, dashboard, maintenance, documents, profile), so no screen was merged or dropped.
+- The red diamond marker means "blocking problem" across domains: a rejected versement, or a breakdown not yet repaired. Ring = waiting, filled dot = settled, dashed ring = nothing.
+- Secondary tabs with a vehicle (Recettes, Pannes) open on the small plate with a visually hidden h1; Papiers and Moi have no plate to show and keep a visible h1.
+
 ## Unresolved
 - Investor and admin spaces keep the old look for now.

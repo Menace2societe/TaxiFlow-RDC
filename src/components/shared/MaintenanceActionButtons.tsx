@@ -115,7 +115,7 @@ export function MaintenanceActionButtons({
               type="button"
               onClick={() => { setErrorMessage(null); setShowConfirmStart(true); }}
               disabled={isPending}
-              className="btn-warning repair-start min-h-10 w-full px-3 text-xs"
+              className="btn-warning repair-start min-h-[52px] w-full px-3 text-[15px] dark:min-h-10 dark:text-xs"
             >
               <Wrench size={14} aria-hidden />
               Démarrer la réparation
@@ -130,7 +130,7 @@ export function MaintenanceActionButtons({
                   type="button"
                   onClick={handleStart}
                   disabled={isPending}
-                  className="btn-warning repair-start min-h-9 px-3 text-xs"
+                  className="btn-warning repair-start min-h-[52px] px-3 text-[15px] dark:min-h-9 dark:text-xs"
                 >
                   {isPending ? <Loader2 size={12} className="animate-spin" /> : <PlayCircle size={12} />}
                   {isPending ? "Démarrage…" : "Oui, démarrer"}
@@ -139,7 +139,7 @@ export function MaintenanceActionButtons({
                   type="button"
                   onClick={() => setShowConfirmStart(false)}
                   disabled={isPending}
-                  className="btn-secondary min-h-9 px-3 text-xs"
+                  className="btn-secondary min-h-[52px] px-3 text-[15px] dark:min-h-9 dark:text-xs"
                 >
                   Annuler
                 </button>
@@ -157,7 +157,7 @@ export function MaintenanceActionButtons({
               type="button"
               onClick={() => { setErrorMessage(null); setShowConfirmComplete(true); }}
               disabled={isPending}
-              className="btn-primary min-h-10 w-full px-3 text-xs"
+              className="btn-primary min-h-[52px] w-full px-3 text-[15px] dark:min-h-10 dark:text-xs"
             >
               <RotateCcw size={14} aria-hidden />
               Remettre en service
@@ -170,14 +170,14 @@ export function MaintenanceActionButtons({
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 disabled={isPending}
-                className="field min-h-9 px-3 py-2 text-xs"
+                className="field px-3 py-2 dark:min-h-9 dark:text-xs"
               />
               <div className="grid gap-2 sm:grid-cols-2">
                 <button
                   type="button"
                   onClick={handleComplete}
                   disabled={isPending}
-                  className="btn-primary min-h-9 px-3 text-xs"
+                  className="btn-primary min-h-[52px] px-3 text-[15px] dark:min-h-9 dark:text-xs"
                 >
                   {isPending ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
                   {isPending ? "Validation…" : "Valider"}
@@ -186,7 +186,7 @@ export function MaintenanceActionButtons({
                   type="button"
                   onClick={() => setShowConfirmComplete(false)}
                   disabled={isPending}
-                  className="btn-secondary min-h-9 px-3 text-xs"
+                  className="btn-secondary min-h-[52px] px-3 text-[15px] dark:min-h-9 dark:text-xs"
                 >
                   Annuler
                 </button>

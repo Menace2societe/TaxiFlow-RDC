@@ -4,8 +4,8 @@
  * déclarés, jour sans recette, dépenses, location-vente, documents qui expirent).
  *
  * Usage (lit NEXT_PUBLIC_SUPABASE_URL et SUPABASE_SERVICE_ROLE_KEY) :
- *   node --env-file=.env.local scripts/seed-demo.mjs          → aperçu, n'écrit rien
- *   node --env-file=.env.local scripts/seed-demo.mjs --yes    → crée / réinitialise la démo
+ *   node --env-file=.env.local --env-file=.env.demo.local scripts/seed-demo.mjs       → aperçu, n'écrit rien
+ *   node --env-file=.env.local --env-file=.env.demo.local scripts/seed-demo.mjs --yes    → crée / réinitialise la démo
  *
  * Relançable : les données du compte démo sont effacées puis recréées.
  * Variables optionnelles : DEMO_EMAIL, DEMO_PASSWORD, DEMO_EMAIL_DOMAIN.
