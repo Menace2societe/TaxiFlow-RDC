@@ -65,8 +65,16 @@ export const dayStateLabels: Record<DayState, string> = {
 };
 
 /** Un marqueur par état, le même partout : rond plein, anneau, losange, pointillé. */
+// Noms de classe écrits en entier : Tailwind ne génère que ceux qu'il voit dans le code.
+const stateMarkClass: Record<DayState, string> = {
+  ok: "state-mark--ok",
+  wait: "state-mark--wait",
+  bad: "state-mark--bad",
+  none: "state-mark--none"
+};
+
 export function StateMark({ state, className }: { state: DayState; className?: string }) {
-  return <span className={cn("state-mark", `state-mark--${state}`, className)} aria-hidden />;
+  return <span className={cn("state-mark", stateMarkClass[state], className)} aria-hidden />;
 }
 
 export const vehicleStatusLabels: Record<VehicleStatus, string> = {

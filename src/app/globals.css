@@ -209,6 +209,16 @@ select.field {
    bande de la plaque et à l'action principale, jaune pour la vignette du jour.
    Les classes communes (.field, .btn-*, .card, .badge…) sont redéfinies ici
    pour que les formulaires partagés suivent cet univers. */
+/* Quand une page « plaque » occupe le document, le fond et les contrôles natifs
+   (barre de défilement, débordement au défilement) passent en clair eux aussi. */
+html:has(.plate-world) {
+  color-scheme: light;
+}
+html:has(.plate-world) body {
+  background: theme("colors.plate.ground");
+  color: theme("colors.plate.ink");
+}
+
 .plate-world {
   color-scheme: light;
   background: theme("colors.plate.ground");

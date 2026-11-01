@@ -6,6 +6,7 @@ import { plateFont, streetFont } from "@/app/plate-fonts";
 import { LicensePlate, PlateChip, StateMark } from "@/components/driver/plate";
 import { getCurrentProfile, getRoleHome } from "@/lib/auth/roles";
 import { FREE_VEHICLES, PRICE_PER_VEHICLE_USD, TRIAL_DAYS, VOLUME_DISCOUNTS, monthlyQuote } from "@/lib/billing/plans";
+import { SUSPICIOUS_DISTANCE_KM, SUSPICIOUS_MAX_DECLARED_CDF } from "@/lib/entries/metrics";
 import { ROUTES } from "@/lib/routes";
 
 export const metadata = {
@@ -20,8 +21,8 @@ export const viewport: Viewport = {
 
 /** Exemple affiché sur la route : la soirée d'un propriétaire de 4 véhicules. */
 const ownerRows = [
-  { plate: "1307KN01", who: "Héritier · 61 km", amount: 20000 },
-  { plate: "0592LS01", who: "Glody · 70 km", amount: 58500 }
+  { plate: "1307KN01", who: "Héritier · 61\u00a0km", amount: 20000 },
+  { plate: "0592LS01", who: "Glody · 70\u00a0km", amount: 58500 }
 ];
 
 const steps = [
@@ -79,8 +80,9 @@ const faq = [
 // Exemple affiché : 5 taxis → 1 offert, 4 payants.
 const exampleQuote = monthlyQuote(["taxi", "taxi", "taxi", "taxi", "taxi"]);
 
+/** Montant en FC avec une espace insécable normale : l'espace fine de fr-CD est presque invisible en Barlow. */
 function fc(value: number) {
-  return `${value.toLocaleString("fr-CD")} FC`;
+  return `${value.toLocaleString("fr-CD").replace(/\u202f/g, "\u00a0")}\u00a0FC`;
 }
 
 function TrialButton({ className = "" }: { className?: string }) {
@@ -120,10 +122,10 @@ export default async function HomePage() {
 
       <main>
         {/* ─── La route d'un versement ─────────────────────────────────────── */}
-        <section aria-labelledby="hero-title" className="mx-auto max-w-6xl px-5 pb-16 pt-10 sm:px-8 lg:pt-14">
+        <section aria-labelledby="hero-title" className="mx-auto max-w-6xl px-5 pb-16 pt-10 sm:px-8 lg:pt-8">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <h1 id="hero-title" className="max-w-[24ch] font-plate text-[clamp(2.6rem,5.2vw,4.25rem)] font-bold leading-[0.98]">
+              <h1 id="hero-title" className="max-w-[24ch] font-plate text-[clamp(2.6rem,5.2vw,3.75rem)] font-bold leading-[0.98]">
                 Ce que votre chauffeur déclare à 18 h, vous le voyez à 18 h 01.
               </h1>
               <p className="mt-4 max-w-[52ch] text-[18px] leading-relaxed">
@@ -139,13 +141,13 @@ export default async function HomePage() {
             </div>
           </div>
 
-          <figure className="mt-10 lg:mt-12">
+          <figure className="mt-10 lg:mt-8">
             <div className="grid items-center gap-0 lg:grid-cols-[280px_1fr_440px]">
               {/* Côté chauffeur */}
               <div className="mx-auto w-full max-w-[300px] rounded-[30px] border-[3px] border-plate-ink bg-plate-ground p-4 lg:mx-0">
                 <p className="mb-3 text-center text-[13px] font-semibold">Téléphone de Patrick, chauffeur</p>
                 <LicensePlate plateNumber="4821BK01" size="sm" />
-                <dl className="mt-3 grid gap-2.5 text-[14px] font-semibold">
+                <dl className="mt-3 grid gap-2 text-[14px] font-semibold">
                   {[
                     ["Montant", "55 000 FC"],
                     ["Compteur du matin", "84 210 km"],
@@ -190,25 +192,25 @@ export default async function HomePage() {
                 <ul className="mt-2 text-[15px] font-semibold">
                   <li className="route-arrive flex items-center justify-between gap-3 border-t-2 border-plate-rule py-2.5 first:border-t-0">
                     <PlateChip plateNumber="4821BK01" />
-                    <span className="flex min-w-0 flex-1 items-center gap-2">
+                    <span className="flex min-w-0 flex-1 items-center gap-2 leading-tight">
                       <StateMark state="ok" />
-                      <span className="truncate">Patrick · 152 km</span>
+                      <span>Patrick · 152&nbsp;km</span>
                     </span>
-                    <span className="font-plate text-[21px] font-bold">{fc(55000)}</span>
+                    <span className="whitespace-nowrap font-plate text-[21px] font-bold">{fc(55000)}</span>
                   </li>
                   {ownerRows.map((row) => (
                     <li key={row.plate} className="flex items-center justify-between gap-3 border-t-2 border-plate-rule py-2.5">
                       <PlateChip plateNumber={row.plate} />
-                      <span className="flex min-w-0 flex-1 items-center gap-2">
+                      <span className="flex min-w-0 flex-1 items-center gap-2 leading-tight">
                         <StateMark state="ok" />
-                        <span className="truncate">{row.who}</span>
+                        <span>{row.who}</span>
                       </span>
-                      <span className="font-plate text-[21px] font-bold">{fc(row.amount)}</span>
+                      <span className="whitespace-nowrap font-plate text-[21px] font-bold">{fc(row.amount)}</span>
                     </li>
                   ))}
                   <li className="flex items-center justify-between gap-3 border-t-2 border-plate-rule py-2.5 text-plate-soft">
                     <PlateChip plateNumber="7740KN01" />
-                    <span className="flex min-w-0 flex-1 items-center gap-2">
+                    <span className="flex min-w-0 flex-1 items-center gap-2 leading-tight">
                       <StateMark state="none" />
                       Rien encore
                     </span>
@@ -242,15 +244,10 @@ export default async function HomePage() {
                 <span className="text-[16px] font-semibold">Moto TVS · samedi</span>
               </div>
               <p className="mt-3 font-plate text-[34px] font-bold leading-none text-plate-bad">92 km pour 4 000 FC</p>
-              <p className="mt-2 text-[15px]">Plus de 50 km pour une recette de 5 000 FC ou moins. Photo du compteur jointe.</p>
-              <div className="mt-4 grid grid-cols-2 gap-2" aria-hidden>
-                <span className="flex min-h-[48px] items-center justify-center rounded-xl border-2 border-plate-ink text-[15px] font-bold">
-                  Justifiée
-                </span>
-                <span className="flex min-h-[48px] items-center justify-center rounded-xl border-2 border-plate-bad text-[15px] font-bold text-plate-bad">
-                  Fraude
-                </span>
-              </div>
+              <p className="mt-2 text-[15px]">Plus de {SUSPICIOUS_DISTANCE_KM} km pour une recette de {fc(SUSPICIOUS_MAX_DECLARED_CDF)} ou moins. Photo du compteur jointe.</p>
+              <p className="mt-4 border-t-2 border-plate-rule pt-3 text-[16px]">
+                Vous choisissez : <b>justifiée</b> ou <b className="text-plate-bad">fraude</b>.
+              </p>
               <figcaption className="mt-3 text-[14px] font-medium text-plate-soft">Exemple d&apos;alerte</figcaption>
             </figure>
           </div>
@@ -357,11 +354,11 @@ export default async function HomePage() {
         </section>
 
         {/* ─── Questions ────────────────────────────────────────────────────── */}
-        <section aria-labelledby="faq-title" className="mx-auto max-w-3xl px-5 py-16 sm:px-8">
+        <section aria-labelledby="faq-title" className="mx-auto max-w-6xl px-5 py-16 sm:px-8">
           <h2 id="faq-title" className="font-plate text-[clamp(2rem,4vw,3rem)] font-bold leading-none">
             Questions fréquentes
           </h2>
-          <div className="mt-6 border-t-2 border-plate-ink">
+          <div className="mt-6 max-w-3xl border-t-2 border-plate-ink">
             {faq.map((item) => (
               <details key={item.question} className="group border-b-2 border-plate-rule">
                 <summary className="flex min-h-[56px] cursor-pointer list-none items-center justify-between gap-4 py-3 text-[18px] font-semibold [&::-webkit-details-marker]:hidden">
