@@ -290,6 +290,7 @@ select.field {
 }
 
 /* Marqueurs d'état : un seul par état, identique sur tous les écrans. */
+@layer components {
 .state-mark {
   @apply inline-block h-3.5 w-3.5 shrink-0;
 }
@@ -297,6 +298,7 @@ select.field {
 .state-mark--wait { @apply rounded-full border-[3px] border-plate-wait; }
 .state-mark--bad { @apply h-3 w-3 rotate-45 bg-plate-bad; }
 .state-mark--none { @apply rounded-full border-2 border-dashed border-plate-ink; }
+}
 
 /* La vignette du jour se pose une fois, au chargement. */
 @keyframes vignette-stick {

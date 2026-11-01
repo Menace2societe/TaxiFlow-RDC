@@ -1,19 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import {
-  CarTaxiFront,
-  CheckCircle2,
-  KeyRound,
-  Loader2,
-  Phone,
-  Search,
-  User,
-  UserCheck,
-  UserPlus,
-  Users,
-  AlertTriangle
-} from "lucide-react";
+import { AlertTriangle, CheckCircle2, KeyRound, Loader2, Phone, Search, UserCheck } from "lucide-react";
 import { useFormState, useFormStatus } from "react-dom";
 import {
   linkDriverToInvestor,
@@ -24,23 +12,17 @@ import {
   type AvailableVehicle,
   type QuickAssignActionState
 } from "@/actions/investor-fleet";
+import { PlateChip, StateMark, vehicleStatusLabels, type DayState } from "@/components/driver/plate";
 import type { DashboardVehicle } from "@/lib/dashboard/data";
+import type { VehicleStatus } from "@/lib/supabase/types";
 
 // ─── Bouton rechercher ────────────────────────────────────────────────────────
 
 function SubmitSearchButton() {
   const { pending } = useFormStatus();
   return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="btn-primary min-h-10 w-full sm:w-auto"
-    >
-      {pending ? (
-        <Loader2 size={15} className="animate-spin" />
-      ) : (
-        <Search size={15} />
-      )}
+    <button type="submit" disabled={pending} className="btn-secondary w-full px-5 sm:w-auto">
+      {pending ? <Loader2 size={18} className="animate-spin" aria-hidden /> : <Search size={18} aria-hidden />}
       {pending ? "Recherche en cours…" : "Rechercher le chauffeur"}
     </button>
   );
@@ -51,17 +33,9 @@ function SubmitSearchButton() {
 function SubmitQuickAssignButton({ driverName }: { driverName: string }) {
   const { pending } = useFormStatus();
   return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="inline-flex min-h-9 max-w-full items-center justify-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-center text-xs font-semibold leading-tight text-emerald-300 transition-all hover:bg-emerald-500/20 disabled:opacity-50"
-    >
-      {pending ? (
-        <Loader2 size={12} className="animate-spin" />
-      ) : (
-        <UserCheck size={12} />
-      )}
-      <span className="whitespace-normal">{pending ? "Assignation…" : `Assigner à ${driverName}`}</span>
+    <button type="submit" disabled={pending} className="btn-secondary w-full px-4 text-[15px] sm:w-auto">
+      {pending ? <Loader2 size={18} className="animate-spin" aria-hidden /> : <UserCheck size={18} aria-hidden />}
+      <span className="whitespace-normal">{pending ? "Assignation…" : `Confier à ${driverName}`}</span>
     </button>
   );
 }
@@ -76,9 +50,9 @@ function SubmitResetButton() {
     <button
       type="submit"
       disabled={pending}
-      className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-neutral-700 px-2.5 py-1.5 text-[11px] font-semibold text-neutral-300 transition-colors hover:border-emerald-500/40 hover:text-emerald-300 disabled:opacity-50"
+      className="inline-flex min-h-[48px] items-center gap-1.5 rounded-xl border-2 border-plate-ink bg-plate-white px-4 text-[15px] font-bold text-plate-ink transition-colors hover:bg-plate-ground disabled:opacity-50"
     >
-      {pending ? <Loader2 size={11} className="animate-spin" /> : <KeyRound size={11} />}
+      {pending ? <Loader2 size={18} className="animate-spin" aria-hidden /> : <KeyRound size={18} aria-hidden />}
       {pending ? "Génération…" : "Nouveau code d'accès"}
     </button>
   );
@@ -87,13 +61,13 @@ function SubmitResetButton() {
 function ResetAccessCodeForm({ driverId }: { driverId: string }) {
   const [state, formAction] = useFormState(resetDriverAccessCode, initialResetState);
   return (
-    <form action={formAction} className="space-y-1.5">
+    <form action={formAction} className="grid justify-items-start gap-1.5">
       <input type="hidden" name="driver_id" value={driverId} />
       <SubmitResetButton />
       {state.message && (
         <p
-          role="status"
-          className={`max-w-xs text-[11px] ${state.ok ? "font-semibold text-emerald-300" : "text-red-300"}`}
+          role={state.ok ? "status" : "alert"}
+          className={`max-w-xs text-[15px] font-semibold ${state.ok ? "text-plate-ok" : "text-plate-bad"}`}
         >
           {state.message}
         </p>
@@ -120,19 +94,14 @@ function AvailableVehicleCard({
   const [state, formAction] = useFormState(assignFoundDriverToVehicle, initialQuickState);
 
   return (
-    <div className="space-y-2 rounded-lg border border-neutral-700 bg-neutral-800/40 p-3">
+    <li className="border-t-2 border-plate-rule py-3">
       <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="rounded-md bg-emerald-500/10 p-1.5 shrink-0">
-            <CarTaxiFront size={14} className="text-emerald-400" />
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-white">{vehicle.label}</p>
-            <p className="text-[10px] text-neutral-500">
-              {vehicle.plate_number} · {vehicle.type}
-            </p>
-          </div>
-        </div>
+        <p className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[15px]">
+          <PlateChip plateNumber={vehicle.plate_number} />
+          <span className="min-w-0">
+            <b>{vehicle.label}</b> · {vehicle.type === "moto" ? "moto-taxi" : "taxi"}
+          </span>
+        </p>
 
         {/*
           Ce formulaire est INDÉPENDANT du formulaire de recherche ci-dessus.
@@ -149,22 +118,19 @@ function AvailableVehicleCard({
       </div>
 
       {state.message && (
-        <div
-          className={`flex items-center gap-1.5 rounded px-2 py-1 text-[11px] font-medium ${
-            state.ok
-              ? "bg-emerald-500/10 text-emerald-300"
-              : "bg-red-500/10 text-red-300"
-          }`}
+        <p
+          role={state.ok ? "status" : "alert"}
+          className={`mt-2 flex items-start gap-2 text-[15px] font-semibold ${state.ok ? "text-plate-ok" : "text-plate-bad"}`}
         >
           {state.ok ? (
-            <CheckCircle2 size={11} className="shrink-0" />
+            <CheckCircle2 size={18} className="mt-0.5 shrink-0" aria-hidden />
           ) : (
-            <AlertTriangle size={11} className="shrink-0" />
+            <AlertTriangle size={18} className="mt-0.5 shrink-0" aria-hidden />
           )}
           {state.message}
-        </div>
+        </p>
       )}
-    </div>
+    </li>
   );
 }
 
@@ -183,10 +149,10 @@ type Props = {
 
 const initialSearchState: LinkDriverActionState = { ok: false, message: "" };
 
-const statusDot: Record<string, string> = {
-  "en service": "bg-emerald-400",
-  maintenance: "bg-amber-400",
-  repos: "bg-neutral-500"
+const statusState: Record<string, DayState> = {
+  "en service": "ok",
+  maintenance: "wait",
+  repos: "none"
 };
 
 // ─── Composant principal ──────────────────────────────────────────────────────
@@ -257,152 +223,111 @@ export function InvestorDriverTeamPanel({ vehicles }: Props) {
     }));
 
   return (
-    <div className="space-y-5">
-      {/* ─── Header ─── */}
-      <div className="flex items-center gap-3">
-        <div className="rounded-xl bg-emerald-500/10 p-2.5">
-          <Users className="text-emerald-400" size={20} aria-hidden />
-        </div>
-        <div>
-          <h2 className="text-lg font-semibold text-white">Équipe de Chauffeurs</h2>
-          <p className="text-xs text-neutral-500">
-            {uniqueDrivers.length} chauffeur(s) lié(s) à votre flotte
-          </p>
-        </div>
+    <div>
+      {/* ─── En-tête ─── */}
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <h2 id="team-title" className="font-plate text-[24px] font-bold">
+          Équipe de chauffeurs
+        </h2>
+        <p className="text-[15px] font-medium">
+          {uniqueDrivers.length} chauffeur{uniqueDrivers.length > 1 ? "s" : ""} lié{uniqueDrivers.length > 1 ? "s" : ""} à
+          votre flotte
+        </p>
       </div>
 
       {/* ─── Liste de l'équipe ─── */}
       {uniqueDrivers.length > 0 ? (
-        <div className="overflow-hidden rounded-xl border border-neutral-800">
-          <div className="divide-y divide-neutral-800">
-            {uniqueDrivers.map((driver) => (
-              <div
-                key={driver.id}
-                className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center"
-              >
-                {/* Avatar */}
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10">
-                    <User size={16} className="text-emerald-400" aria-hidden />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate font-semibold text-white">
-                      {driver.name ?? "Chauffeur sans nom"}
-                    </p>
-                    {driver.phone && (
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <Phone size={10} className="text-neutral-500" />
-                        <p className="text-xs text-neutral-500">{driver.phone}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Véhicule assigné */}
-                {driver.vehicle && (
-                  <div className="flex items-center gap-2 rounded-lg border border-neutral-700 bg-neutral-800/50 px-3 py-2 sm:ml-auto">
-                    <div
-                      className={`h-2 w-2 rounded-full ${statusDot[driver.vehicle.status] ?? "bg-neutral-500"}`}
-                    />
-                    <CarTaxiFront size={13} className="text-neutral-400" aria-hidden />
-                    <div>
-                      <p className="text-xs font-semibold text-white">{driver.vehicle.label}</p>
-                      <p className="text-[10px] text-neutral-500">{driver.vehicle.plate_number}</p>
-                    </div>
-                  </div>
+        <ul className="mt-2 border-b-2 border-plate-rule">
+          {uniqueDrivers.map((driver) => (
+            <li
+              key={driver.id}
+              className="grid gap-3 border-t-2 border-plate-rule py-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_auto] md:items-center"
+            >
+              <div className="min-w-0">
+                <p className="truncate text-[17px] font-bold">{driver.name ?? "Chauffeur sans nom"}</p>
+                {driver.phone && (
+                  <p className="mt-0.5 flex items-center gap-1.5 text-[15px]">
+                    <Phone size={15} aria-hidden />
+                    {driver.phone}
+                  </p>
                 )}
-
-                {/* Badge lié */}
-                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold text-emerald-300">
-                  <UserCheck size={10} />
-                  Lié
-                </span>
-
-                <ResetAccessCodeForm driverId={driver.id} />
               </div>
-            ))}
-          </div>
-        </div>
+
+              {/* Véhicule assigné */}
+              {driver.vehicle ? (
+                <p className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[15px]">
+                  <PlateChip plateNumber={driver.vehicle.plate_number} />
+                  <span className="min-w-0">{driver.vehicle.label}</span>
+                  <span className="inline-flex items-center gap-2 font-semibold">
+                    <StateMark state={statusState[driver.vehicle.status] ?? "none"} />
+                    {vehicleStatusLabels[driver.vehicle.status as VehicleStatus] ?? "Statut inconnu"}
+                  </span>
+                </p>
+              ) : (
+                <span aria-hidden />
+              )}
+
+              <ResetAccessCodeForm driverId={driver.id} />
+            </li>
+          ))}
+        </ul>
       ) : (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-neutral-800 border-dashed bg-neutral-900/30 py-8 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-neutral-800">
-            <Users size={20} className="text-neutral-600" />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-neutral-300">Aucun chauffeur dans l&apos;équipe</p>
-            <p className="mt-1 text-xs text-neutral-500">
-              Invitez un chauffeur par son numéro de téléphone ci-dessous.
-            </p>
-          </div>
+        <div className="mt-3 rounded-xl border-2 border-dashed border-plate-ink px-5 py-6">
+          <p className="text-[17px] font-bold">Aucun chauffeur dans l&apos;équipe</p>
+          <p className="mt-1 text-[16px]">Invitez un chauffeur avec son numéro de téléphone ci-dessous.</p>
         </div>
       )}
 
       {/* ─── Formulaire de recherche / invitation ─── */}
-      <div className="rounded-xl border border-neutral-800 bg-neutral-900/50 p-4">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="rounded-lg bg-emerald-500/10 p-1.5">
-            <UserPlus size={15} className="text-emerald-400" />
-          </div>
-          <h3 className="text-sm font-semibold text-white">Inviter / Rechercher un chauffeur</h3>
-        </div>
+      <div className="mt-6">
+        <h3 className="text-[17px] font-bold">Inviter ou rechercher un chauffeur</h3>
 
         {/*
           FORMULAIRE DE RECHERCHE UNIQUEMENT.
           Les boutons d'assignation (AvailableVehicleCard) sont rendus
           EN DEHORS de ce <form> pour éviter l'imbrication HTML invalide.
         */}
-        <form ref={formRef} action={searchFormAction} className="space-y-3">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <label
-                htmlFor="link-driver-identifier"
-                className="mb-1.5 block text-xs font-medium text-neutral-400"
-              >
-                Téléphone du chauffeur
-              </label>
+        <form ref={formRef} action={searchFormAction} className="mt-3 grid gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label htmlFor="link-driver-identifier" className="block text-[15px] font-semibold">
+              Téléphone du chauffeur
               <input
                 id="link-driver-identifier"
                 name="identifier"
                 type="text"
-                className="field text-sm"
+                className="field mt-1.5"
                 placeholder="+243 81 234 5678 ou 081 234 5678"
                 inputMode="tel"
                 required
               />
-            </div>
-            <div>
-              <label
-                htmlFor="link-driver-name"
-                className="mb-1.5 block text-xs font-medium text-neutral-400"
-              >
-                Nom complet (si nouveau chauffeur)
-              </label>
+            </label>
+            <label htmlFor="link-driver-name" className="block text-[15px] font-semibold">
+              Nom complet (si nouveau chauffeur)
               <input
                 id="link-driver-name"
                 name="full_name"
                 type="text"
-                className="field text-sm"
+                className="field mt-1.5"
                 placeholder="Jean-Pierre Mukendi"
               />
-            </div>
+            </label>
           </div>
 
-          {/* Message de feedback recherche */}
+          {/* Retour de la recherche */}
           {searchState.message && (
-            <div
-              className={`flex items-start gap-2 rounded-lg px-3 py-2.5 text-xs font-medium ${
-                searchState.ok
-                  ? "border border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                  : "border border-red-500/30 bg-red-500/10 text-red-300"
+            <p
+              role={searchState.ok ? "status" : "alert"}
+              className={`flex items-start gap-2 rounded-lg border-2 bg-plate-white px-4 py-3 text-[15px] font-semibold ${
+                searchState.ok ? "border-plate-ok text-plate-ok" : "border-plate-bad text-plate-bad"
               }`}
             >
               {searchState.ok ? (
-                <CheckCircle2 size={13} className="mt-0.5 shrink-0" />
+                <CheckCircle2 size={18} className="mt-0.5 shrink-0" aria-hidden />
               ) : (
-                <AlertTriangle size={13} className="mt-0.5 shrink-0" />
+                <AlertTriangle size={18} className="mt-0.5 shrink-0" aria-hidden />
               )}
               <span>{searchState.message}</span>
-            </div>
+            </p>
           )}
 
           <SubmitSearchButton />
@@ -414,34 +339,17 @@ export function InvestorDriverTeamPanel({ vehicles }: Props) {
           Chaque AvailableVehicleCard contient son propre <form> indépendant.
         */}
         {foundDriver && (
-          <div className="mt-4 space-y-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
+          <div className="mt-4 rounded-xl border-2 border-plate-ink bg-plate-white px-4 py-4">
             {/* Profil chauffeur identifié */}
-            <div>
-              <p className="mb-1.5 text-xs font-semibold text-emerald-400">
-                Chauffeur identifié :
-              </p>
-              <div className="flex items-center gap-2">
-                <div className="rounded-full bg-emerald-500/15 p-1.5">
-                  <User size={12} className="text-emerald-400" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-white">
-                    {foundDriver.full_name ?? "N/A"}
-                  </p>
-                  {foundDriver.phone && (
-                    <p className="text-xs text-neutral-500">{foundDriver.phone}</p>
-                  )}
-                </div>
-              </div>
-            </div>
+            <p className="text-[15px] font-semibold">Chauffeur identifié</p>
+            <p className="mt-0.5 text-[17px] font-bold">{foundDriver.full_name ?? "Nom inconnu"}</p>
+            {foundDriver.phone && <p className="text-[15px]">{foundDriver.phone}</p>}
 
             {/* Véhicules disponibles */}
             {availableVehicles.length > 0 ? (
-              <div className="space-y-2">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
-                  Vos véhicules disponibles ({availableVehicles.length})
-                </p>
-                <div className="space-y-2">
+              <div className="mt-4">
+                <p className="text-[15px] font-semibold">Vos véhicules sans chauffeur ({availableVehicles.length})</p>
+                <ul className="mt-1 border-b-2 border-plate-rule">
                   {availableVehicles.map((vehicle) => (
                     <AvailableVehicleCard
                       key={vehicle.id}
@@ -450,12 +358,12 @@ export function InvestorDriverTeamPanel({ vehicles }: Props) {
                       driverName={foundDriver.full_name ?? "ce chauffeur"}
                     />
                   ))}
-                </div>
+                </ul>
               </div>
             ) : (
-              <p className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-[11px] text-amber-300">
-                Tous vos véhicules sont déjà assignés. Libérez un véhicule depuis la liste
-                ci-dessus pour pouvoir assigner ce chauffeur.
+              <p className="mt-3 flex items-start gap-2 text-[15px] font-semibold">
+                <StateMark state="wait" className="mt-1" />
+                Tous vos véhicules ont déjà un chauffeur. Libérez un véhicule dans la liste pour pouvoir confier celui-ci.
               </p>
             )}
           </div>

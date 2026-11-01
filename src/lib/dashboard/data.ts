@@ -788,6 +788,7 @@ export async function getInvestorPayments(
       .from("payments")
       .select("id,amount,driver_id,vehicle_id,investor_id,status,source,payment_date,comment,created_at")
       .eq("investor_id", investorId)
+      .order("payment_date", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false })
       .limit(limit);
 

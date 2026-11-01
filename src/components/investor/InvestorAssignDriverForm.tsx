@@ -10,8 +10,8 @@ import type { DriverProfileRow } from "@/lib/dashboard/data";
 function SubmitAssign() {
   const { pending } = useFormStatus();
   return (
-    <button className="btn-secondary min-h-9 w-full text-xs" type="submit" disabled={pending}>
-      {pending ? <Loader2 className="mx-auto animate-spin" size={16} /> : "Assigner"}
+    <button className="btn-secondary w-full text-[15px]" type="submit" disabled={pending}>
+      {pending ? <Loader2 className="mx-auto animate-spin" size={18} aria-hidden /> : "Assigner"}
     </button>
   );
 }
@@ -40,7 +40,7 @@ export function InvestorAssignDriverForm({ vehicleId, drivers, vehicles, current
     if (conflict) {
       e.preventDefault();
       const ok = window.confirm(
-        `Ce chauffeur est deja assigne a « ${conflict.label} » (${conflict.plate_number}). Confirmer la reassignation sur ce vehicule ? L'ancien sera libere.`
+        `Ce chauffeur est déjà assigné à « ${conflict.label} » (${conflict.plate_number}). Confirmer la réassignation sur ce véhicule ? L'ancien sera libéré.`
       );
       if (ok && confirmRef.current) {
         confirmRef.current.value = "1";
@@ -50,11 +50,11 @@ export function InvestorAssignDriverForm({ vehicleId, drivers, vehicles, current
   }
 
   return (
-    <form action={assignDriverToVehicle} onSubmit={onSubmit} className="flex min-w-[140px] flex-col gap-1">
+    <form action={assignDriverToVehicle} onSubmit={onSubmit} className="flex min-w-[160px] flex-col gap-2">
       <input type="hidden" name="vehicle_id" value={vehicleId} />
       <input ref={confirmRef} type="hidden" name="confirm_reassign" value="0" />
-      <select name="driver_id" className="field text-sm" defaultValue={currentDriverId ?? "__none__"}>
-        <option value="__none__">Non assigne</option>
+      <select name="driver_id" aria-label="Chauffeur" className="field" defaultValue={currentDriverId ?? "__none__"}>
+        <option value="__none__">Non assigné</option>
         {drivers.map((d) => (
           <option key={d.id} value={d.id}>
             {d.full_name ?? d.id.slice(0, 8)}

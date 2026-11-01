@@ -131,3 +131,23 @@ export function MonthBars({ points, target }: { points: Array<{ date: string; am
     </figure>
   );
 }
+
+/** Plaque miniature pour les lignes denses (tableaux, listes) : même cadre, même bande bleue, sans relief. */
+export function PlateChip({ plateNumber, className }: { plateNumber: string | null; className?: string }) {
+  const { main, province } = splitPlate(plateNumber ?? "");
+  return (
+    <span
+      className={cn(
+        "inline-flex h-7 shrink-0 items-stretch overflow-hidden rounded-[5px] border-2 border-plate-ink bg-plate-white align-middle",
+        className
+      )}
+    >
+      <span className="w-2 shrink-0 bg-plate-band" aria-hidden />
+      <span className="flex items-center whitespace-nowrap px-1.5 font-plate text-[17px] font-bold leading-none tracking-[0.03em]">
+        <span className="sr-only">Plaque </span>
+        {plateNumber ? main : "— — —"}
+        {province ? <span className="ml-0.5 self-end pb-[3px] text-[13px]">{province}</span> : null}
+      </span>
+    </span>
+  );
+}

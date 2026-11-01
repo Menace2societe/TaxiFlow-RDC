@@ -17,7 +17,7 @@ import type { TrendPoint } from "@/lib/dashboard/data";
 
 type RevenueTrendChartProps = {
   data: TrendPoint[];
-  /** Couleur principale du trait et du gradient (hex ou hsl). Défaut : emerald. */
+  /** Couleur du trait et du dégradé dans le look sombre (hex). Dans l'univers « plaque », le trait est à l'encre. */
   color?: string;
   /** Hauteur du conteneur SVG en pixels. Défaut : 220. */
   height?: number;
@@ -84,9 +84,21 @@ export function RevenueTrendChart({
 
   const gradientId = `trend-gradient-${color.replace("#", "")}`;
 
+  // Attributs SVG = look sombre (couleur + dégradé). Dans l'univers « plaque », les classes CSS,
+  // prioritaires, tracent un trait d'encre sans remplissage sur des filets pleins ; `dark:` rétablit
+  // le sombre via les variables --trend-color / --trend-fill.
+  const frame = [
+    "text-plate-ink dark:text-[#94a3b8]",
+    "[&_.recharts-cartesian-grid_line]:stroke-plate-rule [&_.recharts-cartesian-grid_line]:[stroke-opacity:1] [&_.recharts-cartesian-grid_line]:[stroke-dasharray:none]",
+    "dark:[&_.recharts-cartesian-grid_line]:[stroke:currentColor] dark:[&_.recharts-cartesian-grid_line]:[stroke-opacity:0.18] dark:[&_.recharts-cartesian-grid_line]:[stroke-dasharray:3_3]",
+    "[&_.recharts-area-curve]:stroke-plate-ink [&_.recharts-area-curve]:[stroke-width:2.5] dark:[&_.recharts-area-curve]:[stroke:var(--trend-color)] dark:[&_.recharts-area-curve]:[stroke-width:2]",
+    "[&_.recharts-area-area]:fill-none dark:[&_.recharts-area-area]:[fill:var(--trend-fill)]",
+    "[&_.recharts-active-dot_circle]:fill-plate-ink dark:[&_.recharts-active-dot_circle]:[fill:var(--trend-color)]",
+    "[&_.recharts-tooltip-cursor]:stroke-plate-rule [&_.recharts-tooltip-cursor]:[stroke-opacity:1] dark:[&_.recharts-tooltip-cursor]:[stroke:var(--trend-color)] dark:[&_.recharts-tooltip-cursor]:[stroke-opacity:0.18]"
+  ].join(" ");
+
   return (
-    // Axes et grille suivent la couleur du texte : encre sur fond clair, gris ardoise en sombre.
-    <div className="text-plate-soft dark:text-[#94a3b8]">
+    <div className={frame} style={{ "--trend-color": color, "--trend-fill": `url(#${gradientId})` } as React.CSSProperties}>
       <ResponsiveContainer width="100%" height={height}>
         <AreaChart data={chartData} margin={{ left: 0, right: 8, top: 10, bottom: 0 }}>
           <defs>
@@ -96,12 +108,7 @@ export function RevenueTrendChart({
             </linearGradient>
           </defs>
 
-          <CartesianGrid
-            strokeDasharray="3 3"
-            vertical={false}
-            stroke="currentColor"
-            strokeOpacity={0.18}
-          />
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" strokeOpacity={0.18} />
 
           <XAxis
             dataKey="date"
@@ -121,7 +128,11 @@ export function RevenueTrendChart({
             width={36}
           />
 
-          <Tooltip content={<CustomTooltip />} cursor={{ stroke: color, strokeOpacity: 0.18, strokeWidth: 2 }} />
+          <Tooltip
+            content={<CustomTooltip />}
+            cursor={{ stroke: color, strokeOpacity: 0.18, strokeWidth: 2 }}
+            isAnimationActive={false}
+          />
 
           <Area
             type="monotone"
@@ -132,9 +143,7 @@ export function RevenueTrendChart({
             fill={`url(#${gradientId})`}
             dot={false}
             activeDot={{ r: 4, fill: color, strokeWidth: 2, className: "stroke-white dark:stroke-[#0a0f0d]" }}
-            isAnimationActive
-            animationDuration={600}
-            animationEasing="ease-out"
+            isAnimationActive={false}
           />
         </AreaChart>
       </ResponsiveContainer>

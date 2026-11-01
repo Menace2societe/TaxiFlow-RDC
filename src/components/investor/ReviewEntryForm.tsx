@@ -1,12 +1,12 @@
 "use client";
 
 import { useFormState, useFormStatus } from "react-dom";
-import { Loader2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 import { reviewEntry, type ReviewEntryState } from "@/actions/control";
 
 const initialState: ReviewEntryState = { ok: false, message: "" };
 
-function DecisionButton({ value, label, tone }: { value: "justified" | "fraud"; label: string; tone: string }) {
+function DecisionButton({ value, label, className }: { value: "justified" | "fraud"; label: string; className: string }) {
   const { pending } = useFormStatus();
   return (
     <button
@@ -14,9 +14,9 @@ function DecisionButton({ value, label, tone }: { value: "justified" | "fraud"; 
       name="decision"
       value={value}
       disabled={pending}
-      className={`inline-flex min-h-10 items-center gap-1.5 rounded-lg border px-3 text-sm font-semibold disabled:opacity-50 ${tone}`}
+      className={`inline-flex min-h-[48px] items-center justify-center gap-1.5 rounded-xl border-2 px-4 text-[15px] font-bold transition-colors disabled:opacity-50 ${className}`}
     >
-      {pending ? <Loader2 size={14} className="animate-spin" aria-hidden /> : null}
+      {pending ? <Loader2 size={16} className="animate-spin" aria-hidden /> : null}
       {label}
     </button>
   );
@@ -26,27 +26,45 @@ export function ReviewEntryForm({ entryId }: { entryId: string }) {
   const [state, formAction] = useFormState(reviewEntry, initialState);
 
   if (state.ok) {
-    return <p className="text-sm font-semibold text-emerald-300">{state.message}</p>;
+    return (
+      <p role="status" className="flex items-start gap-2 text-[15px] font-semibold text-plate-ok">
+        <CheckCircle2 size={18} className="mt-0.5 shrink-0" aria-hidden />
+        {state.message}
+      </p>
+    );
   }
 
   return (
-    <form action={formAction} className="space-y-2">
+    <form action={formAction} className="grid gap-2">
       <input type="hidden" name="entry_id" value={entryId} />
-      <label className="sr-only" htmlFor={`note-${entryId}`}>
-        Note
+      <label className="block text-[15px] font-semibold" htmlFor={`note-${entryId}`}>
+        Votre note (facultatif)
       </label>
       <input
         id={`note-${entryId}`}
         name="note"
-        className="field min-h-10 text-sm"
-        placeholder="Note (ex. bouchons à Limete, client longue course…)"
+        className="field"
+        placeholder="Ex. : bouchons à Limete, longue course…"
         maxLength={500}
       />
-      <div className="flex flex-wrap gap-2">
-        <DecisionButton value="justified" label="Justifiée" tone="border-emerald-500/40 bg-emerald-500/10 text-emerald-300" />
-        <DecisionButton value="fraud" label="Fraude" tone="border-red-500/40 bg-red-500/10 text-red-300" />
+      <div className="grid grid-cols-2 gap-2">
+        <DecisionButton
+          value="justified"
+          label="Justifiée"
+          className="border-plate-ink bg-plate-white text-plate-ink hover:bg-plate-ground"
+        />
+        <DecisionButton
+          value="fraud"
+          label="Fraude"
+          className="border-plate-bad bg-plate-white text-plate-bad hover:bg-plate-bad hover:text-plate-white"
+        />
       </div>
-      {state.message ? <p className="text-xs text-red-300">{state.message}</p> : null}
+      {state.message ? (
+        <p role="alert" className="flex items-start gap-2 text-[15px] font-semibold text-plate-bad">
+          <AlertTriangle size={18} className="mt-0.5 shrink-0" aria-hidden />
+          {state.message}
+        </p>
+      ) : null}
     </form>
   );
 }

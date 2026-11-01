@@ -14,7 +14,7 @@ const initialState: BillingPaymentState = { ok: false, message: "" };
 function SubmitButton({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" className="btn-primary min-h-12 w-full text-base" disabled={pending}>
+    <button type="submit" className="btn-primary w-full" disabled={pending}>
       {pending ? <Loader2 size={18} className="animate-spin" aria-hidden /> : <Smartphone size={18} aria-hidden />}
       {pending ? "Envoi de la demande…" : label}
     </button>
@@ -44,7 +44,7 @@ export function SubscriptionPayForm({ monthlyUsd, usdRate, defaultPhone }: Props
   return (
     <form action={formAction} className="space-y-4">
       <fieldset>
-        <legend className="text-sm font-medium text-neutral-300">Durée</legend>
+        <legend className="text-[15px] font-semibold">Durée</legend>
         <div className="mt-1.5 grid grid-cols-2 gap-2 sm:grid-cols-4">
           {BILLING_PERIODS.map((period) => (
             <label key={period.months} className="cursor-pointer">
@@ -56,7 +56,7 @@ export function SubscriptionPayForm({ monthlyUsd, usdRate, defaultPhone }: Props
                 onChange={() => setMonths(period.months)}
                 className="peer sr-only"
               />
-              <span className="flex min-h-12 items-center justify-center rounded-lg border border-neutral-700 px-2 text-center text-sm font-semibold peer-checked:border-emerald-500 peer-checked:bg-emerald-500/10 peer-checked:text-emerald-200">
+              <span className="flex min-h-[52px] items-center justify-center rounded-xl border-2 border-plate-ink/70 bg-plate-white px-2 text-center text-[16px] font-bold hover:border-plate-ink peer-checked:border-plate-ink peer-checked:bg-plate-ink peer-checked:text-plate-white peer-focus-visible:outline peer-focus-visible:outline-[3px] peer-focus-visible:outline-offset-2 peer-focus-visible:outline-plate-band">
                 {period.label}
               </span>
             </label>
@@ -65,7 +65,7 @@ export function SubscriptionPayForm({ monthlyUsd, usdRate, defaultPhone }: Props
       </fieldset>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <label className="grid gap-1.5 text-sm font-medium text-neutral-300">
+        <label className="grid gap-1.5 text-[15px] font-semibold">
           Devise
           <select
             name="currency"
@@ -74,10 +74,10 @@ export function SubscriptionPayForm({ monthlyUsd, usdRate, defaultPhone }: Props
             onChange={(event) => setCurrency(event.target.value === "CDF" ? "CDF" : "USD")}
           >
             <option value="USD">USD</option>
-            <option value="CDF">CDF (taux du jour)</option>
+            <option value="CDF">Francs congolais (CDF, taux du jour)</option>
           </select>
         </label>
-        <label className="grid gap-1.5 text-sm font-medium text-neutral-300">
+        <label className="grid gap-1.5 text-[15px] font-semibold">
           Numéro Mobile Money
           <input
             name="phone"
@@ -93,7 +93,7 @@ export function SubscriptionPayForm({ monthlyUsd, usdRate, defaultPhone }: Props
             required
           />
         </label>
-        <label className="grid gap-1.5 text-sm font-medium text-neutral-300">
+        <label className="grid gap-1.5 text-[15px] font-semibold">
           Opérateur
           <select
             name="provider"

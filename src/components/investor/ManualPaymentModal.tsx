@@ -1,18 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import {
-  Banknote,
-  CheckCircle2,
-  Loader2,
-  PlusCircle,
-  User,
-  X,
-  XCircle,
-  Calendar,
-  FileText
-} from "lucide-react";
+import { Banknote, CheckCircle2, Loader2, PlusCircle, X, XCircle } from "lucide-react";
 import { recordManualPayment } from "@/actions/payments";
+import { StateMark } from "@/components/driver/plate";
 import type { FleetDriver } from "@/lib/dashboard/data";
 import { useRouter } from "next/navigation";
 import { todayInAppTimezone } from "@/lib/time/kinshasa";
@@ -112,71 +103,58 @@ export function ManualPaymentModal({ drivers }: ManualPaymentModalProps) {
   return (
     <>
       {/* ─── Bouton déclencheur ─────────────────────────────────────────────────── */}
-      <button
-        id="open-manual-payment-modal"
-        type="button"
-        onClick={openModal}
-        className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-900/30 transition-all hover:bg-emerald-500 active:scale-[0.97] focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
-      >
-        <PlusCircle size={15} aria-hidden />
+      <button id="open-manual-payment-modal" type="button" onClick={openModal} className="btn-primary px-5">
+        <PlusCircle size={18} aria-hidden />
         Saisir un versement manuel
       </button>
 
-      {/* ─── Overlay + Modal ────────────────────────────────────────────────────── */}
+      {/* ─── Fond + fenêtre ─────────────────────────────────────────────────────── */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in"
+          className="fixed inset-0 z-50 flex items-end justify-center p-4 md:items-center"
           role="dialog"
           aria-modal="true"
-          aria-label="Saisir un versement manuel"
+          aria-labelledby="manual-payment-title"
         >
-          {/* Fond sombre */}
-          <div
-            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-            onClick={closeModal}
-            aria-hidden
-          />
+          {/* Fond */}
+          <div className="absolute inset-0 bg-plate-ink/40" onClick={closeModal} aria-hidden />
 
-          {/* Boîte du modal */}
+          {/* Fenêtre */}
           <div
             ref={dialogRef}
-            className="relative z-10 w-full max-w-md rounded-2xl border border-neutral-700 bg-neutral-900 shadow-2xl animate-fade-in-up"
+            className="relative z-10 max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl border-2 border-plate-ink bg-plate-white text-plate-ink"
           >
-            {/* Header */}
-            <div className="flex items-center justify-between border-b border-neutral-800 px-6 py-4">
-              <div className="flex items-center gap-3">
-                <div className="rounded-lg bg-emerald-500/10 p-2">
-                  <Banknote className="text-emerald-400" size={18} aria-hidden />
-                </div>
-                <div>
-                  <h2 className="text-base font-semibold text-white">Versement manuel</h2>
-                  <p className="text-xs text-neutral-500">Statut : approuvé immédiatement</p>
-                </div>
+            {/* En-tête */}
+            <div className="flex items-start justify-between gap-3 border-b-2 border-plate-rule px-5 py-4">
+              <div>
+                <h2 id="manual-payment-title" className="font-plate text-[24px] font-bold leading-tight">
+                  Versement manuel
+                </h2>
+                <p className="mt-0.5 flex items-center gap-2 text-[15px]">
+                  <StateMark state="ok" />
+                  Validé dès l&apos;enregistrement
+                </p>
               </div>
               <button
                 type="button"
                 onClick={closeModal}
                 disabled={isPending}
                 aria-label="Fermer"
-                className="rounded-lg p-1.5 text-neutral-500 transition-colors hover:bg-neutral-800 hover:text-white disabled:opacity-40"
+                className="-mr-2 inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-lg hover:bg-plate-ground disabled:opacity-40"
               >
-                <X size={18} />
+                <X size={22} aria-hidden />
               </button>
             </div>
 
-            {/* Corps du formulaire */}
-            <form onSubmit={handleSubmit} className="space-y-4 px-6 py-5">
+            {/* Formulaire */}
+            <form onSubmit={handleSubmit} className="grid gap-4 px-5 py-5">
               {/* Chauffeur */}
               <div>
-                <label
-                  htmlFor="manual-driver"
-                  className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-neutral-400"
-                >
-                  <User size={11} />
+                <label htmlFor="manual-driver" className="mb-1.5 block text-[15px] font-semibold">
                   Chauffeur
                 </label>
                 {drivers.length === 0 ? (
-                  <p className="rounded-lg border border-neutral-700 bg-neutral-800/50 px-3 py-2.5 text-sm text-neutral-500">
+                  <p className="rounded-lg border-2 border-dashed border-plate-ink px-3 py-3 text-[15px]">
                     Aucun chauffeur assigné dans votre flotte
                   </p>
                 ) : (
@@ -199,12 +177,8 @@ export function ManualPaymentModal({ drivers }: ManualPaymentModalProps) {
 
               {/* Montant */}
               <div>
-                <label
-                  htmlFor="manual-amount"
-                  className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-neutral-400"
-                >
-                  <Banknote size={11} />
-                  Montant (CDF)
+                <label htmlFor="manual-amount" className="mb-1.5 block text-[15px] font-semibold">
+                  Montant (FC)
                 </label>
                 <input
                   id="manual-amount"
@@ -213,7 +187,7 @@ export function ManualPaymentModal({ drivers }: ManualPaymentModalProps) {
                   min="1"
                   step="1"
                   inputMode="decimal"
-                  placeholder="Ex : 15 000"
+                  placeholder="Ex. : 15 000"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   required
@@ -223,11 +197,7 @@ export function ManualPaymentModal({ drivers }: ManualPaymentModalProps) {
 
               {/* Date */}
               <div>
-                <label
-                  htmlFor="manual-date"
-                  className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-neutral-400"
-                >
-                  <Calendar size={11} />
+                <label htmlFor="manual-date" className="mb-1.5 block text-[15px] font-semibold">
                   Date du versement
                 </label>
                 <input
@@ -244,18 +214,13 @@ export function ManualPaymentModal({ drivers }: ManualPaymentModalProps) {
 
               {/* Notes */}
               <div>
-                <label
-                  htmlFor="manual-notes"
-                  className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-neutral-400"
-                >
-                  <FileText size={11} />
-                  Notes / Commentaire
-                  <span className="text-neutral-600">(optionnel)</span>
+                <label htmlFor="manual-notes" className="mb-1.5 block text-[15px] font-semibold">
+                  Commentaire (facultatif)
                 </label>
                 <textarea
                   id="manual-notes"
-                  className="field min-h-[72px] resize-none"
-                  placeholder="Ex : paiement en espèces remis en main propre..."
+                  className="field min-h-[88px] resize-none py-2.5"
+                  placeholder="Ex. : paiement en espèces remis en main propre…"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   maxLength={500}
@@ -263,42 +228,36 @@ export function ManualPaymentModal({ drivers }: ManualPaymentModalProps) {
                 />
               </div>
 
-              {/* Toast feedback */}
+              {/* Retour */}
               {toast && (
-                <div
-                  className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 text-sm ${
-                    toast.ok
-                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                      : "border-red-500/30 bg-red-500/10 text-red-300"
+                <p
+                  role={toast.ok ? "status" : "alert"}
+                  className={`flex items-start gap-2 rounded-lg border-2 bg-plate-white px-3 py-2.5 text-[15px] font-semibold ${
+                    toast.ok ? "border-plate-ok text-plate-ok" : "border-plate-bad text-plate-bad"
                   }`}
                 >
-                  {toast.ok ? <CheckCircle2 size={15} /> : <XCircle size={15} />}
+                  {toast.ok ? (
+                    <CheckCircle2 size={18} className="mt-0.5 shrink-0" aria-hidden />
+                  ) : (
+                    <XCircle size={18} className="mt-0.5 shrink-0" aria-hidden />
+                  )}
                   {toast.message}
-                </div>
+                </p>
               )}
 
               {/* Actions */}
-              <div className="flex gap-3 pt-1">
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  disabled={isPending}
-                  className="btn-secondary flex-1"
-                >
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <button type="button" onClick={closeModal} disabled={isPending} className="btn-secondary w-full px-3">
                   Annuler
                 </button>
                 <button
                   id="submit-manual-payment"
                   type="submit"
                   disabled={isPending || drivers.length === 0 || !amount}
-                  className="btn-primary flex-1"
+                  className="btn-primary w-full px-3"
                 >
-                  {isPending ? (
-                    <Loader2 size={15} className="animate-spin" />
-                  ) : (
-                    <Banknote size={15} />
-                  )}
-                  {isPending ? "Enregistrement..." : "Enregistrer"}
+                  {isPending ? <Loader2 size={18} className="animate-spin" aria-hidden /> : <Banknote size={18} aria-hidden />}
+                  {isPending ? "Enregistrement…" : "Enregistrer"}
                 </button>
               </div>
             </form>

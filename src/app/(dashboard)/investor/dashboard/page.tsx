@@ -1,39 +1,32 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Activity,
-  AlertCircle,
-  Bike,
-  CarTaxiFront,
-  CheckCircle2,
-  Clock,
-  Loader2,
-  PlusCircle,
-  RefreshCw,
-  TrendingUp,
-  UserPlus,
-  WalletCards,
-  Wrench,
-  X,
-  type LucideIcon
-} from "lucide-react";
+import { AlertTriangle, CheckCircle2, Loader2, PlusCircle, RefreshCw, UserPlus, Wrench, X } from "lucide-react";
 import { reportInvestorBreakdown } from "@/actions/breakdowns";
 import { getInvestorDashboardData, type InvestorDashboardDataResult } from "@/actions/investor-dashboard";
 import { registerOrAssignDriverByPhone } from "@/actions/investor-fleet";
 import { createVehicleFromInvestorDashboard } from "@/actions/vehicles";
 import { RevenueChart } from "@/components/RevenueChart";
-import { VehicleMixChart } from "@/components/VehicleMixChart";
-import { WeeklyVehicleRevenueChart } from "@/components/WeeklyVehicleRevenueChart";
+import { PlateChip, StateMark, VehicleStatusText, type DayState } from "@/components/driver/plate";
 import { MaintenanceActionButtons } from "@/components/shared/MaintenanceActionButtons";
 import { SuspiciousEntriesPanel } from "@/components/shared/SuspiciousEntriesPanel";
-import { Badge } from "@/components/ui/badge";
 import type { DashboardEntry, DashboardVehicle } from "@/lib/dashboard/data";
+import { ROUTES } from "@/lib/routes";
+import type { BreakdownStatus } from "@/lib/supabase/types";
+import { recentDates, todayInAppTimezone } from "@/lib/time/kinshasa";
+import { cn } from "@/lib/utils/cn";
 
 type ModalName = "vehicle" | "driver" | "breakdown";
 type Notice = { type: "success" | "error"; message: string } | null;
 
 const phonePattern = "\\+243[0-9]{9}";
+
+const breakdownStateView: Record<BreakdownStatus, { label: string; state: DayState }> = {
+  open: { label: "Panne signalée, pas encore réparée", state: "bad" },
+  in_progress: { label: "Réparation en cours", state: "wait" },
+  resolved: { label: "Réparée", state: "ok" }
+};
 
 function formatCdf(value: number) {
   return new Intl.NumberFormat("fr-CD", {
@@ -52,11 +45,35 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
+/** « 2026-11-01 » → « Samedi 1er novembre » */
+function longDay(isoDate: string) {
+  const label = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" }).format(
+    new Date(`${isoDate}T12:00:00Z`)
+  );
+  const withFirst = label.replace(/^(\S+) 1 /, "$1 1er ");
+  return `${withFirst.charAt(0).toUpperCase()}${withFirst.slice(1)}`;
+}
+
+/** « 2026-10-31 » → « ven. 31 » */
+function shortDay(isoDate: string) {
+  const date = new Date(`${isoDate}T12:00:00Z`);
+  const weekday = new Intl.DateTimeFormat("fr-FR", { weekday: "short", timeZone: "UTC" }).format(date);
+  return `${weekday} ${date.getUTCDate()}`;
+}
+
+function plural(count: number, word: string) {
+  return `${count} ${word}${count > 1 ? "s" : ""}`;
+}
+
 function vehicleName(vehicle?: DashboardVehicle) {
   if (!vehicle) {
-    return "Vehicule";
+    return "Véhicule";
   }
   return `${vehicle.label} - ${vehicle.plate_number}`;
+}
+
+function entryDay(entry: DashboardEntry) {
+  return entry.entry_date.slice(0, 10);
 }
 
 function entriesByDate(entries: DashboardEntry[]) {
@@ -71,31 +88,20 @@ function entriesByDate(entries: DashboardEntry[]) {
   return Object.values(grouped).slice(-14);
 }
 
-function vehicleMix(vehicles: DashboardVehicle[]) {
-  return [
-    { name: "Taxis", value: vehicles.filter((vehicle) => vehicle.type === "taxi").length },
-    { name: "Motos", value: vehicles.filter((vehicle) => vehicle.type === "moto").length }
-  ].filter((item) => item.value > 0);
-}
-
-function weeklyRevenueByVehicle(entries: DashboardEntry[], vehicles: DashboardVehicle[]) {
-  const vehicleById = new Map(vehicles.map((vehicle) => [vehicle.id, vehicle]));
-  const since = new Date();
-  since.setDate(since.getDate() - 6);
-  since.setHours(0, 0, 0, 0);
-
-  const grouped = entries
-    .filter((entry) => new Date(entry.entry_date) >= since)
-    .reduce<Record<string, Record<string, string | number>>>((acc, entry) => {
-      const date = new Intl.DateTimeFormat("fr-CD", { weekday: "short" }).format(new Date(entry.entry_date));
-      const vehicle = vehicleById.get(entry.vehicle_id);
-      const label = vehicle?.label ?? "Vehicule";
-      acc[date] ??= { date };
-      acc[date][label] = Number(acc[date][label] ?? 0) + entry.revenue_cdf;
-      return acc;
-    }, {});
-
-  return Object.values(grouped);
+/** Recettes des 7 derniers jours (aujourd'hui compris), par véhicule et par jour. */
+function weekByVehicle(entries: DashboardEntry[], vehicles: DashboardVehicle[]) {
+  const days = recentDates(7);
+  const rows = vehicles.map((vehicle) => {
+    const perDay = days.map((date) =>
+      entries
+        .filter((entry) => entry.vehicle_id === vehicle.id && entryDay(entry) === date)
+        .reduce((sum, entry) => sum + entry.revenue_cdf, 0)
+    );
+    return { vehicle, perDay, total: perDay.reduce((sum, amount) => sum + amount, 0) };
+  });
+  // Une seule échelle pour toute la flotte : le plus gros jour ou le plus gros objectif.
+  const scale = Math.max(1, ...rows.flatMap((row) => row.perDay), ...vehicles.map((vehicle) => vehicle.target_daily_revenue));
+  return { days, rows, scale };
 }
 
 function topDriverName(entries: DashboardEntry[], vehicles: DashboardVehicle[]) {
@@ -111,14 +117,7 @@ function topDriverName(entries: DashboardEntry[], vehicles: DashboardVehicle[]) 
   return Object.entries(totals).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "Aucun";
 }
 
-function VehicleIcon({ type }: { type: "taxi" | "moto" }) {
-  const Icon = type === "taxi" ? CarTaxiFront : Bike;
-  return (
-    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-300">
-      <Icon size={17} aria-hidden />
-    </span>
-  );
-}
+const labelClass = "grid gap-1.5 text-[15px] font-semibold";
 
 function ModalShell({
   title,
@@ -130,12 +129,17 @@ function ModalShell({
   onClose: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 backdrop-blur-sm sm:items-center" role="dialog" aria-modal>
-      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg border border-white/10 bg-[#111d19] p-5 shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-plate-ink/50 p-4 sm:items-center" role="dialog" aria-modal aria-label={title}>
+      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border-2 border-plate-ink bg-plate-white p-5">
         <div className="flex items-start justify-between gap-3">
-          <h2 className="text-lg font-semibold text-white">{title}</h2>
-          <button type="button" className="rounded-md p-2 text-stone-400 transition hover:bg-white/10 hover:text-white" onClick={onClose} aria-label="Fermer">
-            <X size={20} />
+          <h2 className="font-plate text-[24px] font-bold leading-tight">{title}</h2>
+          <button
+            type="button"
+            className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-lg hover:bg-plate-ground"
+            onClick={onClose}
+            aria-label="Fermer"
+          >
+            <X size={22} aria-hidden />
           </button>
         </div>
         {children}
@@ -151,35 +155,51 @@ function Message({ notice }: { notice: Notice }) {
 
   const ok = notice.type === "success";
   return (
-    <div className={`rounded-lg border px-4 py-3 text-sm ${ok ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-200" : "border-red-400/30 bg-red-500/10 text-red-200"}`}>
+    <p
+      role={ok ? "status" : "alert"}
+      className={cn(
+        "flex items-start gap-2 rounded-lg border-2 bg-plate-white px-4 py-3 text-[15px] font-semibold",
+        ok ? "border-plate-ok text-plate-ok" : "border-plate-bad text-plate-bad"
+      )}
+    >
+      {ok ? <CheckCircle2 size={18} className="mt-0.5 shrink-0" aria-hidden /> : <AlertTriangle size={18} className="mt-0.5 shrink-0" aria-hidden />}
       {notice.message}
-    </div>
+    </p>
   );
 }
 
 function EmptyState({ title, text, action }: { title: string; text: string; action?: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-dashed border-white/10 bg-black/10 px-5 py-8 text-center">
-      <p className="font-medium text-white">{title}</p>
-      <p className="mx-auto mt-1 max-w-md text-sm text-stone-400">{text}</p>
+    <div className="rounded-xl border-2 border-dashed border-plate-ink px-5 py-6">
+      <p className="text-[17px] font-bold">{title}</p>
+      <p className="mt-1 max-w-xl text-[16px]">{text}</p>
       {action ? <div className="mt-4">{action}</div> : null}
     </div>
   );
 }
 
-function StatTile({ label, value, helper, icon: Icon }: { label: string; value: string; helper: string; icon: LucideIcon }) {
+function ModalButtons({
+  onClose,
+  isSubmitting,
+  icon,
+  label,
+  busyLabel
+}: {
+  onClose: () => void;
+  isSubmitting: boolean;
+  icon: React.ReactNode;
+  label: string;
+  busyLabel: string;
+}) {
   return (
-    <div className="rounded-lg border border-white/10 bg-white/[0.04] p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm text-stone-400">{label}</p>
-          <p className="mt-2 text-2xl font-semibold text-white">{value}</p>
-        </div>
-        <span className="rounded-lg bg-emerald-500/10 p-2 text-emerald-300">
-          <Icon size={20} aria-hidden />
-        </span>
-      </div>
-      <p className="mt-4 text-sm text-stone-400">{helper}</p>
+    <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+      <button type="button" className="btn-secondary px-5" onClick={onClose} disabled={isSubmitting}>
+        Annuler
+      </button>
+      <button type="submit" className="btn-primary px-5" disabled={isSubmitting}>
+        {isSubmitting ? <Loader2 className="animate-spin" size={18} aria-hidden /> : icon}
+        {isSubmitting ? busyLabel : label}
+      </button>
     </div>
   );
 }
@@ -220,43 +240,41 @@ function VehicleModal({
       }
     } catch (error) {
       console.error("[InvestorDashboard] create vehicle failed", error);
-      setNotice({ type: "error", message: "Impossible d'ajouter le vehicule pour le moment." });
+      setNotice({ type: "error", message: "Impossible d'ajouter le véhicule pour le moment." });
     } finally {
       setIsSubmitting(false);
     }
   }
 
   return (
-    <ModalShell title="Ajouter un vehicule" onClose={onClose}>
+    <ModalShell title="Ajouter un véhicule" onClose={onClose}>
       <form onSubmit={onSubmit} className="mt-5 grid gap-4">
-        <label className="grid gap-1 text-sm font-medium text-stone-200">
+        <label className={labelClass}>
           Plaque d&apos;immatriculation
-          <input className="field" name="plate_number" required minLength={3} value={plateNumber} onChange={(event) => setPlateNumber(event.target.value)} placeholder="KN 4215 AB" />
+          <input className="field" name="plate_number" required minLength={3} value={plateNumber} onChange={(event) => setPlateNumber(event.target.value)} placeholder="4821 BK 01" />
         </label>
-        <label className="grid gap-1 text-sm font-medium text-stone-200">
-          Modele
+        <label className={labelClass}>
+          Modèle
           <input className="field" name="label" required minLength={2} value={label} onChange={(event) => setLabel(event.target.value)} placeholder="Toyota Noah" />
         </label>
-        <label className="grid gap-1 text-sm font-medium text-stone-200">
+        <label className={labelClass}>
           Type
           <select className="field" name="type" value={type} onChange={(event) => setType(event.target.value as "taxi" | "moto")}>
             <option value="taxi">Taxi</option>
             <option value="moto">Moto</option>
           </select>
         </label>
-        <label className="grid gap-1 text-sm font-medium text-stone-200">
-          Objectif journalier (CDF)
-          <input className="field" name="target_daily_revenue" type="number" min="1" step="1" required value={targetDailyRevenue} onChange={(event) => setTargetDailyRevenue(event.target.value)} />
+        <label className={labelClass}>
+          Versement attendu par jour (FC)
+          <input className="field" name="target_daily_revenue" type="number" min="1" step="1" inputMode="numeric" required value={targetDailyRevenue} onChange={(event) => setTargetDailyRevenue(event.target.value)} />
         </label>
-        <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
-          <button type="button" className="btn-secondary min-h-10" onClick={onClose} disabled={isSubmitting}>
-            Annuler
-          </button>
-          <button type="submit" className="btn-primary min-h-10" disabled={isSubmitting}>
-            {isSubmitting ? <Loader2 className="animate-spin" size={18} aria-hidden /> : <PlusCircle size={18} aria-hidden />}
-            {isSubmitting ? "Enregistrement..." : "Ajouter le vehicule"}
-          </button>
-        </div>
+        <ModalButtons
+          onClose={onClose}
+          isSubmitting={isSubmitting}
+          icon={<PlusCircle size={18} aria-hidden />}
+          label="Ajouter le véhicule"
+          busyLabel="Enregistrement…"
+        />
       </form>
     </ModalShell>
   );
@@ -309,11 +327,13 @@ function DriverModal({
   return (
     <ModalShell title="Associer un chauffeur" onClose={onClose}>
       {vehicles.length === 0 ? (
-        <EmptyState title="Aucun vehicule disponible" text="Ajoutez d'abord un taxi ou une moto avant d'associer un chauffeur." />
+        <div className="mt-4">
+          <EmptyState title="Aucun véhicule disponible" text="Ajoutez d'abord un taxi ou une moto avant d'associer un chauffeur." />
+        </div>
       ) : (
         <form onSubmit={onSubmit} className="mt-5 grid gap-4">
-          <label className="grid gap-1 text-sm font-medium text-stone-200">
-            Vehicule
+          <label className={labelClass}>
+            Véhicule
             <select className="field" name="vehicle_id" required value={vehicleId} onChange={(event) => setVehicleId(event.target.value)}>
               {vehicles.map((vehicle) => (
                 <option key={vehicle.id} value={vehicle.id}>
@@ -322,12 +342,12 @@ function DriverModal({
               ))}
             </select>
           </label>
-          <label className="grid gap-1 text-sm font-medium text-stone-200">
+          <label className={labelClass}>
             Nom du chauffeur
             <input className="field" name="full_name" required minLength={2} value={fullName} onChange={(event) => setFullName(event.target.value)} placeholder="Jean Kabongo" />
           </label>
-          <label className="grid gap-1 text-sm font-medium text-stone-200">
-            Telephone RDC
+          <label className={labelClass}>
+            Téléphone (+243)
             <input
               className="field"
               name="phone"
@@ -341,19 +361,17 @@ function DriverModal({
               placeholder="+243XXXXXXXXX"
             />
           </label>
-          <label className="flex items-start gap-2 rounded-lg border border-white/10 bg-black/10 p-3 text-sm text-stone-300">
-            <input className="mt-1" type="checkbox" checked={confirmReassign} onChange={(event) => setConfirmReassign(event.target.checked)} />
-            Confirmer la reassignation si ce chauffeur est deja lie a un autre vehicule de ma flotte.
+          <label className="flex min-h-12 items-start gap-3 rounded-lg border-2 border-plate-rule px-3 py-3 text-[15px]">
+            <input className="mt-0.5 h-5 w-5 shrink-0 accent-plate-band" type="checkbox" checked={confirmReassign} onChange={(event) => setConfirmReassign(event.target.checked)} />
+            Si ce chauffeur conduit déjà un autre véhicule de ma flotte, le déplacer sur celui-ci.
           </label>
-          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
-            <button type="button" className="btn-secondary min-h-10" onClick={onClose} disabled={isSubmitting}>
-              Annuler
-            </button>
-            <button type="submit" className="btn-primary min-h-10" disabled={isSubmitting}>
-              {isSubmitting ? <Loader2 className="animate-spin" size={18} aria-hidden /> : <UserPlus size={18} aria-hidden />}
-              {isSubmitting ? "Association..." : "Associer le chauffeur"}
-            </button>
-          </div>
+          <ModalButtons
+            onClose={onClose}
+            isSubmitting={isSubmitting}
+            icon={<UserPlus size={18} aria-hidden />}
+            label="Associer le chauffeur"
+            busyLabel="Association…"
+          />
         </form>
       )}
     </ModalShell>
@@ -398,20 +416,22 @@ function BreakdownModal({
       }
     } catch (error) {
       console.error("[InvestorDashboard] report breakdown failed", error);
-      setNotice({ type: "error", message: "Impossible de declarer la panne pour le moment." });
+      setNotice({ type: "error", message: "Impossible de déclarer la panne pour le moment." });
     } finally {
       setIsSubmitting(false);
     }
   }
 
   return (
-    <ModalShell title="Declarer une panne" onClose={onClose}>
+    <ModalShell title="Déclarer une panne" onClose={onClose}>
       {vehicles.length === 0 ? (
-        <EmptyState title="Aucun vehicule disponible" text="Votre flotte est vide. Ajoutez un vehicule avant de declarer une panne." />
+        <div className="mt-4">
+          <EmptyState title="Aucun véhicule disponible" text="Votre flotte est vide. Ajoutez un véhicule avant de déclarer une panne." />
+        </div>
       ) : (
         <form onSubmit={onSubmit} className="mt-5 grid gap-4">
-          <label className="grid gap-1 text-sm font-medium text-stone-200">
-            Vehicule
+          <label className={labelClass}>
+            Véhicule
             <select className="field" name="vehicle_id" required value={vehicleId} onChange={(event) => setVehicleId(event.target.value)}>
               {vehicles.map((vehicle) => (
                 <option key={vehicle.id} value={vehicle.id}>
@@ -420,27 +440,25 @@ function BreakdownModal({
               ))}
             </select>
           </label>
-          <label className="grid gap-1 text-sm font-medium text-stone-200">
+          <label className={labelClass}>
             Type de panne
-            <input className="field" name="type" required minLength={2} value={type} onChange={(event) => setType(event.target.value)} placeholder="Moteur, pneus, freinage..." />
+            <input className="field" name="type" required minLength={2} value={type} onChange={(event) => setType(event.target.value)} placeholder="Moteur, pneu, freins…" />
           </label>
-          <label className="grid gap-1 text-sm font-medium text-stone-200">
-            Description
-            <textarea className="field min-h-24" name="description" value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Details utiles pour le suivi maintenance" />
+          <label className={labelClass}>
+            Ce qui s&apos;est passé
+            <textarea className="field min-h-24 py-3" name="description" value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Ce qui aidera le garagiste" />
           </label>
-          <label className="grid gap-1 text-sm font-medium text-stone-200">
-            Cout estime (CDF)
-            <input className="field" name="estimated_cost" type="number" min="0" step="1" required value={estimatedCost} onChange={(event) => setEstimatedCost(event.target.value)} />
+          <label className={labelClass}>
+            Coût estimé (FC)
+            <input className="field" name="estimated_cost" type="number" min="0" step="1" inputMode="numeric" required value={estimatedCost} onChange={(event) => setEstimatedCost(event.target.value)} />
           </label>
-          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
-            <button type="button" className="btn-secondary min-h-10" onClick={onClose} disabled={isSubmitting}>
-              Annuler
-            </button>
-            <button type="submit" className="btn-primary min-h-10" disabled={isSubmitting}>
-              {isSubmitting ? <Loader2 className="animate-spin" size={18} aria-hidden /> : <Wrench size={18} aria-hidden />}
-              {isSubmitting ? "Declaration..." : "Declarer la panne"}
-            </button>
-          </div>
+          <ModalButtons
+            onClose={onClose}
+            isSubmitting={isSubmitting}
+            icon={<Wrench size={18} aria-hidden />}
+            label="Déclarer la panne"
+            busyLabel="Déclaration…"
+          />
         </form>
       )}
     </ModalShell>
@@ -466,7 +484,7 @@ export default function InvestorDashboardPage() {
       console.error("[InvestorDashboard] load failed", error);
       setData({
         ok: false,
-        message: "Le tableau de bord n'a pas pu etre charge. Verifiez la configuration Supabase et votre session.",
+        message: "Le tableau de bord n'a pas pu être chargé. Vérifiez la configuration Supabase et votre session.",
         vehicles: [],
         entries: [],
         breakdowns: [],
@@ -480,7 +498,7 @@ export default function InvestorDashboardPage() {
           openBreakdowns: 0
         }
       });
-      setNotice({ type: "error", message: "Chargement impossible. Verifiez les variables d'environnement Supabase." });
+      setNotice({ type: "error", message: "Chargement impossible. Vérifiez votre connexion, puis touchez « Actualiser »." });
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -491,202 +509,447 @@ export default function InvestorDashboardPage() {
     void loadDashboard();
   }, [loadDashboard]);
 
-  const vehicles = data?.vehicles ?? [];
-  const entries = data?.entries ?? [];
-  const breakdowns = data?.breakdowns ?? [];
+  const vehicles = useMemo(() => data?.vehicles ?? [], [data]);
+  const entries = useMemo(() => data?.entries ?? [], [data]);
+  const breakdowns = useMemo(() => data?.breakdowns ?? [], [data]);
   const stats = data?.stats;
 
+  const today = todayInAppTimezone();
+  const vehicleById = useMemo(() => new Map(vehicles.map((vehicle) => [vehicle.id, vehicle])), [vehicles]);
   const revenueSeries = useMemo(() => entriesByDate(entries), [entries]);
-  const mixSeries = useMemo(() => vehicleMix(vehicles), [vehicles]);
-  const weeklySeries = useMemo(() => weeklyRevenueByVehicle(entries, vehicles), [entries, vehicles]);
-  const weeklyVehicleNames = useMemo(() => vehicles.slice(0, 5).map((vehicle) => vehicle.label), [vehicles]);
+  const week = useMemo(() => weekByVehicle(entries, vehicles), [entries, vehicles]);
   const topDriver = useMemo(() => topDriverName(entries, vehicles), [entries, vehicles]);
 
+  // Aujourd'hui : qui a déclaré, combien, et ce qui manque.
+  const todayByVehicle = useMemo(() => {
+    const totals = new Map<string, number>();
+    entries
+      .filter((entry) => entryDay(entry) === today)
+      .forEach((entry) => totals.set(entry.vehicle_id, (totals.get(entry.vehicle_id) ?? 0) + entry.revenue_cdf));
+    return totals;
+  }, [entries, today]);
+  const todayRevenue = Array.from(todayByVehicle.values()).reduce((sum, amount) => sum + amount, 0);
+  const inService = vehicles.filter((vehicle) => vehicle.status === "en service");
+  const expectedToday = inService.reduce((sum, vehicle) => sum + vehicle.target_daily_revenue, 0);
+  const notDeclared = inService.filter((vehicle) => !todayByVehicle.has(vehicle.id));
+  const declaredCount = inService.length - notDeclared.length;
+
+  const suspiciousCount = entries.filter((entry) => entry.is_suspicious).length;
+  const openBreakdowns = stats?.openBreakdowns ?? 0;
+  // La panne active la plus récente de chaque véhicule (la liste arrive triée, la plus récente d'abord).
+  const activeBreakdownByVehicle = useMemo(() => {
+    const map = new Map<string, BreakdownStatus>();
+    breakdowns.forEach((breakdown) => {
+      if (breakdown.status !== "resolved" && !map.has(breakdown.vehicle_id)) map.set(breakdown.vehicle_id, breakdown.status);
+    });
+    return map;
+  }, [breakdowns]);
+
+  const taxis = vehicles.filter((vehicle) => vehicle.type === "taxi").length;
+  const motos = vehicles.length - taxis;
+
+  const todayHeadline =
+    inService.length === 0
+      ? "Aucun véhicule en service"
+      : notDeclared.length === 0
+        ? "Tous ont déclaré"
+        : `${declaredCount} sur ${inService.length} ont déclaré`;
+
   return (
-    <div className="space-y-6">
-      <header className="flex flex-col justify-between gap-3 md:flex-row md:items-end">
+    <div className="pb-6">
+      {/* ─── En-tête ──────────────────────────────────────────────────────── */}
+      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-sm font-medium text-emerald-300">Espace investisseur</p>
-          <h1 className="mt-1 text-3xl font-semibold text-white">Tableau de bord</h1>
-          <p className="mt-1 text-sm text-stone-400">Vue temps reel de votre flotte, des versements et des pannes.</p>
+          <h1 className="font-plate text-[30px] font-bold leading-tight">Aujourd&apos;hui</h1>
+          <p className="mt-1 text-[16px]">{longDay(today)}</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <button type="button" className="btn-secondary min-h-10 px-3" onClick={() => void loadDashboard()} disabled={isRefreshing}>
-            {isRefreshing ? <Loader2 className="animate-spin" size={16} aria-hidden /> : <RefreshCw size={16} aria-hidden />}
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+          <button type="button" className="btn-secondary px-4" onClick={() => setModal("vehicle")}>
+            <PlusCircle size={18} aria-hidden />
+            Ajouter un véhicule
+          </button>
+          <button type="button" className="btn-secondary px-4" onClick={() => setModal("driver")}>
+            <UserPlus size={18} aria-hidden />
+            Associer un chauffeur
+          </button>
+          <button type="button" className="btn-secondary px-4" onClick={() => setModal("breakdown")}>
+            <Wrench size={18} aria-hidden />
+            Déclarer une panne
+          </button>
+          <button type="button" className="btn-secondary px-4" onClick={() => void loadDashboard()} disabled={isRefreshing}>
+            {isRefreshing ? <Loader2 className="animate-spin" size={18} aria-hidden /> : <RefreshCw size={18} aria-hidden />}
             Actualiser
-          </button>
-          <button type="button" className="btn-secondary min-h-10 px-3" onClick={() => setModal("driver")}>
-            <UserPlus size={16} aria-hidden />
-            Chauffeur
-          </button>
-          <button type="button" className="btn-secondary min-h-10 px-3" onClick={() => setModal("breakdown")}>
-            <Wrench size={16} aria-hidden />
-            Panne
-          </button>
-          <button type="button" className="btn-primary min-h-10 px-3" onClick={() => setModal("vehicle")}>
-            <PlusCircle size={16} aria-hidden />
-            Vehicule
           </button>
         </div>
       </header>
 
-      <Message notice={notice} />
+      {notice ? (
+        <div className="mt-4">
+          <Message notice={notice} />
+        </div>
+      ) : null}
 
       {isLoading ? (
-        <div className="flex min-h-[360px] items-center justify-center rounded-lg border border-white/10 bg-white/[0.04]">
-          <div className="text-center">
-            <Loader2 className="mx-auto animate-spin text-emerald-300" size={28} aria-hidden />
-            <p className="mt-3 text-sm text-stone-300">Chargement du tableau de bord...</p>
-          </div>
+        <div className="mt-6 flex min-h-[240px] items-center justify-center rounded-xl border-2 border-plate-rule bg-plate-white">
+          <p role="status" className="flex items-center gap-3 text-[16px] font-semibold">
+            <Loader2 className="animate-spin" size={22} aria-hidden />
+            Chargement de votre flotte…
+          </p>
         </div>
       ) : (
         <>
-          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <StatTile label="Revenus bruts" value={formatCdf(stats?.totalRevenue ?? 0)} helper={`Objectif journalier flotte: ${formatCdf(stats?.target ?? 0)}`} icon={WalletCards} />
-            <StatTile label="Revenus nets" value={formatCdf(stats?.netRevenue ?? 0)} helper={`Couts declares: ${formatCdf(stats?.totalCosts ?? 0)}`} icon={TrendingUp} />
-            <StatTile label="Vehicules actifs" value={`${stats?.activeVehicles ?? 0}/${stats?.totalVehicles ?? 0}`} helper={`Meilleur chauffeur: ${topDriver}`} icon={CarTaxiFront} />
-            <StatTile label="Pannes ouvertes" value={`${stats?.openBreakdowns ?? 0}`} helper="Dossiers non resolus a suivre" icon={AlertCircle} />
-          </section>
-
-          <SuspiciousEntriesPanel entries={entries} vehicles={vehicles} />
-
-          <section className="grid gap-4 xl:grid-cols-[1.4fr_0.8fr]">
-            <div className="rounded-lg border border-white/10 bg-white/[0.04] p-5">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-lg font-semibold text-white">Revenus recents</h2>
-                  <p className="text-sm text-stone-400">Revenus et couts des dernieres entrees.</p>
-                </div>
-                <Activity className="text-emerald-300" size={20} aria-hidden />
-              </div>
-              {revenueSeries.length > 0 ? <RevenueChart data={revenueSeries} /> : <EmptyState title="Aucun versement" text="Les revenus apparaitront ici apres les premieres entrees journalieres." />}
-            </div>
-
-            <div className="rounded-lg border border-white/10 bg-white/[0.04] p-5">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-lg font-semibold text-white">Composition flotte</h2>
-                  <p className="text-sm text-stone-400">Repartition taxis et motos.</p>
-                </div>
-                <CarTaxiFront className="text-emerald-300" size={20} aria-hidden />
-              </div>
-              {mixSeries.length > 0 ? <VehicleMixChart data={mixSeries} /> : <EmptyState title="Flotte vide" text="Ajoutez un vehicule pour activer les indicateurs." />}
-            </div>
-          </section>
-
-          <section className="grid gap-4 xl:grid-cols-[1fr_420px]">
-            <div className="rounded-lg border border-white/10 bg-white/[0.04] p-5">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-lg font-semibold text-white">Performance hebdomadaire</h2>
-                  <p className="text-sm text-stone-400">Revenus par vehicule sur les derniers jours.</p>
-                </div>
-                <CheckCircle2 className="text-emerald-300" size={20} aria-hidden />
-              </div>
-              {weeklySeries.length > 0 && weeklyVehicleNames.length > 0 ? (
-                <WeeklyVehicleRevenueChart data={weeklySeries} vehicles={weeklyVehicleNames} />
-              ) : (
-                <EmptyState title="Pas encore de donnees" text="Les tendances seront disponibles apres quelques versements." />
-              )}
-            </div>
-
-            <div className="rounded-lg border border-white/10 bg-white/[0.04]">
-              <div className="border-b border-white/10 p-5">
-                <h2 className="text-lg font-semibold text-white">Pannes recentes</h2>
-                <p className="text-sm text-stone-400">Derniers signalements maintenance.</p>
-              </div>
-              <div className="divide-y divide-white/10">
-                {breakdowns.slice(0, 5).map((breakdown) => (
-                  <article key={breakdown.id} className="p-5">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-white">{breakdown.type}</p>
-                        <p className="mt-1 text-sm text-stone-400">{breakdown.vehicle_label}</p>
-                      </div>
-                      <span
-                        className={[
-                          "inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
-                          breakdown.status === "resolved"
-                            ? "bg-emerald-500/15 text-emerald-400"
-                            : breakdown.status === "in_progress"
-                            ? "bg-amber-500/15 text-amber-400"
-                            : "bg-red-500/15 text-red-400"
-                        ].join(" ")}
-                      >
-                        {breakdown.status === "resolved"
-                          ? "✅ Résolue"
-                          : breakdown.status === "in_progress"
-                          ? "⚙️ En réparation"
-                          : "🚨 Signalée"}
-                      </span>
-                    </div>
-                    <p className="mt-2 text-sm text-stone-300">
-                      {breakdown.description || "Aucune description."}
+          {/* ─── Ce qui demande votre action ─────────────────────────────── */}
+          <div className="mt-6 grid gap-8 lg:grid-cols-2 lg:items-start lg:gap-10">
+            {vehicles.length > 0 ? (
+              <section aria-labelledby="today-title" className="rounded-2xl bg-plate-vignette px-5 pb-5 pt-4">
+                <h2 id="today-title" className="font-plate text-[30px] font-bold leading-[1.05]">
+                  {todayHeadline}
+                </h2>
+                <p className="mt-2 text-[16px] leading-snug">
+                  <b>{formatCdf(todayRevenue)}</b> de recettes déclarées aujourd&apos;hui
+                  {expectedToday > 0 ? (
+                    <>
+                      {" "}
+                      sur <b>{formatCdf(expectedToday)}</b> attendus
+                    </>
+                  ) : null}
+                  .
+                </p>
+                {notDeclared.length > 0 ? (
+                  <div className="mt-3">
+                    <p className="flex items-center gap-2 text-[15px] font-semibold">
+                      <StateMark state="none" />
+                      Rien déclaré pour l&apos;instant
                     </p>
-                    <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-stone-500">
-                      <span>{formatDate(breakdown.created_at)}</span>
-                      <span>{formatCdf(breakdown.estimated_cost)}</span>
-                    </div>
-                    {/* Boutons d'action pour les pannes actives */}
-                    {breakdown.status !== "resolved" && (
-                      <div className="mt-3 border-t border-white/5 pt-3">
-                        <MaintenanceActionButtons
-                          breakdownId={breakdown.id}
-                          currentStatus={breakdown.status}
-                        />
-                      </div>
-                    )}
-                  </article>
-                ))}
-                {breakdowns.length === 0 ? <EmptyState title="Aucune panne ouverte" text="Les signalements recents apparaitront ici." /> : null}
-              </div>
-            </div>
-          </section>
+                    <ul className="mt-2 flex flex-wrap gap-2">
+                      {notDeclared.map((vehicle) => (
+                        <li key={vehicle.id}>
+                          <PlateChip plateNumber={vehicle.plate_number} />
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+                <Link href={ROUTES.INVESTOR_REVENUE} className="btn-primary mt-4 w-full no-underline">
+                  Valider les versements
+                </Link>
+              </section>
+            ) : null}
 
-          <section className="rounded-lg border border-white/10 bg-white/[0.04]">
-            <div className="flex flex-col justify-between gap-3 border-b border-white/10 p-5 sm:flex-row sm:items-center">
-              <div>
-                <h2 className="text-lg font-semibold text-white">Flotte</h2>
-                <p className="text-sm text-stone-400">Vehicules et chauffeurs associes.</p>
-              </div>
-              <button type="button" className="btn-primary min-h-10 px-3" onClick={() => setModal("vehicle")}>
-                <PlusCircle size={16} aria-hidden />
-                Ajouter
-              </button>
-            </div>
-            <div className="divide-y divide-white/10">
-              {vehicles.map((vehicle) => (
-                <article key={vehicle.id} className="flex flex-col gap-3 p-5 md:flex-row md:items-center md:justify-between">
-                  <div className="flex items-center gap-3">
-                    <VehicleIcon type={vehicle.type} />
-                    <div>
-                      <p className="font-medium text-white">{vehicleName(vehicle)}</p>
-                      <p className="text-sm text-stone-400">Chauffeur: {vehicle.driver_name ?? "Non assigne"}</p>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 text-sm text-stone-300">
-                    <Badge variant={vehicle.status === "en service" ? "success" : vehicle.status === "maintenance" ? "warning" : "neutral"}>{vehicle.status}</Badge>
-                    <span className="inline-flex items-center gap-1">
-                      <Clock size={14} aria-hidden />
-                      {formatCdf(vehicle.target_daily_revenue)}/jour
+            <section aria-labelledby="todo-title">
+              <h2 id="todo-title" className="font-plate text-[24px] font-bold">
+                À surveiller
+              </h2>
+              <ul className="mt-2 border-b-2 border-plate-rule text-[16px]">
+                <li className="border-t-2 border-plate-rule">
+                  <a href="#pannes" className="flex min-h-[56px] items-center justify-between gap-3 py-2">
+                    <span className="flex items-center gap-2 font-semibold">
+                      <StateMark state={openBreakdowns > 0 ? "bad" : "none"} />
+                      Pannes non réparées
                     </span>
-                  </div>
-                </article>
-              ))}
-              {vehicles.length === 0 ? (
+                    <span className={cn("font-plate text-[22px] font-bold", openBreakdowns > 0 && "text-plate-bad")}>
+                      {openBreakdowns > 0 ? openBreakdowns : "Aucune"}
+                    </span>
+                  </a>
+                </li>
+                <li className="border-t-2 border-plate-rule">
+                  <a href="#alertes-km" className="flex min-h-[56px] items-center justify-between gap-3 py-2">
+                    <span className="flex items-center gap-2 font-semibold">
+                      <StateMark state={suspiciousCount > 0 ? "bad" : "none"} />
+                      Recettes suspectes
+                    </span>
+                    <span className={cn("font-plate text-[22px] font-bold", suspiciousCount > 0 && "text-plate-bad")}>
+                      {suspiciousCount > 0 ? suspiciousCount : "Aucune"}
+                    </span>
+                  </a>
+                </li>
+                <li className="border-t-2 border-plate-rule">
+                  <Link href={ROUTES.INVESTOR_CONTROL} className="flex min-h-[56px] items-center justify-between gap-3 py-2">
+                    <span>
+                      <span className="block font-semibold underline underline-offset-4">Contrôler les recettes</span>
+                      <span className="block text-[15px] text-plate-soft">Compteurs, photos et écarts à vérifier</span>
+                    </span>
+                  </Link>
+                </li>
+                <li className="border-t-2 border-plate-rule">
+                  <Link href={ROUTES.INVESTOR_DOCUMENTS} className="flex min-h-[56px] items-center justify-between gap-3 py-2">
+                    <span>
+                      <span className="block font-semibold underline underline-offset-4">Papiers qui expirent</span>
+                      <span className="block text-[15px] text-plate-soft">Assurance, carte rose, contrôle technique</span>
+                    </span>
+                  </Link>
+                </li>
+              </ul>
+            </section>
+          </div>
+
+          {/* ─── La flotte, plaque par plaque ────────────────────────────── */}
+          <section aria-labelledby="fleet-title" className="mt-10">
+            <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+              <div>
+                <h2 id="fleet-title" className="font-plate text-[24px] font-bold">
+                  Ma flotte
+                </h2>
+                {vehicles.length > 0 ? (
+                  <p className="text-[15px] text-plate-soft">
+                    {stats?.activeVehicles ?? 0} en service sur {stats?.totalVehicles ?? vehicles.length}
+                    {taxis > 0 ? ` · ${plural(taxis, "taxi")}` : ""}
+                    {motos > 0 ? ` · ${plural(motos, "moto")}` : ""}
+                  </p>
+                ) : null}
+              </div>
+              {vehicles.length > 0 ? (
+                <Link href={ROUTES.INVESTOR_FLEET} className="py-2 text-[16px] font-bold underline underline-offset-4">
+                  Gérer ma flotte
+                </Link>
+              ) : null}
+            </div>
+
+            {vehicles.length === 0 ? (
+              <div className="mt-3">
                 <EmptyState
                   title="Votre flotte est vide"
-                  text="Ajoutez votre premier taxi ou moto pour commencer le suivi."
+                  text="Ajoutez votre premier taxi ou votre première moto pour commencer le suivi."
                   action={
-                    <button type="button" className="btn-primary min-h-10 px-3" onClick={() => setModal("vehicle")}>
-                      <PlusCircle size={16} aria-hidden />
-                      Ajouter un vehicule
+                    <button type="button" className="btn-primary px-5" onClick={() => setModal("vehicle")}>
+                      <PlusCircle size={18} aria-hidden />
+                      Ajouter un véhicule
                     </button>
                   }
                 />
-              ) : null}
-            </div>
+              </div>
+            ) : (
+              <>
+                {/* Téléphone */}
+                <ul className="mt-2 border-b-2 border-plate-rule md:hidden">
+                  {vehicles.map((vehicle) => {
+                    const amount = todayByVehicle.get(vehicle.id);
+                    const breakdown = activeBreakdownByVehicle.get(vehicle.id);
+                    return (
+                      <li key={vehicle.id} className="border-t-2 border-plate-rule py-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <PlateChip plateNumber={vehicle.plate_number} />
+                          <span className="font-plate text-[21px] font-bold">{amount ? formatCdf(amount) : "—"}</span>
+                        </div>
+                        <p className="mt-1.5 truncate text-[15px]">
+                          {vehicle.label} · <b>{vehicle.type === "moto" ? "moto" : "taxi"}</b> · {vehicle.driver_name ?? "Sans chauffeur"}
+                        </p>
+                        <p className="mt-1 flex flex-wrap items-center justify-between gap-x-3 text-[15px]">
+                          {breakdown === "open" ? (
+                            <span className="inline-flex items-center gap-2 font-semibold">
+                              <StateMark state="bad" />
+                              Panne signalée
+                            </span>
+                          ) : (
+                            <VehicleStatusText status={vehicle.status} />
+                          )}
+                          <span className="text-plate-soft">objectif {formatCdf(vehicle.target_daily_revenue)}/jour</span>
+                        </p>
+                      </li>
+                    );
+                  })}
+                </ul>
+
+                {/* Ordinateur */}
+                <table className="mt-2 hidden w-full border-b-2 border-plate-rule text-left text-[15px] md:table">
+                  <thead>
+                    <tr className="text-[14px]">
+                      <th scope="col" className="py-2 pr-4 font-semibold">Plaque</th>
+                      <th scope="col" className="py-2 pr-4 font-semibold">Véhicule</th>
+                      <th scope="col" className="py-2 pr-4 font-semibold">Chauffeur</th>
+                      <th scope="col" className="py-2 pr-4 font-semibold">État</th>
+                      <th scope="col" className="py-2 pr-4 text-right font-semibold">Objectif / jour</th>
+                      <th scope="col" className="py-2 text-right font-semibold">Aujourd&apos;hui</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {vehicles.map((vehicle) => {
+                      const amount = todayByVehicle.get(vehicle.id);
+                      const breakdown = activeBreakdownByVehicle.get(vehicle.id);
+                      return (
+                        <tr key={vehicle.id} className="border-t-2 border-plate-rule">
+                          <td className="py-3 pr-4">
+                            <PlateChip plateNumber={vehicle.plate_number} />
+                          </td>
+                          <td className="py-3 pr-4">
+                            {vehicle.label} · <b>{vehicle.type === "moto" ? "moto" : "taxi"}</b>
+                          </td>
+                          <td className="py-3 pr-4">{vehicle.driver_name ?? "Sans chauffeur"}</td>
+                          <td className="py-3 pr-4">
+                            {breakdown === "open" ? (
+                              <span className="inline-flex items-center gap-2 font-semibold">
+                                <StateMark state="bad" />
+                                Panne signalée
+                              </span>
+                            ) : (
+                              <VehicleStatusText status={vehicle.status} />
+                            )}
+                          </td>
+                          <td className="whitespace-nowrap py-3 pr-4 text-right font-plate text-[19px] font-bold">
+                            {formatCdf(vehicle.target_daily_revenue)}
+                          </td>
+                          <td className="whitespace-nowrap py-3 text-right font-plate text-[20px] font-bold">
+                            {amount ? formatCdf(amount) : "—"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </>
+            )}
           </section>
+
+          {/* ─── Pannes et alertes ───────────────────────────────────────── */}
+          <div className="mt-10 grid gap-10 lg:grid-cols-2 lg:gap-12">
+            <section id="pannes" aria-labelledby="breakdowns-title" className="scroll-mt-20">
+              <h2 id="breakdowns-title" className="font-plate text-[24px] font-bold">
+                Pannes récentes
+              </h2>
+              {breakdowns.length > 0 ? (
+                <ol className="mt-2 border-b-2 border-plate-rule">
+                  {breakdowns.slice(0, 5).map((breakdown) => {
+                    const view = breakdownStateView[breakdown.status];
+                    const vehicle = vehicleById.get(breakdown.vehicle_id);
+                    return (
+                      <li key={breakdown.id} className="border-t-2 border-plate-rule py-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                              {vehicle ? <PlateChip plateNumber={vehicle.plate_number} /> : null}
+                              <p className="text-[16px] font-bold">{breakdown.type}</p>
+                            </div>
+                            <p className="mt-1 text-[15px]">
+                              {breakdown.vehicle_label}
+                              {breakdown.description ? ` : ${breakdown.description}` : ""}
+                            </p>
+                            <p className="mt-0.5 text-[15px] text-plate-soft">{formatDate(breakdown.created_at)}</p>
+                          </div>
+                          <span className="shrink-0 font-plate text-[21px] font-bold">{formatCdf(breakdown.estimated_cost)}</span>
+                        </div>
+                        <p className="mt-1.5 flex items-center gap-2 text-[14px] font-semibold">
+                          <StateMark state={view.state} />
+                          {view.label}
+                        </p>
+                        {breakdown.status !== "resolved" ? (
+                          <div className="mt-2">
+                            <MaintenanceActionButtons breakdownId={breakdown.id} currentStatus={breakdown.status} />
+                          </div>
+                        ) : null}
+                      </li>
+                    );
+                  })}
+                </ol>
+              ) : (
+                <p className="mt-2 border-y-2 border-plate-rule py-5 text-[16px]">Aucune panne signalée. Les signalements récents apparaîtront ici.</p>
+              )}
+            </section>
+
+            <div id="alertes-km" className="scroll-mt-20">
+              <SuspiciousEntriesPanel entries={entries} vehicles={vehicles} />
+            </div>
+          </div>
+
+          {/* ─── La semaine, véhicule par véhicule ───────────────────────── */}
+          {vehicles.length > 0 ? (
+            <section aria-labelledby="week-title" className="mt-10">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                <h2 id="week-title" className="font-plate text-[24px] font-bold">
+                  Les 7 derniers jours, par véhicule
+                </h2>
+                <p className="text-[15px] text-plate-soft">
+                  Du {shortDay(week.days[0])} au {shortDay(week.days[week.days.length - 1])}, une barre par jour, même échelle pour tous
+                </p>
+              </div>
+              <ol className="mt-2 border-b-2 border-plate-rule">
+                {week.rows.map(({ vehicle, perDay, total }) => (
+                  <li
+                    key={vehicle.id}
+                    className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-2 border-t-2 border-plate-rule py-3 md:grid-cols-[minmax(0,240px)_1fr_auto]"
+                  >
+                    <div className="min-w-0">
+                      <PlateChip plateNumber={vehicle.plate_number} />
+                      <p className="mt-1 truncate text-[15px]">{vehicle.driver_name ?? vehicle.label}</p>
+                    </div>
+                    <span className="text-right font-plate text-[21px] font-bold md:order-last">
+                      {total ? formatCdf(total) : "—"}
+                    </span>
+                    <div
+                      role="img"
+                      aria-label={`${vehicle.plate_number} : ${perDay.filter((amount) => amount > 0).length} jours déclarés sur 7, ${formatCdf(total)}`}
+                      className="col-span-2 flex h-10 items-end gap-1 border-b-2 border-plate-ink md:col-span-1"
+                    >
+                      {perDay.map((amount, index) => (
+                        <span
+                          key={week.days[index]}
+                          title={`${shortDay(week.days[index])} : ${formatCdf(amount)}`}
+                          className={cn("flex-1 rounded-t-[2px]", amount > 0 ? "bg-plate-ink" : "h-1 bg-plate-rule")}
+                          style={amount > 0 ? { height: `${Math.max(6, (amount / week.scale) * 100)}%` } : undefined}
+                        />
+                      ))}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          ) : null}
+
+          {/* ─── Recettes, coûts et chiffres ─────────────────────────────── */}
+          <div className="mt-10 grid gap-10 lg:grid-cols-[1.4fr_1fr] lg:gap-12">
+            <section aria-labelledby="revenue-title">
+              <h2 id="revenue-title" className="font-plate text-[24px] font-bold">
+                Recettes et coûts, par jour
+              </h2>
+              <div className="mt-3">
+                {revenueSeries.length > 0 ? (
+                  <RevenueChart data={revenueSeries} />
+                ) : (
+                  <EmptyState title="Aucune recette" text="Les recettes apparaîtront ici après les premières déclarations de vos chauffeurs." />
+                )}
+              </div>
+            </section>
+
+            <section aria-labelledby="figures-title">
+              <h2 id="figures-title" className="font-plate text-[24px] font-bold">
+                Les chiffres
+              </h2>
+              <p className="text-[15px] text-plate-soft">
+                {entries.length > 1
+                  ? `Sur les ${entries.length} dernières recettes déclarées`
+                  : entries.length === 1
+                    ? "Sur la seule recette déclarée"
+                    : "Aucune recette déclarée pour l'instant"}
+              </p>
+              <dl className="mt-2 border-b-2 border-plate-rule text-[16px]">
+                <div className="flex items-center justify-between gap-3 border-t-2 border-plate-rule py-3">
+                  <dt className="font-semibold">Recettes</dt>
+                  <dd className="font-plate text-[22px] font-bold">{formatCdf(stats?.totalRevenue ?? 0)}</dd>
+                </div>
+                <div className="flex items-center justify-between gap-3 border-t-2 border-plate-rule py-3">
+                  <dt className="font-semibold">
+                    Coûts déclarés
+                    <span className="block text-[15px] font-normal text-plate-soft">Carburant et entretien</span>
+                  </dt>
+                  <dd className="font-plate text-[22px] font-bold">{formatCdf(stats?.totalCosts ?? 0)}</dd>
+                </div>
+                <div className="flex items-center justify-between gap-3 border-t-2 border-plate-rule py-3">
+                  <dt className="font-semibold">Ce qui vous reste</dt>
+                  <dd className="font-plate text-[22px] font-bold">{formatCdf(stats?.netRevenue ?? 0)}</dd>
+                </div>
+                <div className="flex items-center justify-between gap-3 border-t-2 border-plate-rule py-3">
+                  <dt className="font-semibold">
+                    Objectif journalier de la flotte
+                    <span className="block text-[15px] font-normal text-plate-soft">Somme des objectifs de vos véhicules</span>
+                  </dt>
+                  <dd className="font-plate text-[22px] font-bold">{formatCdf(stats?.target ?? 0)}</dd>
+                </div>
+                <div className="flex items-center justify-between gap-3 border-t-2 border-plate-rule py-3">
+                  <dt className="font-semibold">Meilleur chauffeur</dt>
+                  <dd className="min-w-0 truncate text-right text-[17px] font-bold">{topDriver}</dd>
+                </div>
+              </dl>
+            </section>
+          </div>
         </>
       )}
 

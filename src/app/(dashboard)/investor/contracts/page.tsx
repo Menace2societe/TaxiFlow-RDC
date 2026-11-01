@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
-import { FileSignature } from "lucide-react";
 import { closeContract } from "@/actions/contracts";
+import { PlateChip, StateMark, type DayState } from "@/components/driver/plate";
 import { ContractForm } from "@/components/investor/ContractForm";
 import { contractProgress, paidSince } from "@/lib/contracts/progress";
 import { getCurrentUserId } from "@/lib/dashboard/data";
@@ -17,6 +17,20 @@ const statusLabels: Record<string, string> = {
   terminated: "Résilié",
   draft: "Brouillon"
 };
+
+const statusMarks: Record<string, DayState> = {
+  active: "ok",
+  completed: "ok",
+  terminated: "none",
+  draft: "none"
+};
+
+/** « 2026-10-12 » → « 12 octobre 2026 », sans décalage de fuseau. */
+function formatDay(isoDate: string) {
+  return new Intl.DateTimeFormat("fr-CD", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(
+    new Date(`${isoDate.slice(0, 10)}T12:00:00Z`)
+  );
+}
 
 export default async function InvestorContractsPage() {
   const ownerId = await getCurrentUserId();
@@ -44,116 +58,153 @@ export default async function InvestorContractsPage() {
     : { data: [] as { id: string; full_name: string | null }[] };
 
   const driverName = new Map((drivers ?? []).map((driver) => [driver.id, driver.full_name]));
-  const vehicleLabel = new Map(vehicleList.map((vehicle) => [vehicle.id, `${vehicle.label} · ${vehicle.plate_number}`]));
+  const vehicleById = new Map(vehicleList.map((vehicle) => [vehicle.id, vehicle]));
   const paymentRows = (payments ?? []).map((payment) => ({ ...payment, amount: Number(payment.amount) }));
 
   return (
-    <div className="space-y-6">
+    <div className="pb-6">
       <header>
-        <p className="text-sm font-medium text-emerald-300">Espace investisseur</p>
-        <h1 className="mt-1 text-3xl font-semibold text-white">Contrats chauffeurs</h1>
-        <p className="mt-1 text-sm text-neutral-400">
+        <h1 className="font-plate text-[30px] font-bold leading-tight">Contrats chauffeurs</h1>
+        <p className="mt-1 max-w-3xl text-[16px]">
           Employé ou location-vente. Pour une location-vente, l&apos;avancement se calcule à partir des versements validés.
         </p>
       </header>
 
-      <section className="rounded-xl border border-neutral-800 bg-neutral-900/50">
-        <h2 className="border-b border-neutral-800 px-5 py-4 text-base font-semibold text-white">Contrats</h2>
-        <div className="divide-y divide-neutral-800">
-          {contractList.map((contract) => {
-            const paid = paidSince(
-              paymentRows.filter(
-                (payment) =>
-                  payment.driver_id === contract.driver_id && (!contract.vehicle_id || payment.vehicle_id === contract.vehicle_id)
-              ),
-              contract.started_at
-            );
-            const progress =
-              contract.contract_type === "location_vente"
-                ? contractProgress(
-                    contract.possession_total_cdf === null ? null : Number(contract.possession_total_cdf),
-                    paid,
-                    contract.daily_amount_cdf === null ? null : Number(contract.daily_amount_cdf),
-                    today
-                  )
-                : null;
+      {/* ─── Contrats ─── */}
+      <section aria-labelledby="contracts-title" className="mt-8">
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 id="contracts-title" className="font-plate text-[24px] font-bold">
+            Contrats
+          </h2>
+          <p className="text-[14px] font-medium">
+            {contractList.length} contrat{contractList.length > 1 ? "s" : ""}
+          </p>
+        </div>
 
-            return (
-              <article key={contract.id} className="space-y-3 px-5 py-4">
-                <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-start">
-                  <div>
-                    <p className="font-semibold text-white">
-                      {driverName.get(contract.driver_id) ?? "Chauffeur"} ·{" "}
-                      {contract.contract_type === "location_vente" ? "Location-vente" : "Employé"}
-                    </p>
-                    <p className="text-xs text-neutral-400">
-                      {contract.vehicle_id ? (vehicleLabel.get(contract.vehicle_id) ?? "Véhicule") : "Sans véhicule"} · depuis le{" "}
-                      {contract.started_at ?? "—"}
-                      {contract.daily_amount_cdf ? ` · ${formatCDF(Number(contract.daily_amount_cdf))}/jour` : ""}
-                    </p>
-                  </div>
-                  <span
-                    className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${
-                      contract.status === "active" ? "bg-emerald-500/15 text-emerald-300" : "bg-neutral-700/50 text-neutral-300"
-                    }`}
-                  >
-                    {statusLabels[contract.status] ?? contract.status}
-                  </span>
-                </div>
+        {contractList.length > 0 ? (
+          <ul className="mt-2 border-b-2 border-plate-rule">
+            {contractList.map((contract) => {
+              const paid = paidSince(
+                paymentRows.filter(
+                  (payment) =>
+                    payment.driver_id === contract.driver_id && (!contract.vehicle_id || payment.vehicle_id === contract.vehicle_id)
+                ),
+                contract.started_at
+              );
+              const progress =
+                contract.contract_type === "location_vente"
+                  ? contractProgress(
+                      contract.possession_total_cdf === null ? null : Number(contract.possession_total_cdf),
+                      paid,
+                      contract.daily_amount_cdf === null ? null : Number(contract.daily_amount_cdf),
+                      today
+                    )
+                  : null;
+              const vehicle = contract.vehicle_id ? vehicleById.get(contract.vehicle_id) : undefined;
 
-                {progress ? (
-                  <div>
-                    <div className="h-2.5 overflow-hidden rounded-full bg-neutral-800" aria-hidden>
-                      <div className="h-full rounded-full bg-emerald-500" style={{ width: `${progress.percent}%` }} />
+              return (
+                <li key={contract.id} className="border-t-2 border-plate-rule py-4">
+                  <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-start">
+                    <div className="min-w-0">
+                      <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        {vehicle ? <PlateChip plateNumber={vehicle.plate_number} /> : null}
+                        <span className="text-[17px] font-bold">{driverName.get(contract.driver_id) ?? "Chauffeur"}</span>
+                      </p>
+                      <p className="mt-1 text-[15px]">
+                        <b>{contract.contract_type === "location_vente" ? "Location-vente" : "Employé"}</b>
+                        {" · "}
+                        {contract.vehicle_id ? (vehicle?.label ?? "Véhicule") : "Sans véhicule"}
+                        {" · depuis le "}
+                        {contract.started_at ? formatDay(contract.started_at) : "—"}
+                        {contract.daily_amount_cdf ? ` · ${formatCDF(Number(contract.daily_amount_cdf))} par jour` : ""}
+                      </p>
                     </div>
-                    <p className="mt-1.5 text-sm text-neutral-300">
-                      {formatCDF(progress.paid)} versés sur {formatCDF(progress.total)} ({progress.percent} %) · reste{" "}
-                      {formatCDF(progress.remaining)}
-                      {progress.estimatedEnd && contract.status === "active"
-                        ? ` · fin estimée le ${progress.estimatedEnd}`
-                        : ""}
+                    <p className="flex shrink-0 items-center gap-2 text-[15px] font-semibold">
+                      <StateMark state={statusMarks[contract.status] ?? "none"} />
+                      {statusLabels[contract.status] ?? contract.status}
                     </p>
                   </div>
-                ) : null}
 
-                {contract.status === "active" ? (
-                  <div className="flex flex-wrap gap-2">
-                    {progress && progress.remaining === 0 ? (
+                  {progress ? (
+                    <div className="mt-3 max-w-xl">
+                      <div className="flex items-end justify-between gap-3">
+                        <p className="text-[15px] font-semibold">
+                          Déjà versé
+                          <span className="block font-plate text-[22px] font-bold">{formatCDF(progress.paid)}</span>
+                        </p>
+                        <p className="text-right text-[15px] font-semibold">
+                          Prix du véhicule
+                          <span className="block font-plate text-[22px] font-bold">{formatCDF(progress.total)}</span>
+                        </p>
+                      </div>
+                      <div
+                        className="mt-2 h-3 w-full rounded-sm bg-plate-rule/60"
+                        role="progressbar"
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={progress.percent}
+                        aria-label={`Rachat du véhicule par ${driverName.get(contract.driver_id) ?? "le chauffeur"}`}
+                      >
+                        <div className="h-3 rounded-sm bg-plate-ink" style={{ width: `${progress.percent}%` }} />
+                      </div>
+                      <p className="mt-2 flex flex-wrap items-baseline justify-between gap-x-3 text-[15px] font-semibold">
+                        <span>{progress.percent} % versé</span>
+                        {progress.remaining > 0 ? (
+                          <span>Reste {formatCDF(progress.remaining)}</span>
+                        ) : (
+                          <span className="text-plate-ok">Le véhicule est payé en entier.</span>
+                        )}
+                      </p>
+                      {progress.estimatedEnd && contract.status === "active" ? (
+                        <p className="mt-1 text-[15px]">Fin estimée le {formatDay(progress.estimatedEnd)}.</p>
+                      ) : null}
+                    </div>
+                  ) : null}
+
+                  {contract.status === "active" ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {progress && progress.remaining === 0 ? (
+                        <form action={closeContract}>
+                          <input type="hidden" name="contract_id" value={contract.id} />
+                          <input type="hidden" name="status" value="completed" />
+                          <button type="submit" className="btn-secondary min-h-12 px-4">
+                            Marquer comme soldé
+                          </button>
+                        </form>
+                      ) : null}
                       <form action={closeContract}>
                         <input type="hidden" name="contract_id" value={contract.id} />
-                        <input type="hidden" name="status" value="completed" />
-                        <button type="submit" className="btn-primary min-h-9 px-3 text-sm">
-                          Marquer comme soldé
+                        <input type="hidden" name="status" value="terminated" />
+                        <button type="submit" className="btn-danger min-h-12 px-4">
+                          Résilier
                         </button>
                       </form>
-                    ) : null}
-                    <form action={closeContract}>
-                      <input type="hidden" name="contract_id" value={contract.id} />
-                      <input type="hidden" name="status" value="terminated" />
-                      <button type="submit" className="btn-secondary min-h-9 px-3 text-sm">
-                        Résilier
-                      </button>
-                    </form>
-                  </div>
-                ) : null}
-              </article>
-            );
-          })}
-          {contractList.length === 0 ? (
-            <p className="flex items-center gap-2 px-5 py-6 text-sm text-neutral-500">
-              <FileSignature size={16} aria-hidden />
-              Aucun contrat pour l&apos;instant.
-            </p>
-          ) : null}
-        </div>
+                    </div>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="mt-3 rounded-xl border-2 border-dashed border-plate-ink px-5 py-5 text-[16px]">
+            Aucun contrat pour l&apos;instant.
+          </p>
+        )}
       </section>
 
-      <section className="rounded-xl border border-neutral-800 bg-neutral-900/50 p-5">
-        <h2 className="mb-4 text-base font-semibold text-white">Nouveau contrat</h2>
+      {/* ─── Nouveau contrat ─── */}
+      <section aria-labelledby="new-contract-title" className="mt-10">
+        <h2 id="new-contract-title" className="font-plate text-[24px] font-bold">
+          Nouveau contrat
+        </h2>
         {drivers && drivers.length > 0 ? (
-          <ContractForm drivers={drivers} vehicles={vehicleList} />
+          <div className="mt-3 rounded-xl border-2 border-plate-rule bg-plate-white p-4 md:p-5">
+            <ContractForm drivers={drivers} vehicles={vehicleList} />
+          </div>
         ) : (
-          <p className="text-sm text-neutral-500">Affectez d&apos;abord un chauffeur à un véhicule depuis « Flotte Investie ».</p>
+          <p className="mt-3 rounded-xl border-2 border-dashed border-plate-ink px-5 py-5 text-[16px]">
+            Affectez d&apos;abord un chauffeur à un véhicule depuis « Ma flotte ».
+          </p>
         )}
       </section>
     </div>
