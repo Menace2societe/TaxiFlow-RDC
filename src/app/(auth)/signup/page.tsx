@@ -1,16 +1,9 @@
 import Link from "next/link";
-import {
-  UserPlus,
-  Building2,
-  UserRound,
-  ShieldCheck,
-  TrendingUp,
-  Truck,
-  ArrowRight,
-  CheckCircle2,
-} from "lucide-react";
+import { ArrowRight, UserPlus } from "lucide-react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { AuthNotice } from "@/components/auth/AuthNotice";
+import { FREE_VEHICLES, TRIAL_DAYS } from "@/lib/billing/plans";
 import { ROUTES } from "@/lib/routes";
 import type { UserRole } from "@/lib/supabase/types";
 
@@ -60,32 +53,26 @@ async function signupAction(formData: FormData) {
   );
 }
 
-// ─── Benefit Card data ────────────────────────────────────────────────────────
+// ─── Ce que chaque rôle obtient ───────────────────────────────────────────────
 const benefits = [
   {
     role: "driver" as const,
-    icon: UserRound,
     title: "Chauffeurs",
-    color: "from-emerald-500 to-teal-600",
-    accent: "text-emerald-600 dark:text-emerald-400",
     perks: [
       "Suivi de vos versements quotidiens",
-      "Historique de vos courses et km",
+      "Historique de vos courses et kilomètres",
       "Signalement de pannes en temps réel",
       "Accès à votre profil conducteur",
     ],
   },
   {
     role: "investor" as const,
-    icon: Building2,
     title: "Investisseurs",
-    color: "from-sky-500 to-blue-600",
-    accent: "text-sky-600 dark:text-sky-400",
     perks: [
-      "Tableau de bord revenus & flotte",
+      "Tableau de bord des revenus et de la flotte",
       "Suivi de chaque véhicule en temps réel",
-      "Rapports financiers hebdomadaires",
-      "Gestion multi-chauffeurs centralisée",
+      "Recettes de la semaine par véhicule, export CSV",
+      "Gestion de plusieurs chauffeurs au même endroit",
     ],
   },
 ];
@@ -102,229 +89,145 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
   const notice = params?.notice;
 
   return (
-    <div className="w-full max-w-lg">
-      {/* ── Header ── */}
-      <div className="mb-8">
-        <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-purple-700 shadow-lg shadow-violet-900/30">
-          <ShieldCheck className="text-white" size={20} aria-hidden />
-        </div>
-        <h1 className="text-2xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
-          Accès complet
-        </h1>
-        <p className="mt-1.5 text-sm leading-relaxed text-stone-500 dark:text-stone-400">
-          Inscription avancée — choisissez votre rôle et débloquez toutes les fonctionnalités de la plateforme.
-        </p>
-      </div>
+    <div className="w-full">
+      <h1 className="font-plate text-[clamp(2.4rem,6vw,3rem)] font-bold leading-none">Accès complet</h1>
+      <p className="mt-3 text-[17px]">
+        Inscription avancée : choisissez votre rôle et débloquez toutes les fonctionnalités de la plateforme.
+      </p>
 
-      {/* ── Benefits cards ── */}
-      <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {benefits.map(({ role, icon: Icon, title, color, accent, perks }) => (
-          <div
-            key={role}
-            className="rounded-xl border border-stone-200 bg-white p-4 dark:border-stone-700/60 dark:bg-stone-800/50"
-          >
-            <div
-              className={`mb-3 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br ${color} shadow`}
-            >
-              <Icon className="text-white" size={17} aria-hidden />
-            </div>
-            <p className={`mb-2 text-sm font-semibold ${accent}`}>{title}</p>
-            <ul className="space-y-1.5">
-              {perks.map((perk) => (
-                <li
-                  key={perk}
-                  className="flex items-start gap-1.5 text-xs leading-snug text-stone-600 dark:text-stone-400"
-                >
-                  <CheckCircle2
-                    size={12}
-                    className="mt-0.5 shrink-0 text-stone-400 dark:text-stone-500"
-                    aria-hidden
-                  />
-                  {perk}
-                </li>
-              ))}
-            </ul>
+      {/* ── Ce que chaque rôle obtient ── */}
+      <dl className="mt-6 border-t-2 border-plate-ink">
+        {benefits.map(({ role, title, perks }) => (
+          <div key={role} className="border-b-2 border-plate-rule py-4">
+            <dt className="font-plate text-[24px] font-bold leading-tight">{title}</dt>
+            <dd className="mt-1.5">
+              <ul className="grid gap-1 text-[16px]">
+                {perks.map((perk) => (
+                  <li key={perk}>{perk}</li>
+                ))}
+              </ul>
+            </dd>
           </div>
         ))}
-      </div>
+      </dl>
+      <p className="mt-3 text-[15px] font-medium">
+        {FREE_VEHICLES} véhicule gratuit pour toujours · {TRIAL_DAYS} jours d&apos;essai · paiement par M-Pesa, Airtel Money
+        ou Orange Money
+      </p>
 
-      {/* ── Stats strip ── */}
-      <div className="mb-8 grid grid-cols-3 divide-x divide-stone-200 rounded-xl border border-stone-200 bg-stone-50 dark:divide-stone-700 dark:border-stone-700/60 dark:bg-stone-800/30">
-        {[
-          { icon: Truck, label: "Véhicule offert", value: "1er" },
-          { icon: UserRound, label: "Opérateurs Mobile Money", value: "3" },
-          { icon: TrendingUp, label: "Essai gratuit", value: "30 j" },
-        ].map(({ icon: StatIcon, label, value }) => (
-          <div key={label} className="flex flex-col items-center gap-0.5 px-3 py-4">
-            <StatIcon size={16} className="mb-1 text-stone-400" aria-hidden />
-            <span className="text-base font-bold text-stone-800 dark:text-stone-100">
-              {value}
-            </span>
-            <span className="text-center text-[10px] leading-tight text-stone-500 dark:text-stone-400">
-              {label}
-            </span>
-          </div>
-        ))}
-      </div>
-
-      {/* ── Alerts ── */}
+      {/* ── Messages ── */}
       {notice && (
-        <div
-          role="status"
-          className="mb-5 flex items-start gap-2.5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/50 dark:text-emerald-300"
-        >
-          <span className="mt-0.5 shrink-0 text-emerald-500">✓</span>
-          <span>{notice}</span>
-        </div>
+        <AuthNotice tone="ok" className="mt-6">
+          {notice}
+        </AuthNotice>
       )}
       {error && (
-        <div
-          role="alert"
-          className="mb-5 flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900/60 dark:bg-red-950/50 dark:text-red-300"
-        >
-          <span className="mt-0.5 shrink-0">⚠</span>
-          <span>{error}</span>
-        </div>
+        <AuthNotice tone="bad" className="mt-6">
+          {error}
+        </AuthNotice>
       )}
 
-      {/* ── Form ── */}
-      <form
-        action={signupAction}
-        className="space-y-4 rounded-xl border border-stone-200 bg-white p-6 shadow-soft dark:border-stone-700/60 dark:bg-stone-900"
-      >
-        <p className="text-sm font-semibold text-stone-700 dark:text-stone-300">
+      {/* ── Formulaire ── */}
+      <form action={signupAction} aria-labelledby="signup-form-title" className="mt-8 grid gap-5">
+        <h2 id="signup-form-title" className="font-plate text-[26px] font-bold leading-tight">
           Créer votre compte
-        </p>
+        </h2>
+        <p className="-mt-3 text-[15px]">Les champs marqués d&apos;une * sont obligatoires.</p>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {/* Nom complet */}
-          <div className="space-y-1.5 sm:col-span-2">
-            <label
-              htmlFor="su-fullname"
-              className="text-sm font-medium text-stone-700 dark:text-stone-300"
-            >
-              Nom complet <span className="text-red-500">*</span>
-            </label>
-            <input
-              id="su-fullname"
-              className="field"
-              name="full_name"
-              type="text"
-              autoComplete="name"
-              placeholder="Jean-Pierre Mukendi"
-              required
-              minLength={2}
-            />
-          </div>
-
-          {/* Email */}
-          <div className="space-y-1.5">
-            <label
-              htmlFor="su-email"
-              className="text-sm font-medium text-stone-700 dark:text-stone-300"
-            >
-              Email <span className="text-red-500">*</span>
-            </label>
-            <input
-              id="su-email"
-              className="field"
-              name="email"
-              type="email"
-              autoComplete="email"
-              placeholder="vous@exemple.com"
-              required
-            />
-          </div>
-
-          {/* Téléphone */}
-          <div className="space-y-1.5">
-            <label
-              htmlFor="su-phone"
-              className="text-sm font-medium text-stone-700 dark:text-stone-300"
-            >
-              Téléphone
-            </label>
-            <input
-              id="su-phone"
-              className="field"
-              name="phone"
-              type="tel"
-              autoComplete="tel"
-              placeholder="+243 08X XXX XXXX"
-            />
-          </div>
-
-          {/* Rôle */}
-          <div className="space-y-1.5">
-            <label
-              htmlFor="su-role"
-              className="text-sm font-medium text-stone-700 dark:text-stone-300"
-            >
-              Rôle <span className="text-red-500">*</span>
-            </label>
-            <select
-              id="su-role"
-              className="field"
-              name="role"
-              defaultValue="driver"
-              required
-            >
-              <option value="driver">Chauffeur</option>
-              <option value="investor">Investisseur</option>
-            </select>
-          </div>
-
-          {/* Mot de passe */}
-          <div className="space-y-1.5">
-            <label
-              htmlFor="su-password"
-              className="text-sm font-medium text-stone-700 dark:text-stone-300"
-            >
-              Mot de passe <span className="text-red-500">*</span>
-              <span className="ml-1 font-normal text-stone-400">(min. 8 car.)</span>
-            </label>
-            <input
-              id="su-password"
-              className="field"
-              name="password"
-              type="password"
-              minLength={8}
-              autoComplete="new-password"
-              placeholder="••••••••"
-              required
-            />
-          </div>
+        {/* Nom complet */}
+        <div>
+          <label htmlFor="su-fullname" className="block text-[15px] font-semibold">
+            Nom complet <span aria-hidden>*</span>
+          </label>
+          <input
+            id="su-fullname"
+            className="field mt-1.5"
+            name="full_name"
+            type="text"
+            autoComplete="name"
+            placeholder="Jean-Pierre Mukendi"
+            required
+            minLength={2}
+          />
         </div>
 
-        {/* Submit */}
-        <button
-          id="signup-submit"
-          type="submit"
-          className="btn-primary mt-1 w-full"
-        >
-          <UserPlus size={17} aria-hidden />
+        {/* Email */}
+        <div>
+          <label htmlFor="su-email" className="block text-[15px] font-semibold">
+            Email <span aria-hidden>*</span>
+          </label>
+          <input
+            id="su-email"
+            className="field mt-1.5"
+            name="email"
+            type="email"
+            autoComplete="email"
+            placeholder="vous@exemple.com"
+            required
+          />
+        </div>
+
+        {/* Téléphone */}
+        <div>
+          <label htmlFor="su-phone" className="block text-[15px] font-semibold">
+            Téléphone
+          </label>
+          <input
+            id="su-phone"
+            className="field mt-1.5"
+            name="phone"
+            type="tel"
+            autoComplete="tel"
+            placeholder="+243 08X XXX XXXX"
+          />
+        </div>
+
+        {/* Rôle */}
+        <div>
+          <label htmlFor="su-role" className="block text-[15px] font-semibold">
+            Rôle <span aria-hidden>*</span>
+          </label>
+          <select id="su-role" className="field mt-1.5" name="role" defaultValue="driver" required>
+            <option value="driver">Chauffeur</option>
+            <option value="investor">Investisseur</option>
+          </select>
+        </div>
+
+        {/* Mot de passe */}
+        <div>
+          <label htmlFor="su-password" className="block text-[15px] font-semibold">
+            Mot de passe <span aria-hidden>*</span> <span className="font-normal">(8 caractères au moins)</span>
+          </label>
+          <input
+            id="su-password"
+            className="field mt-1.5"
+            name="password"
+            type="password"
+            minLength={8}
+            autoComplete="new-password"
+            placeholder="••••••••"
+            required
+          />
+        </div>
+
+        <button id="signup-submit" type="submit" className="btn-primary w-full">
+          <UserPlus size={18} aria-hidden />
           Créer le compte
-          <ArrowRight size={15} aria-hidden />
+          <ArrowRight size={18} aria-hidden />
         </button>
       </form>
 
-      {/* ── Footer links ── */}
-      <div className="mt-5 flex flex-col items-center gap-2 text-center text-sm text-stone-500 dark:text-stone-400">
+      {/* ── Liens ── */}
+      <div className="mt-8 grid gap-2 border-t-2 border-plate-rule pt-6 text-center text-[16px]">
         <p>
           Chauffeur ou investisseur ?{" "}
-          <Link
-            href={ROUTES.REGISTER}
-            className="font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
-          >
+          <Link href={ROUTES.REGISTER} className="font-bold underline underline-offset-4">
             Inscription simplifiée
           </Link>
         </p>
         <p>
           Déjà un compte ?{" "}
-          <Link
-            href={ROUTES.LOGIN}
-            className="font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
-          >
+          <Link href={ROUTES.LOGIN} className="font-bold underline underline-offset-4">
             Se connecter
           </Link>
         </p>

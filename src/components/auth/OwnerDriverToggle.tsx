@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Crown, Info } from "lucide-react";
+import { choiceClass } from "@/components/auth/choice";
 
 /**
- * Affiche un toggle "Chauffeur-Patron" uniquement quand le rôle driver
+ * Choix « chauffeur-patron », affiché uniquement quand le rôle chauffeur
  * est sélectionné dans le formulaire parent.
- * Écoute les changements du groupe radio[name="role"] du form parent.
+ * Écoute les changements du groupe radio[name="role"] du formulaire parent.
+ * Envoie is_owner_driver = "on" pour le chauffeur-patron (comme l'ancienne case à cocher), "off" sinon.
  */
 export function OwnerDriverToggle() {
   const [isDriverRole, setIsDriverRole] = useState(true); // Défaut = chauffeur
@@ -36,55 +37,28 @@ export function OwnerDriverToggle() {
   if (!isDriverRole) return null;
 
   return (
-    <div className="mt-1 rounded-xl border border-amber-500/25 bg-amber-500/5 p-4">
-      <label
-        htmlFor="is_owner_driver"
-        className="flex cursor-pointer items-start gap-3"
-      >
-        {/* Checkbox cachée stylisée */}
-        <div className="relative mt-0.5 flex-shrink-0">
-          <input
-            id="is_owner_driver"
-            type="checkbox"
-            name="is_owner_driver"
-            value="on"
-            className="peer sr-only"
-          />
-          {/* Boîte visuelle */}
-          <div className="flex h-5 w-5 items-center justify-center rounded-md border-2 border-neutral-600 bg-neutral-900 transition-all peer-checked:border-amber-500 peer-checked:bg-amber-500">
-            <svg
-              className="hidden h-3 w-3 text-white peer-checked:block"
-              viewBox="0 0 12 12"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M2 6l3 3 5-5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </div>
-        </div>
-
-        {/* Texte */}
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <Crown size={15} className="text-amber-400" aria-hidden />
-            <span className="text-sm font-semibold text-amber-100">
-              Je suis un Chauffeur-Patron
-            </span>
-          </div>
-          <p className="mt-1 text-xs leading-relaxed text-amber-300/70">
-            Je possède mon propre véhicule et je gère mes documents légaux (Carte Rose, Assurance, Permis) de façon autonome.
-          </p>
-        </div>
-      </label>
-
-      {/* Info box */}
-      <div className="mt-3 flex items-start gap-2 rounded-lg bg-amber-500/10 px-3 py-2">
-        <Info size={12} className="mt-0.5 shrink-0 text-amber-400" />
-        <p className="text-[11px] text-amber-300/80">
-          En cochant cette option, vous accédez à un espace personnel de gestion de documents sans dépendre d&apos;un investisseur tiers.
-        </p>
+    <fieldset>
+      <legend className="mb-1.5 text-[15px] font-semibold">À qui est le véhicule ?</legend>
+      <div className="grid grid-cols-2 gap-2">
+        <label className="cursor-pointer">
+          <input type="radio" name="is_owner_driver" value="off" defaultChecked className="peer sr-only" />
+          <span className={choiceClass}>
+            <span className="text-[17px] font-bold">À un investisseur</span>
+            <span className="text-[15px] font-medium">Je le conduis</span>
+          </span>
+        </label>
+        <label className="cursor-pointer">
+          <input id="is_owner_driver" type="radio" name="is_owner_driver" value="on" className="peer sr-only" />
+          <span className={choiceClass}>
+            <span className="text-[17px] font-bold">À moi</span>
+            <span className="text-[15px] font-medium">Chauffeur-patron</span>
+          </span>
+        </label>
       </div>
-    </div>
+      <p className="mt-2 text-[15px]">
+        Chauffeur-patron : vous possédez votre véhicule et gérez vous-même vos documents légaux (carte rose, assurance,
+        permis), dans un espace personnel, sans dépendre d&apos;un investisseur.
+      </p>
+    </fieldset>
   );
 }

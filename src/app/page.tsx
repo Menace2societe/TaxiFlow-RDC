@@ -2,7 +2,6 @@ import type { Viewport } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Camera, ChevronDown, Send } from "lucide-react";
-import { plateFont, streetFont } from "@/app/plate-fonts";
 import { LicensePlate, PlateChip, StateMark } from "@/components/driver/plate";
 import { getCurrentProfile, getRoleHome } from "@/lib/auth/roles";
 import { FREE_VEHICLES, PRICE_PER_VEHICLE_USD, TRIAL_DAYS, VOLUME_DISCOUNTS, monthlyQuote } from "@/lib/billing/plans";
@@ -100,7 +99,7 @@ export default async function HomePage() {
   }
 
   return (
-    <div className={`plate-world ${streetFont.variable} ${plateFont.variable} min-h-screen`}>
+    <div className={`plate-world min-h-screen`}>
       <header className="border-b-2 border-plate-ink bg-plate-white">
         <nav className="mx-auto flex h-[72px] max-w-6xl items-center justify-between gap-4 px-5 sm:px-8" aria-label="Navigation principale">
           <Link href={ROUTES.HOME} className="font-plate text-[26px] font-bold no-underline">
