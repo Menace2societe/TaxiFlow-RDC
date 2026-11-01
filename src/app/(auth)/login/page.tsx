@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { LogIn, Mail, Lock, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { AuthNotice } from "@/components/auth/AuthNotice";
 import { createClient } from "@/lib/supabase/server";
 import { driverLoginEmail, normalizeAccessCode, normalizeDrcPhone } from "@/lib/auth/driver-access";
 import { ROUTES, isSafeInternalPath } from "@/lib/routes";
@@ -66,83 +67,51 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const next = params?.next ?? "";
 
   return (
-    <div className="w-full max-w-md">
-      {/* ── Header ── */}
-      <div className="mb-8">
-        <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 shadow-lg shadow-emerald-900/30">
-          <LogIn className="text-white" size={20} aria-hidden />
-        </div>
-        <h1 className="text-2xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
-          Bon retour.
-        </h1>
-        <p className="mt-1.5 text-sm leading-relaxed text-stone-500 dark:text-stone-400">
-          Connectez-vous à votre espace TaxiFlow&nbsp;RDC.
-        </p>
-      </div>
+    <div className="w-full">
+      <h1 className="font-plate text-[clamp(2.4rem,6vw,3rem)] font-bold leading-none">Bon retour.</h1>
+      <p className="mt-3 text-[17px]">Connectez-vous à votre espace TaxiFlow&nbsp;RDC.</p>
 
-      {/* ── Notice ── */}
       {notice && (
-        <div
-          role="status"
-          className="mb-5 flex items-start gap-2.5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/50 dark:text-emerald-300"
-        >
-          <span className="mt-0.5 shrink-0 text-emerald-500">✓</span>
-          <span>{notice}</span>
-        </div>
+        <AuthNotice tone="ok" className="mt-6">
+          {notice}
+        </AuthNotice>
       )}
 
-      {/* ── Error ── */}
       {error && (
-        <div
-          role="alert"
-          className="mb-5 flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900/60 dark:bg-red-950/50 dark:text-red-300"
-        >
-          <span className="mt-0.5 shrink-0">⚠</span>
-          <span>{error}</span>
-        </div>
+        <AuthNotice tone="bad" className="mt-6">
+          {error}
+        </AuthNotice>
       )}
 
-      {/* ── Form ── */}
-      <form action={loginAction} className="space-y-4">
+      <form action={loginAction} className="mt-6 grid gap-5">
         {next && <input type="hidden" name="next" value={next} />}
 
-        {/* Email */}
-        <div className="group space-y-1.5">
-          <label
-            htmlFor="login-email"
-            className="flex items-center gap-1.5 text-sm font-medium text-stone-700 dark:text-stone-300"
-          >
-            <Mail size={13} aria-hidden className="text-stone-400" />
+        <div>
+          <label htmlFor="login-email" className="block text-[15px] font-semibold">
             Email ou téléphone
           </label>
           <input
             id="login-email"
-            className="field"
+            className="field mt-1.5"
             name="email"
             type="text"
             autoComplete="username"
             placeholder="vous@exemple.com ou 081 234 5678"
+            aria-describedby="login-email-hint"
             required
           />
-          <p className="text-xs text-stone-500 dark:text-stone-400">
+          <p id="login-email-hint" className="mt-1.5 text-[15px] text-plate-soft">
             Chauffeur inscrit par votre investisseur : votre numéro et le code reçu.
           </p>
         </div>
 
-        {/* Password */}
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
-            <label
-              htmlFor="login-password"
-              className="flex items-center gap-1.5 text-sm font-medium text-stone-700 dark:text-stone-300"
-            >
-              <Lock size={13} aria-hidden className="text-stone-400" />
-              Mot de passe ou code
-            </label>
-          </div>
+        <div>
+          <label htmlFor="login-password" className="block text-[15px] font-semibold">
+            Mot de passe ou code
+          </label>
           <input
             id="login-password"
-            className="field"
+            className="field mt-1.5"
             name="password"
             type="password"
             autoComplete="current-password"
@@ -151,56 +120,32 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           />
         </div>
 
-        {/* Submit */}
-        <button
-          id="login-submit"
-          type="submit"
-          className="btn-primary mt-1 w-full gap-2"
-        >
+        <button id="login-submit" type="submit" className="btn-primary w-full gap-2">
           Se connecter
-          <ArrowRight size={16} aria-hidden />
+          <ArrowRight size={18} aria-hidden />
         </button>
       </form>
 
       {process.env.NEXT_PUBLIC_SMS_LOGIN_ENABLED === "true" ? (
-        <Link
-          href={`${ROUTES.LOGIN}/sms`}
-          className="btn-secondary mt-3 flex min-h-11 w-full justify-center"
-        >
+        <Link href={`${ROUTES.LOGIN}/sms`} className="btn-secondary mt-3 flex w-full justify-center px-4 text-center no-underline">
           Chauffeur : recevoir un code par SMS ou WhatsApp
         </Link>
       ) : null}
 
-      {/* ── Divider ── */}
-      <div className="relative my-6">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-stone-200 dark:border-stone-700" />
-        </div>
-        <div className="relative flex justify-center">
-          <span className="bg-white px-3 text-xs text-stone-400 dark:bg-stone-900 dark:text-stone-500">
-            Pas encore de compte ?
-          </span>
-        </div>
-      </div>
-
-      {/* ── Register Link ── */}
-      <Link
-        href={ROUTES.REGISTER}
-        id="link-to-register"
-        className="btn-secondary w-full text-center"
-      >
-        Créer un compte partenaire
-      </Link>
-
-      <p className="mt-4 text-center text-xs text-stone-400 dark:text-stone-500">
-        Gestionnaire ?{" "}
-        <Link
-          href={ROUTES.SIGNUP}
-          className="font-medium text-emerald-700 hover:underline dark:text-emerald-400"
-        >
-          Inscription avancée
+      <section aria-labelledby="no-account" className="mt-8 border-t-2 border-plate-rule pt-6">
+        <h2 id="no-account" className="text-[16px] font-semibold">
+          Pas encore de compte ?
+        </h2>
+        <Link href={ROUTES.REGISTER} id="link-to-register" className="btn-secondary mt-3 w-full text-center no-underline">
+          Créer un compte partenaire
         </Link>
-      </p>
+        <p className="mt-4 text-center text-[15px]">
+          Gestionnaire ?{" "}
+          <Link href={ROUTES.SIGNUP} className="font-bold underline underline-offset-4">
+            Inscription avancée
+          </Link>
+        </p>
+      </section>
     </div>
   );
 }

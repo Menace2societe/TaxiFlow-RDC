@@ -1,6 +1,9 @@
+import type { Viewport } from "next";
 import { LegalPage } from "@/components/legal/LegalPage";
 
 export const metadata = { title: "Confidentialité — TaxiFlow RDC" };
+
+export const viewport: Viewport = { themeColor: "#f7f7f2" };
 
 export default function PrivacyPage() {
   return (

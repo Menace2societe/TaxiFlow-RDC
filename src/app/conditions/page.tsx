@@ -1,7 +1,10 @@
+import type { Viewport } from "next";
 import { LegalPage } from "@/components/legal/LegalPage";
 import { FREE_VEHICLES, TRIAL_DAYS } from "@/lib/billing/plans";
 
 export const metadata = { title: "Conditions d'utilisation — TaxiFlow RDC" };
+
+export const viewport: Viewport = { themeColor: "#f7f7f2" };
 
 export default function TermsPage() {
   return (

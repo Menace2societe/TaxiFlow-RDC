@@ -1,5 +1,4 @@
 import type { Viewport } from "next";
-import { plateFont, streetFont } from "@/app/plate-fonts";
 import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
 import { InvestorRail, InvestorTopBar } from "@/components/investor/InvestorNav";
@@ -38,7 +37,7 @@ export default async function InvestorLayout({
       : null;
 
   return (
-    <div className={`plate-world ${streetFont.variable} ${plateFont.variable} min-h-screen`}>
+    <div className={`plate-world min-h-screen`}>
       <InvestorTopBar name={investorName} />
       <div className="grid min-h-screen grid-cols-1 md:grid-cols-[230px_1fr]">
         <InvestorRail name={investorName} />
