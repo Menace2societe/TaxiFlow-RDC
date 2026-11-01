@@ -42,7 +42,7 @@ export function MaintenanceActionButtons({
   // ── Guard : breakdownId obligatoire ──────────────────────────────────────────
   if (!breakdownId) {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-md border border-red-500/20 bg-red-500/10 px-2.5 py-1.5 text-[10px] font-semibold text-red-300">
+      <span className="inline-flex items-center gap-1.5 rounded-lg border-2 border-plate-bad bg-plate-white px-3 py-2 text-[15px] font-semibold text-plate-bad dark:rounded-md dark:border dark:border-red-500/20 dark:bg-red-500/10 dark:px-2.5 dark:py-1.5 dark:text-[10px] dark:text-red-300">
         <AlertTriangle size={11} aria-hidden />
         ID de panne manquant
       </span>
@@ -115,14 +115,14 @@ export function MaintenanceActionButtons({
               type="button"
               onClick={() => { setErrorMessage(null); setShowConfirmStart(true); }}
               disabled={isPending}
-              className="btn-warning min-h-10 w-full px-3 text-xs"
+              className="btn-warning repair-start min-h-10 w-full px-3 text-xs"
             >
               <Wrench size={14} aria-hidden />
               Démarrer la réparation
             </button>
           ) : (
-            <div className="rounded-lg border border-amber-500/30 bg-neutral-900/90 p-3">
-              <p className="mb-2 text-xs font-medium text-amber-300">
+            <div className="rounded-xl border-2 border-plate-ink bg-plate-white p-3 dark:rounded-lg dark:border dark:border-amber-500/30 dark:bg-neutral-900/90">
+              <p className="mb-2 text-[15px] font-semibold text-plate-ink dark:text-xs dark:font-medium dark:text-amber-300">
                 Confirmer le démarrage de la réparation ?
               </p>
               <div className="grid gap-2 sm:grid-cols-2">
@@ -130,7 +130,7 @@ export function MaintenanceActionButtons({
                   type="button"
                   onClick={handleStart}
                   disabled={isPending}
-                  className="btn-warning min-h-9 px-3 text-xs"
+                  className="btn-warning repair-start min-h-9 px-3 text-xs"
                 >
                   {isPending ? <Loader2 size={12} className="animate-spin" /> : <PlayCircle size={12} />}
                   {isPending ? "Démarrage…" : "Oui, démarrer"}
@@ -163,7 +163,7 @@ export function MaintenanceActionButtons({
               Remettre en service
             </button>
           ) : (
-            <div className="flex flex-col gap-2 rounded-lg border border-emerald-500/30 bg-neutral-900/90 p-3">
+            <div className="flex flex-col gap-2 rounded-xl border-2 border-plate-ink bg-plate-white p-3 dark:rounded-lg dark:border dark:border-emerald-500/30 dark:bg-neutral-900/90">
               <input
                 type="text"
                 placeholder="Notes de réparation (optionnel)…"
@@ -200,7 +200,7 @@ export function MaintenanceActionButtons({
       {errorMessage && (
         <p
           role="alert"
-          className="rounded border border-rose-500/20 bg-rose-500/10 px-2 py-1.5 text-[10px] leading-snug text-rose-400"
+          className="rounded-lg border-2 border-plate-bad bg-plate-white px-3 py-2 text-[15px] font-semibold leading-snug text-plate-bad dark:rounded dark:border dark:border-rose-500/20 dark:bg-rose-500/10 dark:px-2 dark:py-1.5 dark:text-[10px] dark:font-normal dark:text-rose-400"
         >
           {errorMessage}
         </p>
@@ -208,7 +208,7 @@ export function MaintenanceActionButtons({
 
       {/* ── Info de débogage masquée en prod ─────────────────────────────────── */}
       {process.env.NODE_ENV !== "production" && (
-        <p className="text-[9px] text-slate-600">
+        <p className="text-xs text-plate-soft dark:text-[9px] dark:text-slate-600">
           id: {breakdownId} · statut: {currentStatus}
         </p>
       )}

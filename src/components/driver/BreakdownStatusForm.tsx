@@ -21,17 +21,17 @@ type Transition = {
 const statusTransitions: Record<BreakdownStatus, Transition | null> = {
   open: {
     next: "in_progress",
-    label: "Demarrer la reparation",
-    pendingLabel: "Demarrage...",
+    label: "Démarrer la réparation",
+    pendingLabel: "Démarrage…",
     icon: Wrench,
-    btnClass: "btn-warning min-h-9 px-3 text-xs"
+    btnClass: "btn-secondary w-full px-4 sm:w-auto"
   },
   in_progress: {
     next: "resolved",
-    label: "Terminer la reparation",
-    pendingLabel: "Finalisation...",
+    label: "Réparation terminée",
+    pendingLabel: "Enregistrement…",
     icon: CheckCircle2,
-    btnClass: "btn-primary min-h-9 px-3 text-xs"
+    btnClass: "btn-secondary w-full px-4 sm:w-auto"
   },
   resolved: null
 };
@@ -44,7 +44,7 @@ function SubmitButton({ transition }: { transition: Transition }) {
 
   return (
     <button type="submit" disabled={pending} className={transition.btnClass}>
-      {pending ? <Loader2 size={12} className="animate-spin" /> : <Icon size={12} />}
+      {pending ? <Loader2 size={18} className="animate-spin" aria-hidden /> : <Icon size={18} aria-hidden />}
       <span className="whitespace-normal leading-tight">{pending ? transition.pendingLabel : transition.label}</span>
     </button>
   );
@@ -99,7 +99,7 @@ export function BreakdownStatusForm({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="grid gap-2">
       <form action={submitAction}>
         <input type="hidden" name="breakdown_id" value={breakdownId} />
         <input type="hidden" name="new_status" value={transition.next} />
@@ -108,10 +108,9 @@ export function BreakdownStatusForm({
 
       {state.message && (
         <p
-          className={`rounded-md border px-2.5 py-1.5 text-[11px] font-medium ${
-            state.ok
-              ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
-              : "border-red-500/20 bg-red-500/10 text-red-300"
+          role={state.ok ? "status" : "alert"}
+          className={`rounded-lg border-2 bg-plate-white px-4 py-3 text-[15px] font-semibold ${
+            state.ok ? "border-plate-ok text-plate-ok" : "border-plate-bad text-plate-bad"
           }`}
         >
           {state.message}

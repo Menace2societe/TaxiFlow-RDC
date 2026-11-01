@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState, useTransition } from "react";
-import { Camera, CheckCircle2, Loader2, PlusCircle, WifiOff } from "lucide-react";
+import { AlertTriangle, Camera, CheckCircle2, Loader2, Send, WifiOff } from "lucide-react";
 import { submitDriverDailyEntry } from "@/actions/entries";
 import { compressImageToDataUrl, dataUrlToBlob } from "@/lib/images/compress";
 import { createClient } from "@/lib/supabase/client";
@@ -77,8 +77,8 @@ function formDataFromEntry(entry: OfflineEntry) {
 function SubmitButton({ disabled, pending }: { disabled: boolean; pending: boolean }) {
   return (
     <button className="btn-primary min-h-12 w-full text-base" type="submit" disabled={disabled || pending}>
-      {pending ? <Loader2 className="animate-spin" size={20} aria-hidden /> : <PlusCircle size={20} aria-hidden />}
-      {pending ? "Enregistrement..." : "Enregistrer mon versement"}
+      {pending ? <Loader2 className="animate-spin" size={20} aria-hidden /> : <Send size={20} aria-hidden />}
+      {pending ? "Envoi…" : "Envoyer mon versement"}
     </button>
   );
 }
@@ -136,8 +136,8 @@ export function DriverVersementForm({ hasVehicle, usdRate }: Props) {
             tone: remaining.length > 0 ? "warning" : "success",
             message:
               remaining.length > 0
-                ? `${synced} versement(s) synchronise(s), ${remaining.length} encore en attente.`
-                : "Donnees locales synchronisees avec succes."
+                ? `${synced} versement(s) envoyé(s), ${remaining.length} encore sur le téléphone.`
+                : "Les versements gardés sur le téléphone sont bien partis."
           });
         }
       });
@@ -156,7 +156,7 @@ export function DriverVersementForm({ hasVehicle, usdRate }: Props) {
     setNotice({
       tone: "warning",
       message:
-        "Hors-ligne : Donnees enregistrees localement, elles seront synchronisees au retour du reseau."
+        "Pas de réseau : le versement est gardé sur le téléphone. Il partira tout seul au retour de la connexion."
     });
   }
 
@@ -172,7 +172,7 @@ export function DriverVersementForm({ hasVehicle, usdRate }: Props) {
     if (!Number.isFinite(startKm) || !Number.isFinite(endKm) || endKm < startKm) {
       setNotice({
         tone: "error",
-        message: "Le kilometrage de fin ne peut pas etre inferieur au kilometrage de debut."
+        message: "Le compteur du soir doit être plus grand que celui du matin. Vérifiez les deux chiffres."
       });
       return;
     }
@@ -230,85 +230,86 @@ export function DriverVersementForm({ hasVehicle, usdRate }: Props) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="grid gap-4 rounded-xl border border-stone-200 bg-white p-4 shadow-soft dark:border-stone-800 dark:bg-stone-950"
+      className="grid gap-4"
     >
       {notice && (
         <div
           role={notice.tone === "error" ? "alert" : "status"}
-          className={`flex items-start gap-2 rounded-lg border px-3 py-2 text-sm ${
+          className={`flex items-start gap-2 rounded-lg border-2 bg-plate-white px-4 py-3 text-[15px] font-semibold ${
             notice.tone === "success"
-              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+              ? "border-plate-ok text-plate-ok"
               : notice.tone === "warning"
-                ? "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
-                : "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300"
+                ? "border-plate-ink text-plate-ink"
+                : "border-plate-bad text-plate-bad"
           }`}
         >
-          {notice.tone === "success" ? <CheckCircle2 size={16} className="mt-0.5 shrink-0" /> : <WifiOff size={16} className="mt-0.5 shrink-0" />}
+          {notice.tone === "success" ? <CheckCircle2 size={18} className="mt-0.5 shrink-0" aria-hidden /> : notice.tone === "warning" ? <WifiOff size={18} className="mt-0.5 shrink-0" aria-hidden /> : <AlertTriangle size={18} className="mt-0.5 shrink-0" aria-hidden />}
           <span>{notice.message}</span>
         </div>
       )}
       {queuedCount > 0 && (
-        <p className="rounded-lg bg-stone-100 px-3 py-2 text-xs font-medium text-stone-600 dark:bg-stone-900 dark:text-stone-300">
-          {queuedCount} versement(s) en attente de synchronisation.
+        <p className="flex items-center gap-2 rounded-lg border-2 border-dashed border-plate-ink px-4 py-3 text-[15px] font-semibold">
+          <WifiOff size={18} className="shrink-0" aria-hidden />
+          {queuedCount} versement(s) gardé(s) sur le téléphone, en attente de réseau.
         </p>
       )}
-      <label className="block text-sm font-medium text-stone-700 dark:text-stone-200">
+      <label className="block text-[15px] font-semibold">
         Date
-        <input className="field mt-1 min-h-12 text-base" name="entry_date" type="date" defaultValue={todayInAppTimezone()} required />
+        <input className="field mt-1.5" name="entry_date" type="date" defaultValue={todayInAppTimezone()} required />
       </label>
-      <label className="block text-sm font-medium text-stone-700 dark:text-stone-200">
+      <label className="block text-[15px] font-semibold">
         Montant
-        <input className="field mt-1 min-h-12 text-base" name="amount" type="number" min="1" step="1" inputMode="decimal" required />
+        <input className="field mt-1.5" name="amount" type="number" min="1" step="1" inputMode="decimal" required />
       </label>
-      <fieldset className="text-sm font-medium text-stone-700 dark:text-stone-200">
-        <legend className="mb-2">Devise</legend>
+      <fieldset className="text-[15px] font-semibold">
+        <legend className="mb-1.5">Devise</legend>
         <div className="grid grid-cols-2 gap-2">
           <label className="cursor-pointer">
             <input type="radio" name="currency" value="CDF" defaultChecked className="peer sr-only" />
-            <div className="flex min-h-12 items-center justify-center rounded-lg border border-stone-300 font-semibold peer-checked:border-emerald-500 peer-checked:bg-emerald-50 peer-checked:text-emerald-800 dark:border-stone-600 dark:peer-checked:border-emerald-500 dark:peer-checked:bg-emerald-950 dark:peer-checked:text-emerald-200">
+            <div className="flex min-h-[52px] items-center justify-center rounded-lg border-2 border-plate-ink bg-plate-white text-[17px] font-bold peer-checked:bg-plate-ink peer-checked:text-plate-white peer-focus-visible:outline peer-focus-visible:outline-[3px] peer-focus-visible:outline-plate-band">
               CDF
             </div>
           </label>
           <label className="cursor-pointer">
             <input type="radio" name="currency" value="USD" className="peer sr-only" />
-            <div className="flex min-h-12 items-center justify-center rounded-lg border border-stone-300 font-semibold peer-checked:border-emerald-500 peer-checked:bg-emerald-50 peer-checked:text-emerald-800 dark:border-stone-600 dark:peer-checked:border-emerald-500 dark:peer-checked:bg-emerald-950 dark:peer-checked:text-emerald-200">
+            <div className="flex min-h-[52px] items-center justify-center rounded-lg border-2 border-plate-ink bg-plate-white text-[17px] font-bold peer-checked:bg-plate-ink peer-checked:text-plate-white peer-focus-visible:outline peer-focus-visible:outline-[3px] peer-focus-visible:outline-plate-band">
               USD
             </div>
           </label>
         </div>
         {usdRate ? (
-          <p className="mt-1.5 text-xs text-stone-500 dark:text-stone-400">
+          <p className="mt-1.5 text-[14px] font-medium">
             Taux du jour : 1 USD = {usdRate.toLocaleString("fr-CD")} CDF
           </p>
         ) : null}
       </fieldset>
-      <label className="block text-sm font-medium text-stone-700 dark:text-stone-200">
-        Kilometrage de debut
-        <input className="field mt-1 min-h-12 text-base" name="start_km" type="number" min="0" step="0.1" inputMode="decimal" required />
+      <label className="block text-[15px] font-semibold">
+        Compteur du matin (km)
+        <input className="field mt-1.5" name="start_km" type="number" min="0" step="0.1" inputMode="decimal" required />
       </label>
-      <label className="block text-sm font-medium text-stone-700 dark:text-stone-200">
-        Kilometrage de fin
-        <input className="field mt-1 min-h-12 text-base" name="end_km" type="number" min="0" step="0.1" inputMode="decimal" required />
+      <label className="block text-[15px] font-semibold">
+        Compteur du soir (km)
+        <input className="field mt-1.5" name="end_km" type="number" min="0" step="0.1" inputMode="decimal" required />
       </label>
-      <label className="block text-sm font-medium text-stone-700 dark:text-stone-200">
+      <label className="block text-[15px] font-semibold">
         <span className="flex items-center gap-1.5">
           <Camera size={14} aria-hidden />
-          Photo du compteur (fin de journée)
+          Photo du compteur du soir
         </span>
         <input
-          className="field mt-1 min-h-12 text-base file:mr-3 file:rounded-md file:border-0 file:bg-emerald-600 file:px-3 file:py-1.5 file:text-white"
+          className="field mt-1.5 py-2.5"
           name="odometer_photo"
           type="file"
           accept="image/*"
           capture="environment"
         />
-        <span className="mt-1 block text-xs font-normal text-stone-500 dark:text-stone-400">
-          Recommandée : sans photo, le versement est signalé à votre investisseur.
+        <span className="mt-1 block text-[14px] font-medium">
+          Sans photo, votre investisseur verra le versement comme « à vérifier ».
         </span>
       </label>
-      <label className="block text-sm font-medium text-stone-700 dark:text-stone-200">
-        Note (optionnel)
-        <input className="field mt-1 min-h-12 text-base" name="notes" placeholder="Course, client..." />
+      <label className="block text-[15px] font-semibold">
+        Remarque (si besoin)
+        <input className="field mt-1.5" name="notes" placeholder="Ex. : embouteillage à Victoire" />
       </label>
       <SubmitButton disabled={!hasVehicle} pending={isPending} />
     </form>

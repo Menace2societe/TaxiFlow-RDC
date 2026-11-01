@@ -24,7 +24,7 @@ function SubmitBtn({
   const { pending } = useFormStatus();
   return (
     <button type="submit" disabled={pending} className={className}>
-      {pending && <Loader2 size={11} className="animate-spin shrink-0" />}
+      {pending && <Loader2 size={16} className="shrink-0 animate-spin" aria-hidden />}
       {pending ? pendingLabel : label}
     </button>
   );
@@ -35,7 +35,7 @@ function SubmitBtn({
 const initialState: UpdatePaymentStatusState = { ok: false, message: "" };
 
 /**
- * Boutons Approuver / Rejeter pour le chauffeur-patron.
+ * Boutons Valider / Rejeter pour le chauffeur-patron.
  * Chaque bouton soumet son propre <form> indépendant.
  * N'est rendu que si currentStatus !== le statut cible.
  *
@@ -87,16 +87,16 @@ export function OwnerPaymentActions({
   }, [rejectState.ok, rejectState.message, router]);
 
   return (
-    <div className="flex flex-col items-end gap-1.5">
-      <div className="flex items-center gap-1.5">
+    <div className="flex flex-col items-start gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {showApprove && (
           <form action={approveAction}>
             <input type="hidden" name="payment_id" value={paymentId} />
             <input type="hidden" name="new_status" value="approved" />
             <SubmitBtn
-              label="Approuver"
-              pendingLabel="..."
-              className="inline-flex items-center gap-1 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-2 py-1 text-[10px] font-semibold text-emerald-300 transition-all hover:bg-emerald-500/20 disabled:opacity-50"
+              label="Valider"
+              pendingLabel="Envoi…"
+              className="inline-flex min-h-[48px] items-center gap-1.5 rounded-xl border-2 border-plate-ink bg-plate-white px-4 text-[15px] font-bold text-plate-ink transition-colors hover:bg-plate-ground disabled:opacity-50"
             />
           </form>
         )}
@@ -106,8 +106,8 @@ export function OwnerPaymentActions({
             <input type="hidden" name="new_status" value="rejected" />
             <SubmitBtn
               label="Rejeter"
-              pendingLabel="..."
-              className="inline-flex items-center gap-1 rounded-md border border-red-500/40 bg-red-500/10 px-2 py-1 text-[10px] font-semibold text-red-300 transition-all hover:bg-red-500/20 disabled:opacity-50"
+              pendingLabel="Envoi…"
+              className="inline-flex min-h-[48px] items-center gap-1.5 rounded-xl border-2 border-plate-bad bg-plate-white px-4 text-[15px] font-bold text-plate-bad transition-colors hover:bg-plate-ground disabled:opacity-50"
             />
           </form>
         )}
@@ -115,11 +115,10 @@ export function OwnerPaymentActions({
 
       {feedback && (
         <span
-          className={`flex items-center gap-1 text-[10px] font-medium ${
-            isOk ? "text-emerald-400" : "text-red-400"
-          }`}
+          role={isOk ? "status" : "alert"}
+          className={`flex items-center gap-1.5 text-[15px] font-semibold ${isOk ? "text-plate-ok" : "text-plate-bad"}`}
         >
-          {isOk ? <CheckCircle2 size={10} /> : <XCircle size={10} />}
+          {isOk ? <CheckCircle2 size={16} aria-hidden /> : <XCircle size={16} aria-hidden />}
           {feedback}
         </span>
       )}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { CarTaxiFront, CheckCircle2, Loader2, PlusCircle, AlertTriangle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Loader2, PlusCircle } from "lucide-react";
 import { useFormState, useFormStatus } from "react-dom";
 import {
   registerOwnerDriverVehicle,
@@ -13,19 +13,10 @@ const initialState: OwnerDriverVehicleActionState = { ok: false, message: "" };
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
-    <button
-      type="submit"
-      disabled={pending}
-      id="owner-driver-register-vehicle-submit"
-      className="btn-primary w-full"
-    >
-      {pending ? (
-        <Loader2 size={16} className="animate-spin" />
-      ) : (
-        <PlusCircle size={16} />
-      )}
+    <button type="submit" disabled={pending} id="owner-driver-register-vehicle-submit" className="btn-primary w-full">
+      {pending ? <Loader2 size={18} className="animate-spin" aria-hidden /> : <PlusCircle size={18} aria-hidden />}
       <span className="whitespace-normal leading-tight">
-        {pending ? "Enregistrement en cours…" : "Enregistrer et m'assigner ce véhicule"}
+        {pending ? "Enregistrement…" : "Enregistrer mon véhicule"}
       </span>
     </button>
   );
@@ -34,6 +25,7 @@ function SubmitButton() {
 /**
  * Formulaire réservé aux chauffeurs-patrons (is_owner_driver: true).
  * Crée un véhicule avec owner_id = driver_id = userId connecté.
+ * Le titre et l'explication sont posés par la page qui l'affiche.
  */
 export function OwnerDriverRegisterVehicleForm() {
   const [state, formAction] = useFormState(registerOwnerDriverVehicle, initialState);
@@ -47,137 +39,88 @@ export function OwnerDriverRegisterVehicleForm() {
   }, [state.ok, state.message]);
 
   return (
-    <div className="space-y-4">
-      {/* En-tête du formulaire */}
-      <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 border border-emerald-500/25">
-          <CarTaxiFront size={20} className="text-emerald-400" />
-        </div>
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-white">Enregistrer votre véhicule</p>
-          <p className="mt-0.5 text-xs text-neutral-500">
-            En tant que chauffeur-patron, vous serez automatiquement assigné comme chauffeur de ce
-            véhicule.
-          </p>
-        </div>
-      </div>
-
-      {/* Feedback */}
-      {state.message && (
-        <div
+    <div className="grid gap-4">
+      {state.message ? (
+        <p
           role={state.ok ? "status" : "alert"}
-          className={`flex items-start gap-2.5 rounded-xl border px-4 py-3 text-sm ${
-            state.ok
-              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-              : "border-red-500/30 bg-red-500/10 text-red-300"
+          className={`flex items-start gap-2 rounded-lg border-2 bg-plate-white px-4 py-3 text-[15px] font-semibold ${
+            state.ok ? "border-plate-ok text-plate-ok" : "border-plate-bad text-plate-bad"
           }`}
         >
           {state.ok ? (
-            <CheckCircle2 size={15} className="mt-0.5 shrink-0" />
+            <CheckCircle2 size={18} className="mt-0.5 shrink-0" aria-hidden />
           ) : (
-            <AlertTriangle size={15} className="mt-0.5 shrink-0" />
+            <AlertTriangle size={18} className="mt-0.5 shrink-0" aria-hidden />
           )}
           <span>{state.message}</span>
-        </div>
-      )}
+        </p>
+      ) : null}
 
-      <form ref={formRef} action={formAction} className="grid gap-3">
-        {/* Marque + Modèle */}
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div>
-            <label
-              htmlFor="owner-driver-make"
-              className="mb-1.5 block text-xs font-medium text-neutral-400"
-            >
-              Marque <span className="text-red-400">*</span>
-            </label>
+      <form ref={formRef} action={formAction} className="grid gap-4">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label htmlFor="owner-driver-make" className="block text-[15px] font-semibold">
+            Marque
             <input
               id="owner-driver-make"
               name="make"
               type="text"
-              className="field"
-              placeholder="Toyota"
+              className="field mt-1.5"
+              placeholder="Ex. : Toyota"
               required
               maxLength={60}
             />
-          </div>
-          <div>
-            <label
-              htmlFor="owner-driver-model"
-              className="mb-1.5 block text-xs font-medium text-neutral-400"
-            >
-              Modèle <span className="text-red-400">*</span>
-            </label>
+          </label>
+          <label htmlFor="owner-driver-model" className="block text-[15px] font-semibold">
+            Modèle
             <input
               id="owner-driver-model"
               name="model"
               type="text"
-              className="field"
-              placeholder="Corolla"
+              className="field mt-1.5"
+              placeholder="Ex. : Corolla"
               required
               maxLength={60}
             />
-          </div>
+          </label>
         </div>
 
-        {/* Plaque d'immatriculation */}
-        <div>
-          <label
-            htmlFor="owner-driver-plate"
-            className="mb-1.5 block text-xs font-medium text-neutral-400"
-          >
-            Plaque d&apos;immatriculation <span className="text-red-400">*</span>
-          </label>
+        <label htmlFor="owner-driver-plate" className="block text-[15px] font-semibold">
+          Numéro de plaque
           <input
             id="owner-driver-plate"
             name="plate_number"
             type="text"
-            className="field uppercase"
-            placeholder="KN 1234 A"
+            className="field mt-1.5 font-plate text-[22px] font-bold tracking-[0.03em]"
+            placeholder="Ex. : 4821 BK 01"
+            autoCapitalize="characters"
+            autoComplete="off"
             required
             maxLength={20}
           />
-        </div>
+        </label>
 
-        {/* Type de véhicule + Objectif */}
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div>
-            <label
-              htmlFor="owner-driver-type"
-              className="mb-1.5 block text-xs font-medium text-neutral-400"
-            >
-              Type <span className="text-red-400">*</span>
-            </label>
-            <select
-              id="owner-driver-type"
-              name="type"
-              className="field"
-              defaultValue="taxi"
-              required
-            >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label htmlFor="owner-driver-type" className="block text-[15px] font-semibold">
+            Type
+            <select id="owner-driver-type" name="type" className="field mt-1.5" defaultValue="taxi" required>
               <option value="taxi">Taxi</option>
-              <option value="moto">Moto</option>
+              <option value="moto">Moto-taxi</option>
             </select>
-          </div>
-          <div>
-            <label
-              htmlFor="owner-driver-revenue"
-              className="mb-1.5 block text-xs font-medium text-neutral-400"
-            >
-              Objectif / jour (CDF) <span className="text-red-400">*</span>
-            </label>
+          </label>
+          <label htmlFor="owner-driver-revenue" className="block text-[15px] font-semibold">
+            Versement attendu par jour (FC)
             <input
               id="owner-driver-revenue"
               name="target_daily_revenue"
               type="number"
-              className="field"
-              placeholder="15000"
+              className="field mt-1.5"
+              placeholder="Ex. : 15000"
               min="1"
               step="1"
               inputMode="numeric"
               required
             />
-          </div>
+          </label>
         </div>
 
         <SubmitButton />

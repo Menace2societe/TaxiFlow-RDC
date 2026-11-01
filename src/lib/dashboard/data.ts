@@ -44,6 +44,8 @@ export type DashboardPayment = {
   investor_id: string;
   status: PaymentStatus;
   created_at: string;
+  /** Jour du versement (YYYY-MM-DD, fuseau de la flotte), quand la requête le lit. */
+  payment_date?: string;
 };
 
 export type DashboardBreakdown = {
@@ -426,8 +428,10 @@ export async function getDriverRecentPayments(driverId: string, limit = 8): Prom
     const supabase = await createClient();
     const { data, error } = await supabase
       .from("payments")
-      .select("id,amount,driver_id,vehicle_id,investor_id,status,created_at")
+      .select("id,amount,driver_id,vehicle_id,investor_id,status,created_at,payment_date")
       .eq("driver_id", driverId)
+      // Par jour du versement : une saisie tardive (espèces, hors-ligne) reste à sa place.
+      .order("payment_date", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false })
       .limit(limit);
 
@@ -443,7 +447,8 @@ export async function getDriverRecentPayments(driverId: string, limit = 8): Prom
       vehicle_id: row.vehicle_id,
       investor_id: row.investor_id,
       status: row.status,
-      created_at: row.created_at
+      created_at: row.created_at,
+      payment_date: (row as { payment_date?: string }).payment_date
     }));
   } catch (err) {
     console.error("[getDriverRecentPayments] Exception :", err);

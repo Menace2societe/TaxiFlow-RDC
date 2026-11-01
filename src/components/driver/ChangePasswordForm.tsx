@@ -1,7 +1,7 @@
 "use client";
 
 import { useFormState, useFormStatus } from "react-dom";
-import { KeyRound, Loader2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, KeyRound, Loader2 } from "lucide-react";
 import { changeMyPassword, type ChangePasswordState } from "@/actions/profile";
 
 const initialState: ChangePasswordState = { ok: false, message: "" };
@@ -9,9 +9,9 @@ const initialState: ChangePasswordState = { ok: false, message: "" };
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" className="btn-primary min-h-11" disabled={pending}>
-      {pending ? <Loader2 size={16} className="animate-spin" aria-hidden /> : <KeyRound size={16} aria-hidden />}
-      Changer mon code
+    <button type="submit" className="btn-primary w-full" disabled={pending}>
+      {pending ? <Loader2 size={18} className="animate-spin" aria-hidden /> : <KeyRound size={18} aria-hidden />}
+      {pending ? "Enregistrement…" : "Changer mon code"}
     </button>
   );
 }
@@ -20,17 +20,27 @@ export function ChangePasswordForm() {
   const [state, formAction] = useFormState(changeMyPassword, initialState);
 
   return (
-    <form action={formAction} className="mt-5 space-y-3">
-      <label className="block text-sm font-medium text-stone-700 dark:text-stone-200">
-        Nouveau code ou mot de passe
-        <input className="field mt-1" name="password" type="password" minLength={8} autoComplete="new-password" required />
+    <form action={formAction} className="mt-4 grid gap-4">
+      <label className="block text-[15px] font-semibold">
+        Nouveau code
+        <input className="field mt-1.5" name="password" type="password" minLength={8} autoComplete="new-password" required />
       </label>
-      <label className="block text-sm font-medium text-stone-700 dark:text-stone-200">
-        Confirmer
-        <input className="field mt-1" name="confirm" type="password" minLength={8} autoComplete="new-password" required />
+      <label className="block text-[15px] font-semibold">
+        Le même code, encore une fois
+        <input className="field mt-1.5" name="confirm" type="password" minLength={8} autoComplete="new-password" required />
       </label>
       {state.message ? (
-        <p role="status" className={`text-sm ${state.ok ? "text-emerald-600 dark:text-emerald-300" : "text-red-600 dark:text-red-300"}`}>
+        <p
+          role={state.ok ? "status" : "alert"}
+          className={`flex items-start gap-2 rounded-lg border-2 bg-plate-white px-4 py-3 text-[15px] font-semibold ${
+            state.ok ? "border-plate-ok text-plate-ok" : "border-plate-bad text-plate-bad"
+          }`}
+        >
+          {state.ok ? (
+            <CheckCircle2 size={18} className="mt-0.5 shrink-0" aria-hidden />
+          ) : (
+            <AlertTriangle size={18} className="mt-0.5 shrink-0" aria-hidden />
+          )}
           {state.message}
         </p>
       ) : null}
