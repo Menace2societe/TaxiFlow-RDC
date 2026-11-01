@@ -1,60 +1,15 @@
-import { CheckCircle2, CirclePause, Wrench } from "lucide-react";
 import { updateVehicleStatus, type VehicleOperationalStatus } from "@/actions/vehicles";
+import { vehicleStatusLabels } from "@/components/driver/plate";
 import type { VehicleStatus } from "@/lib/supabase/types";
+import { cn } from "@/lib/utils/cn";
 
-const statusActions: Array<{
-  label: VehicleOperationalStatus;
-  /** Libellé affiché, avec majuscule. */
-  displayLabel: string;
-  dbStatus: VehicleStatus;
-  icon: typeof CheckCircle2;
-  baseClass: string;
-  activeClass: string;
-  ringClass: string;
-  dotClass: string;
-  description: string;
-}> = [
-  {
-    label: "en service",
-    displayLabel: "En service",
-    dbStatus: "en service",
-    icon: CheckCircle2,
-    baseClass:
-      "border-emerald-500/20 bg-neutral-900/80 text-neutral-400 hover:bg-emerald-500/10 hover:border-emerald-500/40 hover:text-emerald-300",
-    activeClass:
-      "border-emerald-500/60 bg-emerald-950/60 text-emerald-300 shadow-[0_0_16px_rgba(16,185,129,0.18)]",
-    ringClass: "focus:ring-emerald-500/40",
-    dotClass: "bg-emerald-400",
-    description: "Véhicule disponible"
-  },
-  {
-    label: "maintenance",
-    displayLabel: "Maintenance",
-    dbStatus: "maintenance",
-    icon: Wrench,
-    baseClass:
-      "border-amber-500/20 bg-neutral-900/80 text-neutral-400 hover:bg-amber-500/10 hover:border-amber-500/40 hover:text-amber-300",
-    activeClass:
-      "border-amber-500/60 bg-amber-950/50 text-amber-300 shadow-[0_0_16px_rgba(245,158,11,0.18)]",
-    ringClass: "focus:ring-amber-500/40",
-    dotClass: "bg-amber-400",
-    description: "En réparation"
-  },
-  {
-    label: "repos",
-    displayLabel: "Repos",
-    dbStatus: "repos",
-    icon: CirclePause,
-    baseClass:
-      "border-neutral-700/50 bg-neutral-900/80 text-neutral-400 hover:bg-neutral-800 hover:border-neutral-600 hover:text-neutral-300",
-    activeClass:
-      "border-neutral-500 bg-neutral-800/80 text-neutral-300 shadow-[0_0_10px_rgba(0,0,0,0.4)]",
-    ringClass: "focus:ring-neutral-500/30",
-    dotClass: "bg-neutral-400",
-    description: "Hors service"
-  }
+const statusActions: Array<{ value: VehicleOperationalStatus; db: VehicleStatus; description: string }> = [
+  { value: "en service", db: "en service", description: "Véhicule disponible" },
+  { value: "maintenance", db: "maintenance", description: "Véhicule en réparation" },
+  { value: "repos", db: "repos", description: "Véhicule hors service" }
 ];
 
+/** Les trois boutons d'état, comme sur l'écran Aujourd'hui du chauffeur : l'état actuel est rempli d'encre. */
 export function VehicleStatusControls({
   vehicleId,
   currentStatus,
@@ -65,54 +20,22 @@ export function VehicleStatusControls({
   compact?: boolean;
 }) {
   return (
-    <div className={`grid gap-1.5 ${compact ? "grid-cols-3" : "grid-cols-1 sm:grid-cols-3"}`}>
+    <div className="grid grid-cols-3 gap-2">
       {statusActions.map((action) => {
-        const Icon = action.icon;
-        const active = currentStatus === action.dbStatus;
-
+        const active = currentStatus === action.db;
         return (
-          <form
-            key={action.label}
-            action={updateVehicleStatus.bind(null, vehicleId, action.label)}
-          >
+          <form key={action.value} action={updateVehicleStatus.bind(null, vehicleId, action.value)}>
             <button
               type="submit"
               aria-pressed={active}
               title={action.description}
-              className={[
-                "group relative w-full overflow-hidden rounded-xl border font-semibold",
-                "transition-all duration-200 focus:outline-none focus:ring-2",
-                action.ringClass,
-                compact ? "min-h-12 px-1.5 py-2 text-[11px]" : "min-h-12 px-3 py-2.5 text-sm",
-                active ? action.activeClass : action.baseClass
-              ].join(" ")}
-            >
-              <span
-                className={`inline-flex w-full items-center justify-center ${
-                  // Compact : icône au-dessus du texte, pour que « Maintenance » tienne sur une ligne.
-                  compact ? "flex-col gap-1" : "flex-col gap-1.5 sm:flex-row"
-                }`}
-              >
-                {/* Indicateur actif */}
-                {active && (
-                  <span
-                    className={[
-                      "h-2 w-2 shrink-0 rounded-full",
-                      action.dotClass,
-                      compact ? "absolute right-1.5 top-1.5" : "absolute left-2.5 top-1/2 -translate-y-1/2",
-                      action.dbStatus === "en service" ? "pulse-ring-active" : ""
-                    ].join(" ")}
-                  />
-                )}
-                <Icon size={compact ? 13 : 15} aria-hidden className="shrink-0" />
-                <span className="whitespace-nowrap text-center leading-tight">{action.displayLabel}</span>
-              </span>
-              {/* Sous-label visible en mode non-compact inactif */}
-              {!compact && !active && (
-                <span className="mt-0.5 block text-[10px] font-normal opacity-50 transition-opacity group-hover:opacity-70">
-                  {action.description}
-                </span>
+              className={cn(
+                "min-h-[52px] w-full rounded-xl border-2 border-plate-ink px-1 font-bold leading-tight transition-colors",
+                compact ? "text-[15px]" : "text-base",
+                active ? "bg-plate-ink text-plate-white" : "bg-plate-white text-plate-ink hover:bg-plate-ground"
               )}
+            >
+              {vehicleStatusLabels[action.db]}
             </button>
           </form>
         );

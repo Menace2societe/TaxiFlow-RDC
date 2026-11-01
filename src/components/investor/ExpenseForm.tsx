@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useFormState, useFormStatus } from "react-dom";
-import { Loader2, PlusCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Loader2, PlusCircle } from "lucide-react";
 import { addExpense, type ExpenseActionState } from "@/actions/expenses";
 import { expenseCategoryLabels } from "@/lib/finance/profit";
 import type { ExpenseCategory } from "@/lib/supabase/types";
@@ -13,8 +13,8 @@ const initialState: ExpenseActionState = { ok: false, message: "" };
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" className="btn-primary min-h-11" disabled={pending}>
-      {pending ? <Loader2 size={16} className="animate-spin" aria-hidden /> : <PlusCircle size={16} aria-hidden />}
+    <button type="submit" className="btn-primary w-full px-6 sm:w-auto" disabled={pending}>
+      {pending ? <Loader2 size={18} className="animate-spin" aria-hidden /> : <PlusCircle size={18} aria-hidden />}
       Ajouter la dépense
     </button>
   );
@@ -30,7 +30,7 @@ export function ExpenseForm({ vehicles }: { vehicles: { id: string; label: strin
 
   return (
     <form ref={formRef} action={formAction} className="grid gap-3 md:grid-cols-3">
-      <label className="grid gap-1.5 text-sm font-medium text-neutral-300">
+      <label className="grid gap-1.5 text-[15px] font-semibold">
         Véhicule
         <select name="vehicle_id" className="field" required defaultValue="">
           <option value="" disabled>
@@ -43,7 +43,7 @@ export function ExpenseForm({ vehicles }: { vehicles: { id: string; label: strin
           ))}
         </select>
       </label>
-      <label className="grid gap-1.5 text-sm font-medium text-neutral-300">
+      <label className="grid gap-1.5 text-[15px] font-semibold">
         Catégorie
         <select name="category" className="field" defaultValue="carburant">
           {(Object.keys(expenseCategoryLabels) as ExpenseCategory[]).map((category) => (
@@ -53,32 +53,44 @@ export function ExpenseForm({ vehicles }: { vehicles: { id: string; label: strin
           ))}
         </select>
       </label>
-      <label className="grid gap-1.5 text-sm font-medium text-neutral-300">
+      <label className="grid gap-1.5 text-[15px] font-semibold">
         Date
         <input name="expense_date" type="date" className="field" defaultValue={todayInAppTimezone()} required />
       </label>
-      <label className="grid gap-1.5 text-sm font-medium text-neutral-300">
+      <label className="grid gap-1.5 text-[15px] font-semibold">
         Montant
         <input name="amount" type="number" min="1" step="any" inputMode="decimal" className="field" required />
       </label>
-      <label className="grid gap-1.5 text-sm font-medium text-neutral-300">
+      <label className="grid gap-1.5 text-[15px] font-semibold">
         Devise
         <select name="currency" className="field" defaultValue="CDF">
-          <option value="CDF">CDF</option>
+          <option value="CDF">Francs congolais (CDF)</option>
           <option value="USD">USD (converti au taux du jour)</option>
         </select>
       </label>
-      <label className="grid gap-1.5 text-sm font-medium text-neutral-300">
+      <label className="grid gap-1.5 text-[15px] font-semibold">
         Note
-        <input name="note" className="field" maxLength={300} placeholder="Ex. vidange, pneus…" />
+        <input name="note" className="field" maxLength={300} placeholder="Ex. : vidange, pneus…" />
       </label>
-      <div className="flex flex-wrap items-center gap-3 md:col-span-3">
-        <SubmitButton />
+      <div className="grid gap-3 md:col-span-3">
         {state.message ? (
-          <p role="status" className={`text-sm ${state.ok ? "text-emerald-300" : "text-red-300"}`}>
+          <p
+            role={state.ok ? "status" : "alert"}
+            className={`flex items-start gap-2 rounded-lg border-2 bg-plate-white px-4 py-3 text-[15px] font-semibold ${
+              state.ok ? "border-plate-ok text-plate-ok" : "border-plate-bad text-plate-bad"
+            }`}
+          >
+            {state.ok ? (
+              <CheckCircle2 size={18} className="mt-0.5 shrink-0" aria-hidden />
+            ) : (
+              <AlertTriangle size={18} className="mt-0.5 shrink-0" aria-hidden />
+            )}
             {state.message}
           </p>
         ) : null}
+        <div>
+          <SubmitButton />
+        </div>
       </div>
     </form>
   );

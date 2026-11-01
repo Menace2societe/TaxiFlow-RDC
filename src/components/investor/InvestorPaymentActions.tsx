@@ -16,7 +16,7 @@ type FeedbackState = { ok: boolean; message: string } | null;
 // ─── Composant principal ──────────────────────────────────────────────────────
 
 /**
- * Boutons Approuver ✓ / Rejeter ✗ pour l'investisseur.
+ * Boutons Valider / Rejeter pour l'investisseur.
  * Chaque action utilise `useTransition` pour un état de chargement local
  * sans bloquer le reste de l'interface. Un seul bouton peut être actif à la fois.
  *
@@ -54,23 +54,23 @@ export function InvestorPaymentActions({ paymentId }: InvestorPaymentActionsProp
 
   return (
     <div className="flex flex-col items-end gap-1.5">
-      <div className="flex items-center gap-1.5">
-        {/* Bouton Approuver */}
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        {/* Bouton Valider */}
         <button
           id={`approve-payment-${paymentId}`}
           type="button"
           onClick={handleApprove}
           disabled={isBusy}
-          aria-label="Approuver ce versement"
-          title="Approuver"
-          className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-300 transition-all hover:bg-emerald-500/25 hover:border-emerald-400/60 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
+          aria-label="Valider ce versement"
+          title="Valider"
+          className="inline-flex min-h-[48px] items-center gap-1.5 rounded-xl border-2 border-plate-ink bg-plate-white px-4 text-[15px] font-bold text-plate-ink transition-colors hover:bg-plate-ground disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isPendingApprove ? (
-            <Loader2 size={11} className="animate-spin" />
+            <Loader2 size={18} className="animate-spin" aria-hidden />
           ) : (
-            <CheckCircle2 size={11} />
+            <CheckCircle2 size={18} aria-hidden />
           )}
-          {isPendingApprove ? "..." : "Valider"}
+          {isPendingApprove ? "Validation…" : "Valider"}
         </button>
 
         {/* Bouton Rejeter */}
@@ -81,25 +81,26 @@ export function InvestorPaymentActions({ paymentId }: InvestorPaymentActionsProp
           disabled={isBusy}
           aria-label="Rejeter ce versement"
           title="Rejeter"
-          className="inline-flex items-center gap-1 rounded-lg border border-red-500/40 bg-red-500/10 px-2.5 py-1.5 text-[11px] font-semibold text-red-300 transition-all hover:bg-red-500/25 hover:border-red-400/60 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus:ring-1 focus:ring-red-500/50"
+          className="inline-flex min-h-[48px] items-center gap-1.5 rounded-xl border-2 border-plate-bad bg-plate-white px-4 text-[15px] font-bold text-plate-bad transition-colors hover:bg-plate-bad hover:text-plate-white disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isPendingReject ? (
-            <Loader2 size={11} className="animate-spin" />
+            <Loader2 size={18} className="animate-spin" aria-hidden />
           ) : (
-            <XCircle size={11} />
+            <XCircle size={18} aria-hidden />
           )}
-          {isPendingReject ? "..." : "Rejeter"}
+          {isPendingReject ? "Rejet…" : "Rejeter"}
         </button>
       </div>
 
-      {/* Feedback inline */}
+      {/* Retour en ligne */}
       {feedback && (
         <span
-          className={`flex items-center gap-1 text-[10px] font-medium ${
-            feedback.ok ? "text-emerald-400" : "text-red-400"
+          role={feedback.ok ? "status" : "alert"}
+          className={`flex items-center gap-1.5 text-[15px] font-semibold ${
+            feedback.ok ? "text-plate-ok" : "text-plate-bad"
           }`}
         >
-          {feedback.ok ? <CheckCircle2 size={10} /> : <XCircle size={10} />}
+          {feedback.ok ? <CheckCircle2 size={16} aria-hidden /> : <XCircle size={16} aria-hidden />}
           {feedback.message}
         </span>
       )}

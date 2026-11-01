@@ -1,21 +1,10 @@
 import Link from "next/link";
-import {
-  Bike,
-  CarTaxiFront,
-  CheckCircle2,
-  Filter,
-  PlusCircle,
-  TrendingUp,
-  UserCheck,
-  Users,
-  Wrench,
-  AlertTriangle,
-  CirclePause
-} from "lucide-react";
+import { AlertTriangle, CheckCircle2, UserCheck } from "lucide-react";
 import { AssignDriverPanel } from "@/components/investor/AssignDriverPanel";
 import { InvestorDeleteVehicleForm } from "@/components/investor/InvestorDeleteVehicleForm";
 import { InvestorDriverTeamPanel } from "@/components/investor/InvestorDriverTeamPanel";
 import { InvestorVehicleCreateModal } from "@/components/investor/InvestorVehicleCreateModal";
+import { LicensePlate, StateMark, vehicleStatusLabels, type DayState } from "@/components/driver/plate";
 import { MaintenanceActionButtons } from "@/components/shared/MaintenanceActionButtons";
 import { VehicleStatusControls } from "@/components/VehicleStatusControls";
 import { assignDriverToVehicle } from "@/actions/investor-fleet";
@@ -31,38 +20,26 @@ import {
 } from "@/lib/dashboard/data";
 import { kinshasaCurrentMonthRange } from "@/lib/time/kinshasa";
 import { loginWithNext, ROUTES } from "@/lib/routes";
+import { cn } from "@/lib/utils/cn";
 import { formatCDF } from "@/lib/utils/currency";
 import type { VehicleStatus } from "@/lib/supabase/types";
 
-const fallbackStatusConfig = {
-  label: "Statut inconnu",
-  badgeClass: "badge badge-neutral",
-  dotClass: "bg-neutral-400",
-  icon: CirclePause
+/** Un marqueur par état du véhicule, comme dans l'espace chauffeur. */
+const statusState: Record<VehicleStatus, DayState> = {
+  "en service": "ok",
+  maintenance: "wait",
+  repos: "none"
 };
 
-const statusConfig: Partial<
-  Record<VehicleStatus | string, { label: string; badgeClass: string; dotClass: string; icon: typeof CheckCircle2 }>
-> = {
-  "en service": {
-    label: "En service",
-    badgeClass: "badge badge-green",
-    dotClass: "bg-emerald-400",
-    icon: CheckCircle2
-  },
-  maintenance: {
-    label: "Maintenance",
-    badgeClass: "badge badge-amber",
-    dotClass: "bg-amber-400",
-    icon: Wrench
-  },
-  repos: {
-    label: "Au repos",
-    badgeClass: "badge badge-neutral",
-    dotClass: "bg-neutral-400",
-    icon: CirclePause
-  }
-};
+function VehicleStatusLine({ status }: { status: VehicleStatus | string }) {
+  const known = status in statusState;
+  return (
+    <span className="inline-flex items-center gap-2 font-semibold">
+      <StateMark state={known ? statusState[status as VehicleStatus] : "none"} />
+      {known ? vehicleStatusLabels[status as VehicleStatus] : "Statut inconnu"}
+    </span>
+  );
+}
 
 type FleetPageProps = {
   searchParams?: {
@@ -89,10 +66,10 @@ export default async function InvestorFleetPage({ searchParams }: FleetPageProps
 
   if (!ownerId) {
     return (
-      <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-neutral-800 bg-neutral-900/60 p-10 text-center">
-        <CarTaxiFront size={36} className="text-neutral-600" />
-        <p className="text-neutral-400">Connectez-vous pour voir votre flotte.</p>
-        <Link className="btn-primary" href={loginWithNext(ROUTES.INVESTOR_FLEET)}>
+      <div className="mx-auto max-w-xl rounded-xl border-2 border-dashed border-plate-ink px-5 py-6">
+        <h1 className="font-plate text-[26px] font-bold leading-tight">Ma flotte</h1>
+        <p className="mt-1 text-[16px]">Connectez-vous pour voir votre flotte.</p>
+        <Link className="btn-primary mt-4 w-full no-underline" href={loginWithNext(ROUTES.INVESTOR_FLEET)}>
           Se connecter
         </Link>
       </div>
@@ -113,405 +90,260 @@ export default async function InvestorFleetPage({ searchParams }: FleetPageProps
 
   const activeCount = vehicles.filter((v) => v.status === "en service").length;
   const maintenanceCount = vehicles.filter((v) => v.status === "maintenance").length;
+  const restCount = vehicles.filter((v) => v.status === "repos").length;
   const assignedCount = vehicles.filter((v) => v.driver_id !== null).length;
+  const monthRevenue = Array.from(revenueByVehicle.values()).reduce((a, b) => a + b, 0);
   const assignedDriverIds = vehicles
     .map((vehicle) => vehicle.driver_id)
     .filter((driverId): driverId is string => Boolean(driverId));
+
+  // Une seule échelle pour toutes les barres de recettes : le plus grand objectif ou la plus grande recette.
+  const revenueScale = Math.max(
+    1,
+    ...filtered.map((v) => v.target_daily_revenue * daysInMonth),
+    ...filtered.map((v) => revenueByVehicle.get(v.id) ?? 0)
+  );
 
   const conflictVehicle =
     searchParams?.reassign === "1" && searchParams?.conflict_vehicle
       ? vehicles.find((v) => v.id === searchParams.conflict_vehicle)
       : null;
+  const showReassign = Boolean(conflictVehicle && searchParams?.target_vehicle && searchParams?.driver);
 
   const filterLinks: Array<{ key: string; label: string }> = [
     { key: "all", label: "Tous" },
     { key: "en service", label: "En service" },
-    { key: "maintenance", label: "Maintenance" },
+    { key: "maintenance", label: "En réparation" },
     { key: "repos", label: "Au repos" }
   ];
 
   return (
-    <div className="space-y-6 animate-fade-in-up">
-
-      {/* ─── Hero Header ─────────────────────────────────────────────────────────── */}
-      <header className="relative overflow-hidden rounded-2xl border border-neutral-800 bg-gradient-to-br from-neutral-900 via-neutral-900 to-emerald-950/20 p-6 shadow-xl">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(16,185,129,0.07)_0%,_transparent_60%)]" />
-        <div className="relative flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-emerald-400">
-              Investisseur · Kinshasa
-            </p>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight text-white">
-              Gestion de la Flotte
-            </h1>
-            <p className="mt-1.5 text-sm text-neutral-400">
-              Objectif journalier × {daysInMonth} jours — versements enregistrés ce mois.
-            </p>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <InvestorVehicleCreateModal />
-          </div>
+    <div className="pb-6">
+      {/* ─── En-tête ─── */}
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="font-plate text-[30px] font-bold leading-tight">Ma flotte</h1>
+          <p className="mt-1 text-[16px]">
+            Recettes enregistrées ce mois, comparées au versement attendu × {daysInMonth} jours.
+          </p>
         </div>
+        {/* Pendant une réassignation, le bouton bleu est « Confirmer » : celui-ci passe en blanc. */}
+        <InvestorVehicleCreateModal variant={showReassign ? "secondary" : "primary"} />
       </header>
 
-      {/* ─── Alertes ─────────────────────────────────────────────────────────────── */}
-      {searchParams?.error && (
-        <div role="alert" className="flex items-center gap-2.5 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-          <AlertTriangle size={15} className="shrink-0" />
+      {/* ─── Messages ─── */}
+      {searchParams?.error ? (
+        <p role="alert" className="mt-4 flex items-start gap-2 rounded-lg border-2 border-plate-bad bg-plate-white px-4 py-3 text-[15px] font-semibold text-plate-bad">
+          <AlertTriangle size={18} className="mt-0.5 shrink-0" aria-hidden />
           {searchParams.error}
-        </div>
-      )}
-      {searchParams?.created && (
-        <div role="status" className="flex items-center gap-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
-          <CheckCircle2 size={15} className="shrink-0" />
+        </p>
+      ) : null}
+      {searchParams?.created ? (
+        <p role="status" className="mt-4 flex items-start gap-2 rounded-lg border-2 border-plate-ok bg-plate-white px-4 py-3 text-[15px] font-semibold text-plate-ok">
+          <CheckCircle2 size={18} className="mt-0.5 shrink-0" aria-hidden />
           Véhicule ajouté à votre flotte.
-        </div>
-      )}
-      {searchParams?.deleted && (
-        <div role="status" className="flex items-center gap-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
-          <CheckCircle2 size={15} className="shrink-0" />
+        </p>
+      ) : null}
+      {searchParams?.deleted ? (
+        <p role="status" className="mt-4 flex items-start gap-2 rounded-lg border-2 border-plate-ok bg-plate-white px-4 py-3 text-[15px] font-semibold text-plate-ok">
+          <CheckCircle2 size={18} className="mt-0.5 shrink-0" aria-hidden />
           Véhicule supprimé.
-        </div>
-      )}
-      {searchParams?.assigned && (
-        <div role="status" className="flex items-center gap-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
-          <UserCheck size={15} className="shrink-0" />
-          Chauffeur assigné avec succès.
-        </div>
-      )}
+        </p>
+      ) : null}
+      {searchParams?.assigned ? (
+        <p role="status" className="mt-4 flex items-start gap-2 rounded-lg border-2 border-plate-ok bg-plate-white px-4 py-3 text-[15px] font-semibold text-plate-ok">
+          <UserCheck size={18} className="mt-0.5 shrink-0" aria-hidden />
+          Chauffeur assigné.
+        </p>
+      ) : null}
 
-      {/* ─── Confirmation de réassignation ───────────────────────────────────────── */}
-      {conflictVehicle && searchParams?.target_vehicle && searchParams?.driver && (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-5">
-          <div className="flex items-start gap-3 mb-4">
-            <div className="rounded-lg bg-amber-500/15 p-2">
-              <AlertTriangle className="text-amber-400" size={18} />
-            </div>
-            <div>
-              <p className="font-semibold text-amber-100">Réassignation en attente</p>
-              <p className="mt-1 text-sm text-amber-300/80">
-                Ce chauffeur est déjà sur «{conflictVehicle.label}» ({conflictVehicle.plate_number}).
-                Confirmez pour libérer l&apos;ancien véhicule et assigner ici.
-              </p>
-            </div>
-          </div>
-          <form action={assignDriverToVehicle} className="flex flex-wrap gap-2">
-            <input type="hidden" name="vehicle_id" value={searchParams.target_vehicle} />
-            <input type="hidden" name="driver_id" value={searchParams.driver} />
+      {/* ─── Confirmation de réassignation : la seule chose à faire maintenant ─── */}
+      {showReassign && conflictVehicle ? (
+        <section aria-labelledby="reassign-title" className="mt-5 rounded-2xl bg-plate-vignette px-5 pb-5 pt-4">
+          <h2 id="reassign-title" className="font-plate text-[26px] font-bold leading-tight">
+            Réassignation à confirmer
+          </h2>
+          <p className="mt-1 text-[16px]">
+            Ce chauffeur conduit déjà <b>{conflictVehicle.label}</b> ({conflictVehicle.plate_number}). Confirmez pour
+            libérer l&apos;ancien véhicule et le lui confier ici.
+          </p>
+          <form action={assignDriverToVehicle} className="mt-4 flex flex-col gap-2 sm:flex-row">
+            <input type="hidden" name="vehicle_id" value={searchParams?.target_vehicle} />
+            <input type="hidden" name="driver_id" value={searchParams?.driver} />
             <input type="hidden" name="confirm_reassign" value="1" />
-            <button type="submit" className="btn-primary min-h-10 px-5">
+            <button type="submit" className="btn-primary px-6">
               Confirmer la réassignation
             </button>
-            <Link href={ROUTES.INVESTOR_FLEET} className="btn-secondary min-h-10 inline-flex items-center px-5">
+            <Link href={ROUTES.INVESTOR_FLEET} className="btn-secondary px-6 no-underline">
               Annuler
             </Link>
           </form>
-        </div>
-      )}
+        </section>
+      ) : null}
 
-      {/* ─── KPI Cards ───────────────────────────────────────────────────────────── */}
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="card p-5 stat-glow-emerald">
-          <div className="rounded-lg bg-emerald-500/10 p-2.5 w-fit">
-            <CarTaxiFront className="text-emerald-400" size={20} aria-hidden />
-          </div>
-          <p className="mt-4 text-sm text-neutral-400">Total véhicules</p>
-          <p className="mt-1 text-3xl font-bold text-white">{vehicles.length}</p>
-        </div>
-        <div className="card p-5 stat-glow-emerald">
-          <div className="rounded-lg bg-emerald-500/10 p-2.5 w-fit">
-            <CheckCircle2 className="text-emerald-400" size={20} aria-hidden />
-          </div>
-          <p className="mt-4 text-sm text-neutral-400">En service</p>
-          <p className="mt-1 text-3xl font-bold text-white">{activeCount}</p>
-          <p className="mt-1 text-xs text-neutral-600">/{vehicles.length} total</p>
-        </div>
-        <div className={`card p-5 ${maintenanceCount > 0 ? "stat-glow-amber" : ""}`}>
-          <div className={`rounded-lg p-2.5 w-fit ${maintenanceCount > 0 ? "bg-amber-500/10" : "bg-neutral-800"}`}>
-            <Wrench className={maintenanceCount > 0 ? "text-amber-400" : "text-neutral-600"} size={20} aria-hidden />
-          </div>
-          <p className="mt-4 text-sm text-neutral-400">En maintenance</p>
-          <p className={`mt-1 text-3xl font-bold ${maintenanceCount > 0 ? "text-amber-300" : "text-white"}`}>
-            {maintenanceCount}
+      {/* ─── Résumé : une ligne, pas de tuiles ─── */}
+      <section aria-label="Résumé de la flotte" className="mt-6 border-y-2 border-plate-rule py-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+          <p className="text-[16px]">
+            <b className="font-plate text-[21px]">{vehicles.length}</b> véhicule{vehicles.length > 1 ? "s" : ""} ·{" "}
+            <b>{assignedCount}</b> avec chauffeur
+          </p>
+          <p className="text-[16px]">
+            Recettes du mois : <b className="font-plate text-[21px]">{formatCDF(monthRevenue)}</b>
           </p>
         </div>
-        <div className={`card p-5 ${openBreakdowns > 0 ? "stat-glow-red" : ""}`}>
-          <div className={`rounded-lg p-2.5 w-fit ${openBreakdowns > 0 ? "bg-red-500/10" : "bg-neutral-800"}`}>
-            <AlertTriangle className={openBreakdowns > 0 ? "text-red-400" : "text-neutral-600"} size={20} aria-hidden />
-          </div>
-          <p className="mt-4 text-sm text-neutral-400">Pannes non résolues</p>
-          <p className={`mt-1 text-3xl font-bold ${openBreakdowns > 0 ? "text-red-300" : "text-white"}`}>
-            {openBreakdowns}
+        <ul className="mt-2 flex flex-wrap gap-x-5 gap-y-2 text-[15px] font-semibold">
+          <li className="flex items-center gap-2">
+            <StateMark state="ok" />
+            {activeCount} en service
+          </li>
+          <li className="flex items-center gap-2">
+            <StateMark state="wait" />
+            {maintenanceCount} en réparation
+          </li>
+          <li className="flex items-center gap-2">
+            <StateMark state="none" />
+            {restCount} au repos
+          </li>
+          <li className={cn("flex items-center gap-2", openBreakdowns > 0 && "text-plate-bad")}>
+            <StateMark state={openBreakdowns > 0 ? "bad" : "ok"} />
+            {openBreakdowns} panne{openBreakdowns > 1 ? "s" : ""} non résolue{openBreakdowns > 1 ? "s" : ""}
+          </li>
+        </ul>
+      </section>
+
+      {/* ─── Véhicules ─── */}
+      <section aria-labelledby="vehicles-title" className="mt-8">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+          <h2 id="vehicles-title" className="font-plate text-[24px] font-bold">
+            Véhicules
+          </h2>
+          <p className="text-[15px] font-medium">
+            {filtered.length} véhicule{filtered.length > 1 ? "s" : ""} affiché{filtered.length > 1 ? "s" : ""}
           </p>
         </div>
-      </section>
 
-      {/* ─── Stats secondaires ───────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-4 rounded-xl border border-neutral-800 bg-neutral-900/40 px-5 py-3">
-        <div className="flex items-center gap-1.5 text-sm text-neutral-400">
-          <Users size={14} className="text-emerald-500" />
-          <span className="font-semibold text-white">{assignedCount}</span> / {vehicles.length} véhicule(s) avec chauffeur
-        </div>
-        <div className="flex-1" />
-        <div className="flex items-center gap-1.5 text-sm text-neutral-400">
-          <TrendingUp size={14} className="text-emerald-500" />
-          <span className="text-xs">Recettes mois :</span>
-          <span className="font-semibold text-white">
-            {formatCDF(Array.from(revenueByVehicle.values()).reduce((a, b) => a + b, 0))}
-          </span>
-        </div>
-      </div>
+        {/* Filtres : l'état choisi est rempli d'encre, comme les boutons d'état */}
+        <nav aria-label="Filtrer par état" className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+          {filterLinks.map(({ key, label }) => {
+            const active = selectedStatus === key;
+            return (
+              <Link
+                key={key}
+                href={key === "all" ? ROUTES.INVESTOR_FLEET : `${ROUTES.INVESTOR_FLEET}?status=${key}`}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "inline-flex min-h-[48px] items-center justify-center rounded-xl border-2 border-plate-ink px-4 text-[15px] font-bold no-underline transition-colors",
+                  active ? "bg-plate-ink text-plate-white" : "bg-plate-white text-plate-ink hover:bg-plate-ground"
+                )}
+              >
+                {label}
+              </Link>
+            );
+          })}
+        </nav>
 
-      {/* ─── Filtres ─────────────────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap gap-2">
-        {filterLinks.map(({ key, label }) => (
-          <Link
-            key={key}
-            href={key === "all" ? ROUTES.INVESTOR_FLEET : `${ROUTES.INVESTOR_FLEET}?status=${key}`}
-            className={[
-              "inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-all",
-              selectedStatus === key
-                ? "border-emerald-500/60 bg-emerald-500/15 text-emerald-300"
-                : "border-neutral-700 bg-neutral-800/60 text-neutral-400 hover:border-neutral-600 hover:text-white"
-            ].join(" ")}
-          >
-            <Filter size={13} aria-hidden />
-            {label}
-          </Link>
-        ))}
-      </div>
-
-      {/* ─── Équipe de Chauffeurs ─────────────────────────────────────────────────── */}
-      <section className="rounded-2xl border border-neutral-800 bg-neutral-900/30 p-5">
-        <InvestorDriverTeamPanel vehicles={vehicles} />
-      </section>
-
-      {/* ─── Liste vehicules ─────────────────────────────────────────────────────── */}
-      {filtered.length === 0 ? (
-        <div className="flex flex-col items-center gap-4 rounded-xl border border-neutral-800 border-dashed bg-neutral-900/30 py-16 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-neutral-800">
-            <CarTaxiFront size={24} className="text-neutral-600" />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-neutral-300">Aucun véhicule dans cette vue</p>
-            <p className="mt-1 text-xs text-neutral-500">
-              Ajoutez un véhicule ou changez le filtre actif.
-            </p>
-          </div>
-          <InvestorVehicleCreateModal />
-        </div>
-      ) : (
-        <>
-          {/* ─── Vue desktop : tableau ────── */}
-          <div className="card hidden overflow-hidden lg:block">
-            <div className="card-header flex items-center justify-between">
-              <h2 className="text-base font-semibold text-white">
-                Liste des véhicules
-              </h2>
-              <span className="badge badge-neutral">{filtered.length} véhicule(s)</span>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="data-table min-w-[1140px]">
-                <thead>
-                  <tr>
-                    <th>Véhicule</th>
-                    <th>Chauffeur</th>
-                    <th className="min-w-[310px]">Statut & Commandes</th>
-                    <th>Recettes mois (CDF)</th>
-                    <th>Assignation</th>
-                    <th className="w-20">Suppr.</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((vehicle) => {
-                    const Icon = vehicle.type === "moto" ? Bike : CarTaxiFront;
-                    const sc = statusConfig[vehicle.status] ?? fallbackStatusConfig;
-                    const StatusIcon = sc.icon ?? CirclePause;
-                    const realized = revenueByVehicle.get(vehicle.id) ?? 0;
-                    const targetMonth = vehicle.target_daily_revenue * daysInMonth;
-                    const progressPct =
-                      targetMonth > 0
-                        ? Math.min(100, Math.round((realized / targetMonth) * 100))
-                        : 0;
-
-                    return (
-                      <tr key={vehicle.id}>
-                        <td>
-                          <div className="flex items-center gap-3">
-                            <span className="rounded-lg bg-emerald-500/10 p-2 text-emerald-400">
-                              <Icon size={18} aria-hidden />
-                            </span>
-                            <div>
-                              <p className="font-semibold text-white">{vehicle.label}</p>
-                              <p className="text-xs text-neutral-500">{vehicle.plate_number}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td>
-                          {vehicle.driver_name ? (
-                            <div className="flex items-center gap-1.5">
-                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                              <span className="text-sm text-white">{vehicle.driver_name}</span>
-                            </div>
-                          ) : (
-                            <span className="text-xs text-neutral-500">— Non assigné</span>
-                          )}
-                        </td>
-                        <td>
-                          <div className="space-y-2">
-                            <span className={sc.badgeClass}>
-                              <StatusIcon size={11} />
-                              {sc.label}
-                            </span>
-                            <VehicleStatusControls
-                              vehicleId={vehicle.id}
-                              currentStatus={vehicle.status}
-                              compact
-                            />
-                            {/* Boutons de réparation si panne active */}
-                            {vehicle.status === "maintenance" && (() => {
-                              const bd = activeBreakdownByVehicle.get(vehicle.id);
-                              return bd ? (
-                                <MaintenanceActionButtons
-                                  breakdownId={bd.id}
-                                  currentStatus={bd.status}
-                                />
-                              ) : null;
-                            })()}
-                          </div>
-                        </td>
-                        <td>
-                          <p className="font-bold text-white">{formatCDF(realized)}</p>
-                          <p className="text-xs text-neutral-500">
-                            Cible : {formatCDF(targetMonth)}
-                          </p>
-                          {targetMonth > 0 && (
-                            <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-neutral-800">
-                              <div
-                                className="h-full rounded-full bg-gradient-to-r from-emerald-600 to-emerald-400"
-                                style={{ width: `${progressPct}%` }}
-                              />
-                            </div>
-                          )}
-                        </td>
-                        <td className="min-w-[200px]">
-                          <AssignDriverPanel
-                            vehicleId={vehicle.id}
-                            vehicleLabel={vehicle.label}
-                            drivers={drivers}
-                            currentDriverId={vehicle.driver_id}
-                            currentDriverName={vehicle.driver_name}
-                            unavailableDriverIds={assignedDriverIds}
-                          />
-                        </td>
-                        <td>
-                          <InvestorDeleteVehicleForm
-                            vehicleId={vehicle.id}
-                            label={vehicle.label}
-                          />
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+        {filtered.length === 0 ? (
+          <div className="mt-4 rounded-xl border-2 border-dashed border-plate-ink px-5 py-6">
+            <p className="text-[17px] font-bold">Aucun véhicule dans cette vue</p>
+            <p className="mt-1 text-[16px]">Ajoutez un véhicule ou changez de filtre.</p>
+            <div className="mt-4">
+              <InvestorVehicleCreateModal variant="secondary" />
             </div>
           </div>
-
-          {/* ─── Vue mobile : cartes ──────── */}
-          <div className="space-y-3 lg:hidden">
+        ) : (
+          <ol className="mt-4 border-b-2 border-plate-rule">
             {filtered.map((vehicle) => {
-              const Icon = vehicle.type === "moto" ? Bike : CarTaxiFront;
-              const sc = statusConfig[vehicle.status] ?? fallbackStatusConfig;
-              const StatusIcon = sc.icon ?? CirclePause;
               const realized = revenueByVehicle.get(vehicle.id) ?? 0;
               const targetMonth = vehicle.target_daily_revenue * daysInMonth;
-              const progressPct =
-                targetMonth > 0
-                  ? Math.min(100, Math.round((realized / targetMonth) * 100))
-                  : 0;
+              const breakdown = vehicle.status === "maintenance" ? activeBreakdownByVehicle.get(vehicle.id) : undefined;
 
               return (
-                <div key={vehicle.id} className="card overflow-hidden">
-                  {/* Card header */}
-                  <div className="flex items-center gap-3 border-b border-neutral-800 p-4">
-                    <span className="rounded-lg bg-emerald-500/10 p-2.5 text-emerald-400">
-                      <Icon size={20} aria-hidden />
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-white truncate">{vehicle.label}</p>
-                      <p className="text-xs text-neutral-500">{vehicle.plate_number}</p>
+                <li
+                  key={vehicle.id}
+                  className="grid gap-x-8 gap-y-5 border-t-2 border-plate-rule py-5 lg:grid-cols-[minmax(0,250px)_minmax(0,1fr)_minmax(0,300px)]"
+                >
+                  {/* Identité : la plaque d'abord */}
+                  <div className="min-w-0">
+                    <div className="max-w-[250px]">
+                      <LicensePlate plateNumber={vehicle.plate_number} size="sm" />
                     </div>
-                    <span className={sc.badgeClass}>
-                      <StatusIcon size={11} />
-                      {sc.label}
-                    </span>
+                    <p className="mt-2 text-[15px]">
+                      {vehicle.label} · <b>{vehicle.type === "moto" ? "moto-taxi" : "taxi"}</b>
+                    </p>
+                    <p className="mt-1 text-[15px]">
+                      <VehicleStatusLine status={vehicle.status} />
+                    </p>
+                    <p className="mt-1 flex items-center gap-2 text-[15px]">
+                      <StateMark state={vehicle.driver_name ? "ok" : "none"} />
+                      {vehicle.driver_name ? (
+                        <span>
+                          Chauffeur : <b>{vehicle.driver_name}</b>
+                        </span>
+                      ) : (
+                        "Sans chauffeur"
+                      )}
+                    </p>
                   </div>
 
-                  <div className="p-4 space-y-4">
-                    {/* Recettes */}
-                    <div>
-                      <p className="section-label mb-1.5">Recettes mois</p>
-                      <div className="flex items-end justify-between">
-                        <p className="text-xl font-bold text-white">{formatCDF(realized)}</p>
-                        <p className="text-xs text-neutral-500">/ {formatCDF(targetMonth)}</p>
+                  {/* Recettes du mois et état */}
+                  <div className="min-w-0">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <p className="text-[15px] font-semibold">Recettes du mois</p>
+                      <p className="font-plate text-[21px] font-bold">{formatCDF(realized)}</p>
+                    </div>
+                    <div className="relative mt-1.5 h-3 rounded-sm bg-plate-rule/60" aria-hidden>
+                      <span
+                        className="block h-3 rounded-sm bg-plate-ink"
+                        style={{ width: `${Math.round((realized / revenueScale) * 100)}%` }}
+                      />
+                      {targetMonth > 0 ? (
+                        <span
+                          className="absolute -top-1 h-5 border-l-2 border-dashed border-plate-ink"
+                          style={{ left: `${Math.min(100, (targetMonth / revenueScale) * 100)}%` }}
+                        />
+                      ) : null}
+                    </div>
+                    <p className="mt-1 text-[14px] font-semibold">
+                      Objectif du mois (pointillé) : {formatCDF(targetMonth)}
+                    </p>
+
+                    <p className="mt-4 text-[15px] font-semibold">État du véhicule</p>
+                    <div className="mt-1.5">
+                      <VehicleStatusControls vehicleId={vehicle.id} currentStatus={vehicle.status} compact />
+                    </div>
+                    {breakdown ? (
+                      <div className="mt-3">
+                        <MaintenanceActionButtons breakdownId={breakdown.id} currentStatus={breakdown.status} />
                       </div>
-                      {targetMonth > 0 && (
-                        <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-neutral-800">
-                          <div
-                            className="h-full rounded-full bg-gradient-to-r from-emerald-600 to-emerald-400"
-                            style={{ width: `${progressPct}%` }}
-                          />
-                        </div>
-                      )}
-                    </div>
+                    ) : null}
+                  </div>
 
-                    {/* Statut rapide */}
-                    <div>
-                      <p className="section-label mb-2">Changer le statut</p>
-                      <VehicleStatusControls
-                        vehicleId={vehicle.id}
-                        currentStatus={vehicle.status}
-                        compact
-                      />
-                      {/* Boutons de réparation si panne active (mobile) */}
-                      {vehicle.status === "maintenance" && (() => {
-                        const bd = activeBreakdownByVehicle.get(vehicle.id);
-                        return bd ? (
-                          <div className="mt-2">
-                            <MaintenanceActionButtons
-                              breakdownId={bd.id}
-                              currentStatus={bd.status}
-                            />
-                          </div>
-                        ) : null;
-                      })()}
-                    </div>
-
-                    {/* Assignation */}
-                    <div>
-                      <p className="section-label mb-2">Assignation chauffeur</p>
-                      <AssignDriverPanel
-                        vehicleId={vehicle.id}
-                        vehicleLabel={vehicle.label}
-                        drivers={drivers}
-                        currentDriverId={vehicle.driver_id}
-                        currentDriverName={vehicle.driver_name}
-                        unavailableDriverIds={assignedDriverIds}
-                      />
-                    </div>
-
-                    {/* Supprimer */}
-                    <div className="pt-1 border-t border-neutral-800">
+                  {/* Chauffeur et suppression */}
+                  <div className="min-w-0">
+                    <AssignDriverPanel
+                      vehicleId={vehicle.id}
+                      vehicleLabel={vehicle.label}
+                      drivers={drivers}
+                      currentDriverId={vehicle.driver_id}
+                      currentDriverName={vehicle.driver_name}
+                      unavailableDriverIds={assignedDriverIds}
+                    />
+                    <div className="mt-4 border-t-2 border-plate-rule pt-4">
                       <InvestorDeleteVehicleForm vehicleId={vehicle.id} label={vehicle.label} />
                     </div>
                   </div>
-                </div>
+                </li>
               );
             })}
-          </div>
-        </>
-      )}
+          </ol>
+        )}
+      </section>
+
+      {/* ─── Équipe de chauffeurs ─── */}
+      <section aria-labelledby="team-title" className="mt-10">
+        <InvestorDriverTeamPanel vehicles={vehicles} />
+      </section>
     </div>
   );
 }

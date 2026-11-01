@@ -1,46 +1,60 @@
 "use client";
 
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { Loader2, Wrench } from "lucide-react";
 import { useFormStatus } from "react-dom";
 import { reportBreakdown } from "@/actions/breakdowns";
 
-const PANNE_TYPES = ["Moteur", "Pneu", "Accident", "Freinage", "Electricite", "Autre"] as const;
+// value = ce qui est enregistré (inchangé), label = ce qu'on lit.
+const PANNE_TYPES = [
+  { value: "Moteur", label: "Moteur" },
+  { value: "Pneu", label: "Pneu" },
+  { value: "Accident", label: "Accident" },
+  { value: "Freinage", label: "Freins" },
+  { value: "Electricite", label: "Électricité" },
+  { value: "Autre", label: "Autre" }
+] as const;
 
 function SubmitPanne({ hasVehicle }: { hasVehicle: boolean }) {
   const { pending } = useFormStatus();
   return (
-    <button
-      type="submit"
-      className="btn-warning min-h-12 w-full text-base"
-      disabled={pending || !hasVehicle}
-    >
-      {pending ? <Loader2 className="animate-spin" size={20} /> : <AlertTriangle size={20} />}
-      {pending ? "Envoi..." : "Signaler la panne"}
+    <button type="submit" className="btn-warning w-full" disabled={pending || !hasVehicle}>
+      {pending ? <Loader2 className="animate-spin" size={18} aria-hidden /> : <Wrench size={18} aria-hidden />}
+      {pending ? "Envoi…" : "Signaler la panne"}
     </button>
   );
 }
 
 export function DriverBreakdownQuickForm({ hasVehicle }: { hasVehicle: boolean }) {
   return (
-    <form action={reportBreakdown} className="grid gap-3 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
-      <label className="block text-sm font-medium text-stone-800 dark:text-stone-200">
+    <form action={reportBreakdown} className="grid gap-4">
+      <label className="block text-[15px] font-semibold">
         Type de panne
-        <select className="field mt-1 min-h-12 text-base" name="type" required disabled={!hasVehicle}>
-          <option value="">Choisir</option>
+        <select className="field mt-1.5" name="type" required disabled={!hasVehicle} defaultValue="">
+          <option value="" disabled>
+            Choisir…
+          </option>
           {PANNE_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {t}
+            <option key={t.value} value={t.value}>
+              {t.label}
             </option>
           ))}
         </select>
       </label>
-      <label className="block text-sm font-medium text-stone-800 dark:text-stone-200">
-        Cout estime (CDF, optionnel)
-        <input className="field mt-1 min-h-12 text-base" name="estimated_cost" type="number" min="0" step="1" defaultValue={0} />
+      <label className="block text-[15px] font-semibold">
+        Ce qui s&apos;est passé
+        <input className="field mt-1.5" name="description" maxLength={500} placeholder="Ex. : crevaison roue arrière gauche" />
       </label>
-      <label className="block text-sm font-medium text-stone-800 dark:text-stone-200">
-        Description courte
-        <input className="field mt-1 min-h-12 text-base" name="description" maxLength={500} placeholder="Ex: crevaison roue AR" />
+      <label className="block text-[15px] font-semibold">
+        Coût estimé en FC (si vous le savez)
+        <input
+          className="field mt-1.5"
+          name="estimated_cost"
+          type="number"
+          min="0"
+          step="1"
+          inputMode="numeric"
+          defaultValue={0}
+        />
       </label>
       <SubmitPanne hasVehicle={hasVehicle} />
     </form>

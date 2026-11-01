@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ChevronLeft, ChevronRight, Trash2, TrendingDown, TrendingUp, Wallet } from "lucide-react";
+import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 import { deleteExpense } from "@/actions/expenses";
+import { PlateChip, StateMark } from "@/components/driver/plate";
 import { ExpenseForm } from "@/components/investor/ExpenseForm";
 import { getCurrentUserId } from "@/lib/dashboard/data";
 import { computeVehicleProfit, expenseCategoryLabels, monthRange } from "@/lib/finance/profit";
@@ -18,6 +19,13 @@ function shiftMonth(month: string, delta: number): string {
   const [year, monthIndex] = month.split("-").map(Number);
   const date = new Date(Date.UTC(year, monthIndex - 1 + delta, 1));
   return date.toISOString().slice(0, 7);
+}
+
+/** « 2026-10-12 » → « 12 oct. », sans décalage de fuseau. */
+function shortDay(isoDate: string): string {
+  return new Intl.DateTimeFormat("fr-CD", { day: "numeric", month: "short", timeZone: "UTC" }).format(
+    new Date(`${isoDate.slice(0, 10)}T12:00:00Z`)
+  );
 }
 
 function monthTitle(month: string): string {
@@ -60,83 +68,114 @@ export default async function InvestorExpensesPage({ searchParams }: Props) {
     (entries ?? []).map((entry) => ({ vehicle_id: entry.vehicle_id, revenue_cdf: Number(entry.revenue_cdf ?? 0) })),
     expenseList
   );
-  const vehicleLabel = new Map(vehicleList.map((vehicle) => [vehicle.id, vehicle.label]));
+  const vehicleById = new Map(vehicleList.map((vehicle) => [vehicle.id, vehicle]));
+  const isCurrentMonth = month >= currentMonth;
 
   return (
-    <div className="space-y-6">
-      <header className="flex flex-col justify-between gap-3 md:flex-row md:items-end">
+    <div className="pb-6">
+      <header className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
         <div>
-          <p className="text-sm font-medium text-emerald-300">Espace investisseur</p>
-          <h1 className="mt-1 text-3xl font-semibold text-white">Dépenses & bénéfice</h1>
-          <p className="mt-1 text-sm text-neutral-400">Recettes déclarées moins dépenses, véhicule par véhicule.</p>
+          <h1 className="font-plate text-[30px] font-bold leading-tight">Dépenses et bénéfice</h1>
+          <p className="mt-1 text-[16px]">Recettes déclarées moins dépenses, véhicule par véhicule.</p>
         </div>
         <nav className="flex items-center gap-2" aria-label="Choix du mois">
-          <Link className="btn-secondary min-h-10 px-3" href={`?month=${shiftMonth(month, -1)}`} aria-label="Mois précédent">
-            <ChevronLeft size={16} aria-hidden />
+          <Link className="btn-secondary h-[52px] w-[52px] px-0" href={`?month=${shiftMonth(month, -1)}`} aria-label="Mois précédent">
+            <ChevronLeft size={20} aria-hidden />
           </Link>
-          <span className="min-w-36 text-center font-semibold capitalize text-white">{monthTitle(month)}</span>
-          <Link
-            className={`btn-secondary min-h-10 px-3 ${month >= currentMonth ? "pointer-events-none opacity-40" : ""}`}
-            href={`?month=${shiftMonth(month, 1)}`}
-            aria-label="Mois suivant"
-          >
-            <ChevronRight size={16} aria-hidden />
-          </Link>
+          <span className="min-w-40 text-center font-plate text-[22px] font-bold capitalize">{monthTitle(month)}</span>
+          {isCurrentMonth ? (
+            <span
+              className="inline-flex h-[52px] w-[52px] items-center justify-center rounded-xl border-2 border-plate-rule text-plate-soft"
+              aria-disabled="true"
+              aria-label="Mois suivant (pas encore commencé)"
+            >
+              <ChevronRight size={20} aria-hidden />
+            </span>
+          ) : (
+            <Link className="btn-secondary h-[52px] w-[52px] px-0" href={`?month=${shiftMonth(month, 1)}`} aria-label="Mois suivant">
+              <ChevronRight size={20} aria-hidden />
+            </Link>
+          )}
         </nav>
       </header>
 
-      <section className="grid gap-4 sm:grid-cols-3">
-        {[
-          { label: "Recettes", value: totals.revenue, icon: TrendingUp, tone: "text-emerald-300" },
-          { label: "Dépenses", value: totals.expenses, icon: TrendingDown, tone: "text-amber-300" },
-          { label: "Bénéfice net", value: totals.net, icon: Wallet, tone: totals.net >= 0 ? "text-emerald-300" : "text-red-300" }
-        ].map(({ label, value, icon: Icon, tone }) => (
-          <div key={label} className="rounded-xl border border-neutral-800 bg-neutral-900/50 p-5">
-            <Icon size={20} className={tone} aria-hidden />
-            <p className="mt-3 text-sm text-neutral-400">{label}</p>
-            <p className={`mt-1 text-2xl font-semibold ${label === "Bénéfice net" ? tone : "text-white"}`}>{formatCDF(value)}</p>
-          </div>
-        ))}
-      </section>
+      {/* ─── Les trois chiffres du mois ─── */}
+      <dl className="mt-6 grid grid-cols-1 border-y-2 border-plate-rule sm:grid-cols-3">
+        <div className="flex items-baseline justify-between gap-3 py-3 sm:block sm:pr-4">
+          <dt className="text-[15px] font-semibold">Recettes</dt>
+          <dd className="font-plate text-[26px] font-bold leading-tight">{formatCDF(totals.revenue)}</dd>
+        </div>
+        <div className="flex items-baseline justify-between gap-3 border-t-2 border-plate-rule py-3 sm:block sm:border-l-2 sm:border-t-0 sm:px-4">
+          <dt className="text-[15px] font-semibold">Dépenses</dt>
+          <dd className="font-plate text-[26px] font-bold leading-tight">{formatCDF(totals.expenses)}</dd>
+        </div>
+        <div className="flex items-baseline justify-between gap-3 border-t-2 border-plate-rule py-3 sm:block sm:border-l-2 sm:border-t-0 sm:px-4">
+          <dt className="flex items-center gap-2 text-[15px] font-semibold">
+            {totals.net < 0 ? <StateMark state="bad" /> : null}
+            {totals.net < 0 ? "Perte nette" : "Bénéfice net"}
+          </dt>
+          <dd className={`font-plate text-[26px] font-bold leading-tight ${totals.net < 0 ? "text-plate-bad" : ""}`}>
+            {formatCDF(totals.net)}
+          </dd>
+        </div>
+      </dl>
 
-      <section className="rounded-xl border border-neutral-800 bg-neutral-900/50">
-        <h2 className="border-b border-neutral-800 px-5 py-4 text-base font-semibold text-white">Par véhicule</h2>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-left text-sm">
-            <thead className="text-neutral-400">
-              <tr>
-                <th className="px-5 py-3 font-medium">Véhicule</th>
-                <th className="px-5 py-3 text-right font-medium">Recettes</th>
-                <th className="px-5 py-3 text-right font-medium">Dépenses</th>
-                <th className="px-5 py-3 text-right font-medium">Bénéfice net</th>
-                <th className="px-5 py-3 text-right font-medium">Marge</th>
+      {/* ─── Par véhicule ─── */}
+      <section aria-labelledby="by-vehicle-title" className="mt-10">
+        <h2 id="by-vehicle-title" className="font-plate text-[24px] font-bold">
+          Par véhicule
+        </h2>
+        <div className="mt-2 overflow-x-auto">
+          <table className="w-full min-w-[680px] border-b-2 border-plate-rule text-left text-[16px]">
+            <thead>
+              <tr className="text-[15px]">
+                <th scope="col" className="py-2 pr-4 font-semibold">Véhicule</th>
+                <th scope="col" className="px-4 py-2 text-right font-semibold">Recettes</th>
+                <th scope="col" className="px-4 py-2 text-right font-semibold">Dépenses</th>
+                <th scope="col" className="px-4 py-2 text-right font-semibold">Bénéfice net</th>
+                <th scope="col" className="py-2 pl-4 text-right font-semibold">Marge</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-neutral-800">
+            <tbody>
               {rows.map((row) => (
-                <tr key={row.vehicle_id}>
-                  <td className="px-5 py-3">
-                    <p className="font-medium text-white">{row.label}</p>
-                    <p className="text-xs text-neutral-500">
-                      {row.plate_number}
-                      {Object.entries(row.byCategory).length
-                        ? ` · ${Object.entries(row.byCategory)
-                            .map(([category, amount]) => `${expenseCategoryLabels[category as keyof typeof expenseCategoryLabels]} ${formatCDF(amount ?? 0)}`)
-                            .join(", ")}`
-                        : ""}
-                    </p>
+                <tr key={row.vehicle_id} className="border-t-2 border-plate-rule align-top">
+                  <td className="py-3 pr-4">
+                    <span className="flex flex-wrap items-center gap-2">
+                      <PlateChip plateNumber={row.plate_number} />
+                      <span className="font-semibold">{row.label}</span>
+                    </span>
+                    {Object.entries(row.byCategory).length ? (
+                      <span className="mt-1 block text-[15px] text-plate-soft">
+                        {Object.entries(row.byCategory)
+                          .map(
+                            ([category, amount]) =>
+                              `${expenseCategoryLabels[category as keyof typeof expenseCategoryLabels]} ${formatCDF(amount ?? 0)}`
+                          )
+                          .join(", ")}
+                      </span>
+                    ) : null}
                   </td>
-                  <td className="px-5 py-3 text-right text-neutral-200">{formatCDF(row.revenue)}</td>
-                  <td className="px-5 py-3 text-right text-amber-200">{formatCDF(row.expenses)}</td>
-                  <td className={`px-5 py-3 text-right font-semibold ${row.net >= 0 ? "text-emerald-300" : "text-red-300"}`}>
-                    {formatCDF(row.net)}
+                  <td className="px-4 py-3 text-right font-plate text-[17px] font-bold">{formatCDF(row.revenue)}</td>
+                  <td className="px-4 py-3 text-right font-plate text-[17px] font-bold">{formatCDF(row.expenses)}</td>
+                  <td className="px-4 py-3 text-right font-plate text-[17px] font-bold">
+                    <span className={`inline-flex items-center gap-2 ${row.net < 0 ? "text-plate-bad" : ""}`}>
+                      {row.net < 0 ? (
+                        <>
+                          <StateMark state="bad" />
+                          <span className="sr-only">Perte : </span>
+                        </>
+                      ) : null}
+                      {formatCDF(row.net)}
+                    </span>
                   </td>
-                  <td className="px-5 py-3 text-right text-neutral-300">{row.margin === null ? "—" : `${row.margin} %`}</td>
+                  <td className="py-3 pl-4 text-right font-plate text-[17px] font-bold">
+                    {row.margin === null ? "—" : `${row.margin} %`}
+                  </td>
                 </tr>
               ))}
               {rows.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-5 py-8 text-center text-neutral-500">
+                <tr className="border-t-2 border-plate-rule">
+                  <td colSpan={5} className="py-6 text-[16px]">
                     Ajoutez un véhicule pour suivre son bénéfice.
                   </td>
                 </tr>
@@ -146,38 +185,57 @@ export default async function InvestorExpensesPage({ searchParams }: Props) {
         </div>
       </section>
 
-      <section className="rounded-xl border border-neutral-800 bg-neutral-900/50 p-5">
-        <h2 className="mb-4 text-base font-semibold text-white">Nouvelle dépense</h2>
-        <ExpenseForm vehicles={vehicleList} />
+      {/* ─── Nouvelle dépense ─── */}
+      <section aria-labelledby="new-expense-title" className="mt-10">
+        <h2 id="new-expense-title" className="font-plate text-[24px] font-bold">
+          Nouvelle dépense
+        </h2>
+        <div className="mt-3 rounded-xl border-2 border-plate-rule bg-plate-white p-4 md:p-5">
+          <ExpenseForm vehicles={vehicleList} />
+        </div>
       </section>
 
-      <section className="rounded-xl border border-neutral-800 bg-neutral-900/50">
-        <h2 className="border-b border-neutral-800 px-5 py-4 text-base font-semibold text-white">Dépenses du mois</h2>
-        <div className="divide-y divide-neutral-800">
-          {expenseList.map((expense) => (
-            <article key={expense.id} className="flex items-center justify-between gap-3 px-5 py-3">
-              <div className="min-w-0">
-                <p className="font-medium text-white">
-                  {expenseCategoryLabels[expense.category]} · {vehicleLabel.get(expense.vehicle_id) ?? "Véhicule"}
-                </p>
-                <p className="truncate text-xs text-neutral-500">
-                  {expense.expense_date}
-                  {expense.note ? ` · ${expense.note}` : ""}
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="font-semibold text-amber-200">{formatCDF(expense.amount_cdf)}</span>
-                <form action={deleteExpense}>
-                  <input type="hidden" name="expense_id" value={expense.id} />
-                  <button type="submit" className="rounded-md p-2 text-neutral-500 hover:text-red-300" aria-label="Supprimer la dépense">
-                    <Trash2 size={15} aria-hidden />
-                  </button>
-                </form>
-              </div>
-            </article>
-          ))}
-          {expenseList.length === 0 ? <p className="px-5 py-6 text-sm text-neutral-500">Aucune dépense ce mois-ci.</p> : null}
+      {/* ─── Dépenses du mois ─── */}
+      <section aria-labelledby="month-expenses-title" className="mt-10">
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 id="month-expenses-title" className="font-plate text-[24px] font-bold">
+            Dépenses du mois
+          </h2>
+          <p className="text-[14px] font-medium">
+            {expenseList.length} dépense{expenseList.length > 1 ? "s" : ""}
+          </p>
         </div>
+        {expenseList.length > 0 ? (
+          <ul className="mt-2 border-b-2 border-plate-rule">
+            {expenseList.map((expense) => {
+              const vehicle = vehicleById.get(expense.vehicle_id);
+              return (
+                <li key={expense.id} className="flex items-center gap-3 border-t-2 border-plate-rule py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      {vehicle ? <PlateChip plateNumber={vehicle.plate_number} /> : null}
+                      <span className="font-semibold">{expenseCategoryLabels[expense.category]}</span>
+                      <span className="text-[15px]">· {vehicle?.label ?? "Véhicule"}</span>
+                    </p>
+                    <p className="mt-0.5 truncate text-[15px] text-plate-soft">
+                      {shortDay(expense.expense_date)}
+                      {expense.note ? ` · ${expense.note}` : ""}
+                    </p>
+                  </div>
+                  <span className="text-right font-plate text-[21px] font-bold">{formatCDF(expense.amount_cdf)}</span>
+                  <form action={deleteExpense}>
+                    <input type="hidden" name="expense_id" value={expense.id} />
+                    <button type="submit" className="btn-danger h-12 w-12 px-0" aria-label="Supprimer la dépense">
+                      <Trash2 size={18} aria-hidden />
+                    </button>
+                  </form>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="mt-3 rounded-xl border-2 border-dashed border-plate-ink px-5 py-5 text-[16px]">Aucune dépense ce mois-ci.</p>
+        )}
       </section>
     </div>
   );

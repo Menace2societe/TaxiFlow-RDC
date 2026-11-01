@@ -32,7 +32,7 @@ export function MobileMoneyPayForm({ defaultPhone, enabled }: Props) {
 
   if (!enabled) {
     return (
-      <p className="rounded-lg border border-stone-200 px-4 py-3 text-sm text-stone-500 dark:border-stone-800 dark:text-stone-400">
+      <p className="rounded-lg border-2 border-dashed border-plate-ink px-4 py-3 text-[15px] font-medium">
         Le paiement Mobile Money (M-Pesa, Airtel Money, Orange Money) n&apos;est pas encore activé.
       </p>
     );
@@ -41,27 +41,27 @@ export function MobileMoneyPayForm({ defaultPhone, enabled }: Props) {
   return (
     <form action={formAction} className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
-        <label className="block text-sm font-medium text-stone-700 dark:text-stone-200">
+        <label className="block text-[15px] font-semibold">
           Montant
-          <input className="field mt-1 min-h-12 text-base" name="amount" type="number" min="1" step="any" inputMode="decimal" required />
+          <input className="field mt-1.5" name="amount" type="number" min="1" step="any" inputMode="decimal" required />
         </label>
         <fieldset>
-          <legend className="text-sm font-medium text-stone-700 dark:text-stone-200">Devise</legend>
+          <legend className="text-[15px] font-semibold">Devise</legend>
           <div className="mt-1 grid grid-cols-2 gap-2">
             {(["CDF", "USD"] as const).map((currency) => (
               <label key={currency} className="cursor-pointer">
                 <input type="radio" name="currency" value={currency} defaultChecked={currency === "CDF"} className="peer sr-only" />
-                <span className="flex min-h-12 items-center justify-center rounded-lg border border-stone-300 font-semibold peer-checked:border-emerald-500 peer-checked:bg-emerald-50 peer-checked:text-emerald-800 dark:border-stone-600 dark:peer-checked:bg-emerald-950 dark:peer-checked:text-emerald-200">
+                <span className="flex min-h-[52px] items-center justify-center rounded-lg border-2 border-plate-ink bg-plate-white text-[17px] font-bold peer-checked:bg-plate-ink peer-checked:text-plate-white peer-focus-visible:outline peer-focus-visible:outline-[3px] peer-focus-visible:outline-plate-band">
                   {currency}
                 </span>
               </label>
             ))}
           </div>
         </fieldset>
-        <label className="block text-sm font-medium text-stone-700 dark:text-stone-200">
+        <label className="block text-[15px] font-semibold">
           Numéro Mobile Money
           <input
-            className="field mt-1 min-h-12 text-base"
+            className="field mt-1.5"
             name="phone"
             type="tel"
             inputMode="tel"
@@ -74,10 +74,10 @@ export function MobileMoneyPayForm({ defaultPhone, enabled }: Props) {
             required
           />
         </label>
-        <label className="block text-sm font-medium text-stone-700 dark:text-stone-200">
+        <label className="block text-[15px] font-semibold">
           Opérateur
           <select
-            className="field mt-1 min-h-12 text-base"
+            className="field mt-1.5"
             name="provider"
             value={provider}
             onChange={(event) => setProvider(event.target.value as MobileMoneyProvider)}

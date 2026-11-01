@@ -203,3 +203,152 @@ select.field {
   animation: shimmer 1.5s infinite;
   border-radius: 6px;
 }
+
+/* ─── ESPACE CHAUFFEUR : univers « plaque » ─────────────────────────────────
+   Fond blanc de plaque, encre noire pour tout texte à lire, bleu réservé à la
+   bande de la plaque et à l'action principale, jaune pour la vignette du jour.
+   Les classes communes (.field, .btn-*, .card, .badge…) sont redéfinies ici
+   pour que les formulaires partagés suivent cet univers. */
+/* Quand une page « plaque » occupe le document, le fond et les contrôles natifs
+   (barre de défilement, débordement au défilement) passent en clair eux aussi. */
+html:has(.plate-world) {
+  color-scheme: light;
+}
+html:has(.plate-world) body {
+  background: theme("colors.plate.ground");
+  color: theme("colors.plate.ink");
+}
+
+.plate-world {
+  color-scheme: light;
+  background: theme("colors.plate.ground");
+  color: theme("colors.plate.ink");
+  font-family: var(--font-street), system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.plate-world ::selection {
+  background: theme("colors.plate.vignette");
+  color: theme("colors.plate.ink");
+}
+
+.plate-world :focus-visible {
+  outline: 3px solid theme("colors.plate.band");
+  outline-offset: 2px;
+}
+
+.plate-world a:where(:not([class])) {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.plate-world .field {
+  @apply min-h-[52px] rounded-lg border-2 border-plate-ink/70 bg-plate-white px-3.5 text-[17px] text-plate-ink shadow-none placeholder:text-plate-soft hover:border-plate-ink focus:border-plate-band focus:bg-plate-white focus:ring-2 focus:ring-plate-band/25;
+  caret-color: theme("colors.plate.band");
+}
+
+.plate-world .field::file-selector-button {
+  @apply mr-3 rounded-md border-0 bg-plate-ink px-3 py-1.5 font-semibold text-plate-white;
+}
+
+.plate-world .btn-primary {
+  @apply min-h-[56px] rounded-xl bg-plate-band text-[17px] font-bold text-plate-white shadow-none hover:bg-plate-band-dark hover:shadow-none active:bg-plate-band-dark focus:ring-plate-band/40;
+}
+
+.plate-world .btn-secondary {
+  @apply min-h-[52px] rounded-xl border-2 border-plate-ink bg-plate-white text-base font-bold text-plate-ink shadow-none hover:border-plate-ink hover:bg-plate-ground focus:ring-plate-ink/25;
+}
+
+.plate-world .btn-warning {
+  @apply min-h-[52px] rounded-xl border-2 border-plate-ink bg-plate-vignette text-base font-bold text-plate-ink hover:bg-[#e5b420] focus:ring-plate-ink/25;
+}
+
+.plate-world .btn-danger {
+  @apply rounded-xl border-2 border-plate-bad bg-plate-white font-bold text-plate-bad hover:bg-plate-bad hover:text-plate-white focus:ring-plate-bad/25;
+}
+
+.plate-world .card {
+  @apply rounded-xl border-2 border-plate-rule bg-plate-white shadow-none backdrop-blur-none;
+}
+
+.plate-world .card-header {
+  @apply border-plate-rule;
+}
+
+.plate-world .section-label,
+.plate-world .form-label {
+  @apply text-sm font-semibold normal-case tracking-normal text-plate-ink;
+}
+
+.plate-world .badge {
+  @apply rounded-full border-2 bg-transparent px-2.5 py-1 text-[13px] font-bold;
+}
+.plate-world .badge-green { @apply border-plate-ok text-plate-ok; }
+.plate-world .badge-amber { @apply border-plate-wait text-plate-wait; }
+.plate-world .badge-red { @apply border-plate-bad text-plate-bad; }
+.plate-world .badge-neutral { @apply border-plate-ink/40 text-plate-ink; }
+.plate-world .badge-cyan { @apply border-plate-band text-plate-band; }
+
+.plate-world .data-table thead tr { @apply bg-transparent text-sm normal-case tracking-normal text-plate-ink; }
+.plate-world .data-table tbody tr { @apply border-plate-rule hover:bg-plate-ground; }
+.plate-world .data-table tbody tr:nth-child(even) { @apply bg-transparent; }
+
+.plate-world .skeleton {
+  background: linear-gradient(90deg, #ebebe3 25%, #f4f4ee 50%, #ebebe3 75%);
+  background-size: 200% 100%;
+}
+
+/* Marqueurs d'état : un seul par état, identique sur tous les écrans. */
+@layer components {
+.state-mark {
+  @apply inline-block h-3.5 w-3.5 shrink-0;
+}
+.state-mark--ok { @apply rounded-full bg-plate-ok; }
+.state-mark--wait { @apply rounded-full border-[3px] border-plate-wait; }
+.state-mark--bad { @apply h-3 w-3 rotate-45 bg-plate-bad; }
+.state-mark--none { @apply rounded-full border-2 border-dashed border-plate-ink; }
+}
+
+/* La vignette du jour se pose une fois, au chargement. */
+@keyframes vignette-stick {
+  from { opacity: 0; transform: translateY(-6px) rotate(-1.2deg) scale(0.985); }
+  to   { opacity: 1; transform: none; }
+}
+.vignette-stick {
+  animation: vignette-stick 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .vignette-stick { animation: none; }
+}
+
+/* Le jaune est réservé au versement du jour et au signalement de panne. */
+.plate-world .btn-warning.repair-start {
+  @apply bg-plate-white hover:bg-plate-ground;
+}
+
+/* Page d'accueil : le versement parcourt la route une fois, puis arrive chez le propriétaire.
+   Contenu visible par défaut : la position finale est la position normale. */
+.route-chip {
+  transform: translate(-50%, -50%);
+}
+@media (min-width: 1024px) {
+  .route-chip {
+    left: 50%;
+    animation: route-travel 1400ms cubic-bezier(0.16, 1, 0.3, 1) 400ms backwards;
+  }
+  .route-arrive {
+    animation: route-arrive 500ms cubic-bezier(0.16, 1, 0.3, 1) 1500ms backwards;
+  }
+}
+@keyframes route-travel {
+  from { left: 6%; }
+  to   { left: 50%; }
+}
+@keyframes route-arrive {
+  from { background: theme("colors.plate.vignette"); }
+  to   { background: transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .route-chip, .route-arrive { animation: none; }
+}

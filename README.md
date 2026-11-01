@@ -149,13 +149,15 @@ Un admin ne peut pas changer son propre rôle, il reste donc toujours au moins u
 Pour montrer l'application à un prospect sans exposer de vraies données :
 
 ```bash
-node --env-file=.env.local scripts/seed-demo.mjs
+node --env-file=.env.local --env-file=.env.demo.local scripts/seed-demo.mjs
 ```
 
 Sans option, le script affiche seulement ce qu'il va faire. Avec `--yes`, il crée (ou réinitialise) un
 investisseur fictif, 4 véhicules, 4 chauffeurs et 30 jours d'activité : versements dont un par Mobile Money,
 recette suspecte, 70 km non déclarés, jour sans recette, véhicule en panne, dépenses, location-vente et documents
 qui expirent. Il affiche les identifiants à la fin. Relancez-le après chaque démo pour repartir à zéro.
+`.env.demo.local` fixe le mot de passe des comptes démo (`DEMO_PASSWORD`) : sans lui, chaque relance en tire
+un nouveau au hasard, affiché une seule fois.
 
 ## Abonnement et tarifs
 
