@@ -21,6 +21,7 @@ import {
   getCurrentUserId,
   getDriverAssignedVehicle,
   getDriverProfile,
+  getDriverRecentEntries,
   getDriverRecentPayments,
   getDriverVehicleBreakdowns
 } from "@/lib/dashboard/data";
@@ -76,9 +77,10 @@ export default async function DriverPortalPage({ searchParams }: PortalPageProps
     redirect(loginWithNext(ROUTES.DRIVER_PORTAL));
   }
 
-  const [vehicle, recentPayments, driverProfile, allBreakdowns] = await Promise.all([
+  const [vehicle, recentPayments, recentEntries, driverProfile, allBreakdowns] = await Promise.all([
     getDriverAssignedVehicle(userId),
     getDriverRecentPayments(userId, 14),
+    getDriverRecentEntries(userId, 8),
     getDriverProfile(userId),
     getDriverVehicleBreakdowns(userId)
   ]);
@@ -91,14 +93,18 @@ export default async function DriverPortalPage({ searchParams }: PortalPageProps
   const today = todayInAppTimezone();
   const dayOf = (payment: (typeof recentPayments)[number]) => payment.payment_date ?? payment.created_at.slice(0, 10);
   const todayPayment = recentPayments.find((p) => dayOf(p) === today) ?? null;
-  const todayState: DayState = todayPayment ? paymentDayState(todayPayment.status) : "none";
+  // La déclaration du chauffeur crée une recette ; le versement vient ensuite (espèces validées, Mobile Money).
+  const todayEntry = recentEntries.find((entry) => entry.entry_date === today) ?? null;
+  const todayState: DayState = todayPayment ? paymentDayState(todayPayment.status) : todayEntry ? "wait" : "none";
+  const todayAmount = todayPayment?.amount ?? todayEntry?.revenue_cdf ?? 0;
 
   // Les 7 jours avant aujourd'hui, du plus récent au plus ancien, tous à la même échelle.
   const pastDays = recentDates(8).slice(0, 7).reverse();
   const week = pastDays.map((date) => {
     const payments = recentPayments.filter((p) => dayOf(p) === date);
-    const amount = payments.reduce((sum, p) => sum + p.amount, 0);
-    const state: DayState = payments.length ? paymentDayState(payments[0].status) : "none";
+    const entry = recentEntries.find((e) => e.entry_date === date);
+    const amount = payments.length ? payments.reduce((sum, p) => sum + p.amount, 0) : entry?.revenue_cdf ?? 0;
+    const state: DayState = payments.length ? paymentDayState(payments[0].status) : entry ? "wait" : "none";
     return { date, amount, state, payments };
   });
   const scale = Math.max(vehicle?.target_daily_revenue ?? 0, ...week.map((d) => d.amount), 1);
@@ -202,9 +208,9 @@ export default async function DriverPortalPage({ searchParams }: PortalPageProps
           <p className="mt-2 text-[16px] leading-snug">
             {longDay(today)}
             {" · "}
-            {todayPayment ? (
+            {todayState !== "none" ? (
               <>
-                vous avez déclaré <b>{formatCDF(todayPayment.amount)}</b>.
+                vous avez déclaré <b>{formatCDF(todayAmount)}</b>.
                 {todayState === "wait" ? " Votre investisseur doit le valider." : null}
                 {todayState === "bad" ? " Voyez le motif dans vos recettes et déclarez à nouveau." : null}
               </>

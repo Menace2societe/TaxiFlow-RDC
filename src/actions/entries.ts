@@ -208,8 +208,8 @@ export async function submitDriverDailyEntry(formData: FormData): Promise<EntryA
   return {
     ok: true,
     message: isSuspiciousEntry(metrics.startKm, metrics.endKm, revenueCdf)
-      ? "Versement enregistre. Alerte kilometrique signalee a l'investisseur."
-      : "Versement enregistre avec succes."
+      ? "Versement enregistré. Alerte kilométrique signalée à l'investisseur."
+      : "Versement enregistré."
   };
 }
 
